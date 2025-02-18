@@ -35,16 +35,26 @@ export default function LoginPage() {
         body: JSON.stringify({ id, password }),
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "ログインに失敗しました");
+      if (response.status === 401) {
+        throw new Error("ユーザーIDまたはパスワードが間違っています");
       }
 
-      // ログイン成功時、ダッシュボードまたはホームページにリダイレクト
+      if (!response.ok) {
+        throw new Error("ログインに失敗しました");
+      }
+
+      // レスポンスのJSONパースを試みる
+      let data;
+      try {
+        data = await response.json();
+      } catch (e) {
+        throw new Error("サーバーからの応答が不正です");
+      }
+
+      // ログイン成功時の処理
       router.push("/home");
     } catch (err) {
-      setError((err as any).message);
+      setError(err instanceof Error ? err.message : "エラーが発生しました");
     } finally {
       setIsLoading(false);
     }
