@@ -1,0 +1,100 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// このファイルを更新したら...
+// 0. `npm run dev` や `npx prisma studio` を停止
+// 1. dev.db を削除
+// 2. npx prisma db push
+// 3. npx prisma generate
+// 4. npx prisma db seed
+
+//本番運用の開始後は npx prisma migrate という「既存レコードを残したままスキーマを変更するコマンド」を使用してください
+
+//本番環境に移行する前： npx prisma migrate dev --name init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id        String   @id @map("user_id") @db.VarChar(16) // ユーザー ID（最大 16 文字）
+  username  String   @unique @db.VarChar(32) // 表示名（最大 32 文字）
+  password  String   // ハッシュ化されたパスワード
+  icon      String?  // アイコン（URL または NULL）
+  isAdmin   Boolean  @default(false) // 管理者フラグ
+  createdAt DateTime @default(now()) // アカウント作成日時
+
+  posts     Post[]
+  follows   Follow[] @relation("Following")
+  followers Follow[] @relation("Followers")
+
+  // Chat 関連
+  sentChats     Chat[] @relation("ChatSender")
+  receivedChats Chat[] @relation("ChatReceiver")
+  
+  // Notification 関連を追加
+  receivedNotifications Notification[] @relation("NotificationReceiver")
+  sentNotifications    Notification[] @relation("NotificationSender")
+}
+
+model Post {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+  favorites Int      @default(0)
+  shares    Int      @default(0)
+  parentId  String?  // 返信元の投稿
+  parent    Post?    @relation("Replies", fields: [parentId], references: [id])
+  replies   Post[]   @relation("Replies")
+}
+
+model Follow {
+  id         String @id @default(uuid())
+  follower   User   @relation(fields: [followerId], references: [id], name: "Following")
+  followerId String
+  followed   User   @relation(fields: [followedId], references: [id], name: "Followers")
+  followedId String
+  createdAt  DateTime @default(now())
+
+  @@unique([followerId, followedId])
+}
+
+model Chat {
+  id          String   @id @default(cuid()) // ユニークなメッセージ ID
+  senderId    String   @db.VarChar(16) // 送信者のユーザー ID
+  receiverId  String   @db.VarChar(16) // 受信者のユーザー ID
+  message     String   // メッセージ内容（テキストのみ）
+  createdAt   DateTime @default(now()) // 送信日時
+  isDeleted   Boolean  @default(false) // 削除フラグ（admin のみ変更可）
+
+  sender      User     @relation("ChatSender", fields: [senderId], references: [id])
+  receiver    User     @relation("ChatReceiver", fields: [receiverId], references: [id])
+
+  @@index([senderId])
+  @@index([receiverId])
+}
+
+model Notification {
+  id            String   @id @default(cuid()) // ユニークな通知 ID
+  receiverId    String   @db.VarChar(16) // 通知を受け取るユーザー ID
+  senderId      String?  @db.VarChar(16) // 通知を発生させたユーザー ID（システム通知なら NULL）
+  type          String   // 通知の種類（例: "follow", "like", "reply"）
+  relatedPostId String?  @db.VarChar(16) // 関連する投稿 ID（NULL の場合もあり）
+  createdAt     DateTime @default(now()) // 通知作成日時
+  isRead        Boolean  @default(false) // 既読フラグ（開いたら true）
+
+  receiver      User     @relation("NotificationReceiver", fields: [receiverId], references: [id])
+  sender        User?    @relation("NotificationSender", fields: [senderId], references: [id])
+
+  @@index([receiverId])
+  @@index([senderId])
+}
+
