@@ -30,15 +30,22 @@ model User {
   isAdmin   Boolean  @default(false) // 管理者フラグ
   createdAt DateTime @default(now()) // アカウント作成日時
 
+  // 投稿関連
   posts     Post[]
+
+  // フォロー関連
   follows   Follow[] @relation("Following")
   followers Follow[] @relation("Followers")
 
-  // Chat 関連
+  // お気に入り・拡散関連
+  favorites Favorite[]
+  reposts   Repost[]
+
+  // チャット関連
   sentChats     Chat[] @relation("ChatSender")
   receivedChats Chat[] @relation("ChatReceiver")
   
-  // Notification 関連を追加
+  // 通知関連
   receivedNotifications Notification[] @relation("NotificationReceiver")
   sentNotifications    Notification[] @relation("NotificationSender")
 }
@@ -50,10 +57,14 @@ model Post {
   content   String
   createdAt DateTime @default(now())
   favorites Int      @default(0)
-  shares    Int      @default(0)
+  reposts   Int      @default(0)
   parentId  String?  // 返信元の投稿
   parent    Post?    @relation("Replies", fields: [parentId], references: [id])
   replies   Post[]   @relation("Replies")
+
+  // お気に入り・拡散の関連を追加
+  favoritedBy Favorite[] // 誰にお気に入りされたか
+  repostedBy  Repost[]   // 誰に拡散されたか
 }
 
 model Follow {
@@ -83,13 +94,12 @@ model Chat {
 }
 
 model Notification {
-  id            String   @id @default(cuid()) // ユニークな通知 ID
-  receiverId    String   @db.VarChar(16) // 通知を受け取るユーザー ID
-  senderId      String?  @db.VarChar(16) // 通知を発生させたユーザー ID（システム通知なら NULL）
-  type          String   // 通知の種類（例: "follow", "like", "reply"）
-  relatedPostId String?  @db.VarChar(16) // 関連する投稿 ID（NULL の場合もあり）
-  createdAt     DateTime @default(now()) // 通知作成日時
-  isRead        Boolean  @default(false) // 既読フラグ（開いたら true）
+  id            String   @id @default(cuid())
+  receiverId    String   @db.VarChar(16)
+  senderId      String?  @db.VarChar(16)
+  type          String   @db.VarChar(8)   // さらに短く制限
+  relatedPostId String?  
+  createdAt     DateTime @default(now())
 
   receiver      User     @relation("NotificationReceiver", fields: [receiverId], references: [id])
   sender        User?    @relation("NotificationSender", fields: [senderId], references: [id])
@@ -98,3 +108,30 @@ model Notification {
   @@index([senderId])
 }
 
+// お気に入りの中間テーブル
+model Favorite {
+  id        String   @id @default(uuid())
+  post      Post     @relation(fields: [postId], references: [id])
+  postId    String
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+}
+
+// 拡散の中間テーブル
+model Repost {
+  id        String   @id @default(uuid())
+  post      Post     @relation(fields: [postId], references: [id])
+  postId    String
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+}
