@@ -30,6 +30,10 @@ model User {
   isAdmin   Boolean  @default(false) // 管理者フラグ
   createdAt DateTime @default(now()) // アカウント作成日時
 
+  // レート関連
+  rate      Int      @default(0)     // レート（投稿数と100投稿の速度で判定）
+  postCount Int      @default(0)     // 総投稿数
+
   // 投稿関連
   posts     Post[]
 

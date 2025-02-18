@@ -21,6 +21,8 @@ const main = async () => {
       password: await hash("admin123", 10),
       isAdmin: true,
       icon: "https://api.dicebear.com/7.x/bottts/svg?seed=admin",
+      rate: 0, // 初期レート
+      postCount: 0, // 初期投稿数
     },
   });
 
@@ -32,32 +34,46 @@ const main = async () => {
       password: await hash("user123", 10),
       isAdmin: false,
       icon: "https://api.dicebear.com/7.x/bottts/svg?seed=user1",
+      rate: 0, // 初期レート
+      postCount: 0, // 初期投稿数
     },
   });
 
-  // 管理者の投稿を作成
+  // 管理者の投稿を作成し、投稿数を更新
   const adminPost = await prisma.post.create({
     data: {
       userId: adminUser.id,
       content: "管理者が投稿します。このSNSへようこそ！",
     },
   });
+  await prisma.user.update({
+    where: { id: adminUser.id },
+    data: { postCount: { increment: 1 } },
+  });
 
-  // 一般ユーザーの投稿を作成
+  // 一般ユーザーの投稿を作成し、投稿数を更新
   const userPost = await prisma.post.create({
     data: {
       userId: normalUser.id,
       content: "初めての投稿です！",
     },
   });
+  await prisma.user.update({
+    where: { id: normalUser.id },
+    data: { postCount: { increment: 1 } },
+  });
 
-  // 一般ユーザーから管理者への返信を作成
+  // 一般ユーザーから管理者への返信を作成し、投稿数を更新
   const replyPost = await prisma.post.create({
     data: {
       userId: normalUser.id,
       content: "よろしくお願いします！",
       parentId: adminPost.id,
     },
+  });
+  await prisma.user.update({
+    where: { id: normalUser.id },
+    data: { postCount: { increment: 1 } },
   });
 
   // お気に入り関係を作成
