@@ -1,17 +1,9 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { getToken } from "next-auth/jwt";
 
 export async function middleware(request: NextRequest) {
-  // 公開APIパス（ログイン不要）
-  const publicPaths = [
-    "/api/posts",
-    "/api/users",
-    "/api/search",
-    "/api/auth/login",
-    "/api/auth/signup",
-  ];
-
-  // GETメソッドの場合は基本的に許可
+  // チャット以外のGETリクエストは認証不要
   if (
     request.method === "GET" &&
     !request.nextUrl.pathname.startsWith("/api/chat")
@@ -21,18 +13,22 @@ export async function middleware(request: NextRequest) {
 
   // 管理者専用パスのチェック
   if (request.nextUrl.pathname.startsWith("/api/admin/")) {
-    // 管理者権限チェック
-    const isAdmin = await checkAdminPermission(request);
-    if (!isAdmin) {
+    const token = await getToken({ req: request });
+    if (!token?.isAdmin) {
       return new NextResponse("Forbidden", { status: 403 });
     }
   }
 
-  // その他のパスは認証必須
-  const session = await getServerSession(request);
-  if (!session) {
+  // その他のリクエストは認証必須
+  const token = await getToken({ req: request });
+  if (!token) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
   return NextResponse.next();
 }
+
+// ミドルウェアを適用するパスを指定
+export const config = {
+  matcher: "/api/:path*",
+};
