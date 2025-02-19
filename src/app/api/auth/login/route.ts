@@ -1,10 +1,9 @@
-// auth/login              POST/DELETE         ログイン/ログアウト
 import prisma from "@/lib/prisma";
 import { compare } from "bcrypt";
 import { NextResponse } from "next/server";
 
 interface LoginRequestBody {
-  id: string; // usernameからidに変更
+  id: string;
   password: string;
 }
 
@@ -22,7 +21,7 @@ export async function POST(req: Request) {
 
     // ユーザーの検索
     const user = await prisma.user.findUnique({
-      where: { id: body.id }, // usernameからidに変更
+      where: { id: body.id },
       select: {
         id: true,
         username: true,
@@ -41,25 +40,30 @@ export async function POST(req: Request) {
       );
     }
 
-    // パスワードの検証
-    const isValidPassword = await compare(body.password, user.password);
-    if (!isValidPassword) {
+    // パスワードの比較
+    const isValid = await compare(body.password, user.password);
+    if (!isValid) {
       return NextResponse.json(
         { error: "認証に失敗しました" },
         { status: 401 }
       );
     }
 
-    // パスワードを除外してユーザー情報を返す
-    const { password, ...userWithoutPassword } = user;
-
+    // 認証成功
     return NextResponse.json({
-      user: userWithoutPassword,
+      user: {
+        id: user.id,
+        username: user.username,
+        isAdmin: user.isAdmin,
+        icon: user.icon,
+        rate: user.rate,
+        postCount: user.postCount,
+      },
     });
   } catch (error) {
     console.error("[Login Error]:", error);
     return NextResponse.json(
-      { error: "サーバーエラーが発生しました" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

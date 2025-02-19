@@ -1,8 +1,8 @@
 "use client";
 
-import type React from "react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,7 +11,6 @@ import {
   Card,
   CardHeader,
   CardTitle,
-  CardDescription,
   CardContent,
   CardFooter,
 } from "@/components/ui/card";
@@ -35,26 +34,20 @@ export default function LoginPage() {
         body: JSON.stringify({ id, password }),
       });
 
-      if (response.status === 401) {
-        throw new Error("ユーザーIDまたはパスワードが間違っています");
-      }
+      const data = await response.json();
 
       if (!response.ok) {
-        throw new Error("ログインに失敗しました");
-      }
-
-      // レスポンスのJSONパースを試みる
-      let data;
-      try {
-        data = await response.json();
-      } catch (e) {
-        throw new Error("サーバーからの応答が不正です");
+        throw new Error(data.error || "ログインに失敗しました");
       }
 
       // ログイン成功時の処理
       router.push("/home");
+      router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "エラーが発生しました");
+      setError(
+        err instanceof Error ? err.message : "ログイン中にエラーが発生しました"
+      );
+      console.error("Login error:", err);
     } finally {
       setIsLoading(false);
     }
@@ -84,6 +77,7 @@ export default function LoginPage() {
                 onChange={(e) => setId(e.target.value)}
                 placeholder="ユーザーIDを入力"
                 required
+                disabled={isLoading}
               />
             </div>
             <div className="space-y-2">
@@ -95,9 +89,14 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="パスワードを入力"
                 required
+                disabled={isLoading}
               />
             </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isLoading || !id || !password}
+            >
               {isLoading ? "ログイン中..." : "ログイン"}
             </Button>
           </form>
