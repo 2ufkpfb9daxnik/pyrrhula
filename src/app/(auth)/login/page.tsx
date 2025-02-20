@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { signIn, useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +21,15 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { data: session } = useSession();
+  const searchParams = useSearchParams();
+
+  // ログイン済みの場合はホームページにリダイレクト
+  useEffect(() => {
+    if (session) {
+      router.push("/home");
+    }
+  }, [session, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,25 +37,23 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, password }),
+      const response = await signIn("credentials", {
+        id,
+        password,
+        redirect: false,
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "ログインに失敗しました");
+      if (response?.error) {
+        setError("ユーザーIDまたはパスワードが正しくありません");
+        return;
       }
 
       // ログイン成功時の処理
-      router.push("/home");
+      const callbackUrl = searchParams.get("callbackUrl") || "/home";
+      router.push(callbackUrl);
       router.refresh();
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "ログイン中にエラーが発生しました"
-      );
+      setError("ログイン中にエラーが発生しました");
       console.error("Login error:", err);
     } finally {
       setIsLoading(false);
