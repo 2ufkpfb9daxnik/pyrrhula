@@ -22,6 +22,7 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState(true);
   const { data: session } = useSession();
   const router = useRouter();
+  const [parentPost, setParentPost] = useState<Post | null>(null);
 
   const handleUserClick = () => {
     if (session?.user?.id) {
@@ -93,6 +94,11 @@ export default function HomePage() {
     }
   };
 
+  const handlePostCreated = () => {
+    // 新しい投稿が作成されたら、タイムラインを更新
+    fetchPosts();
+  };
+
   if (!session) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -133,7 +139,20 @@ export default function HomePage() {
             </div>
           </div>
         </button>
-        <MakePost onPostCreated={fetchPosts} />
+
+        <MakePost
+          onPostCreated={handlePostCreated}
+          replyTo={
+            parentPost
+              ? {
+                  id: parentPost.id,
+                  content: parentPost.content,
+                  username: parentPost.user.username,
+                }
+              : null
+          }
+        />
+
         <Search onSearch={handleSearch} />
       </div>
       {/* メインコンテンツ */}

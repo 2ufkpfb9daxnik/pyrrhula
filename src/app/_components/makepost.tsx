@@ -3,14 +3,28 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-
 interface MakePostProps {
   onPostCreated: () => void;
+  replyTo?: {
+    id: string;
+    content: string;
+    username: string;
+  } | null; // undefined の代わりに null も許容
 }
 
-export function MakePost({ onPostCreated }: MakePostProps) {
+export function MakePost({ onPostCreated, replyTo }: MakePostProps) {
   const [newPost, setNewPost] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Ctrl + Enter で投稿
+    if (e.ctrlKey && e.key === "Enter") {
+      e.preventDefault();
+      if (newPost.length > 0 && !isLoading) {
+        handleSubmit(e as any);
+      }
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -20,7 +34,10 @@ export function MakePost({ onPostCreated }: MakePostProps) {
       const response = await fetch("/api/posts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: newPost }),
+        body: JSON.stringify({
+          content: newPost,
+          parentId: replyTo?.id, // 返信の場合は親投稿のIDを含める
+        }),
       });
 
       if (response.ok) {
@@ -34,21 +51,18 @@ export function MakePost({ onPostCreated }: MakePostProps) {
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-      e.preventDefault();
-      handleSubmit(
-        new Event("submit") as unknown as React.FormEvent<HTMLFormElement>
-      );
-    }
-  };
-
   return (
     <form onSubmit={handleSubmit} className="mb-8">
+      {replyTo && (
+        <div className="mb-2 text-sm text-gray-500">
+          返信: @{replyTo.username} {replyTo.content.substring(0, 30)}
+          {replyTo.content.length > 30 && "..."}
+        </div>
+      )}
       <Textarea
         value={newPost}
         onChange={(e) => setNewPost(e.target.value)}
-        placeholder="ctrl + enter で投稿可"
+        placeholder={replyTo ? "返信を入力..." : "ctrl + enter で投稿可"}
         onKeyDown={handleKeyDown}
         maxLength={500}
         className="mb-2 w-full"

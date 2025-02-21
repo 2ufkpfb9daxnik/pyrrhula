@@ -124,18 +124,32 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
     router.push(`/compose/reply/${post.id}`);
   };
 
+  const handlePostClick = (e: React.MouseEvent) => {
+    // ボタンやアバター以外の領域がクリックされた場合
+    const target = e.target as HTMLElement;
+    if (!target.closest("button") && !target.closest('[role="button"]')) {
+      router.push(`/posts/${post.id}`);
+    }
+  };
+
   return (
-    <div className="border-b border-gray-700 p-4">
+    <div
+      className="cursor-pointer border-b border-gray-700 p-4 transition-colors hover:bg-gray-900/50"
+      onClick={handlePostClick}
+    >
       {post.parent && (
         <div className="mb-2 text-sm text-gray-500">
-          Reposted by {post.user.username}
+          返信先: @{post.parent.user.username}
         </div>
       )}
       <div className="flex items-start space-x-3">
         <Button
           variant="ghost"
           className="p-0 hover:bg-transparent"
-          onClick={handleUserClick}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleUserClick();
+          }}
         >
           <Avatar>
             <AvatarImage
@@ -150,7 +164,10 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
             <Button
               variant="ghost"
               className="h-auto p-0 font-bold hover:underline"
-              onClick={handleUserClick}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleUserClick();
+              }}
             >
               {post.user.username}
             </Button>
@@ -170,7 +187,10 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={handleReply}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleReply();
+                  }}
                   disabled={isLoading || !session}
                 >
                   <MessageCircle className="mr-1 size-4" />

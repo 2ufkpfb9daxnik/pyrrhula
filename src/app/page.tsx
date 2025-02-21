@@ -25,6 +25,9 @@ export default function LandingPage() {
               1758）は、スズメ目アトリ科ウソ属に分類される鳥類の一種... ウソ -
               Wikipedia
             </Link>
+            <Link href="https://github.com/2ufkpfb9daxnik/pyrrhula">
+              GitHubリポジトリ
+            </Link>
           </div>
 
           {/* 機能紹介 */}
