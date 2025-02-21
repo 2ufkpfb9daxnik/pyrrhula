@@ -48,10 +48,10 @@ export function WholeTimeline() {
   const handleSearch = async (query: string) => {
     try {
       const response = await fetch(
-        `/api/posts/search?q=${encodeURIComponent(query)}`
+        `/api/posts/search?q=${encodeURIComponent(query)}&timeline=true`
       );
       if (!response.ok) {
-        throw new Error("Failed to search posts");
+        throw new Error("検索に失敗しました");
       }
       const data = await response.json();
       setPosts(
@@ -64,13 +64,12 @@ export function WholeTimeline() {
       console.error("Error searching posts:", error);
     }
   };
-
   return (
     <div className="h-full overflow-y-auto">
       {/* 検索バー */}
-      <div className="sticky top-0 bg-background p-4 border-b border-gray-800">
+      {/* <div className="sticky top-0 border-b border-gray-800 bg-background p-4">
         <Search onSearch={handleSearch} />
-      </div>
+      </div> */}
 
       {/* タイムライン */}
       <div className="p-4">
