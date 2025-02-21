@@ -19,13 +19,17 @@ export default function LandingPage() {
           <div className="space-y-2 text-muted-foreground">
             <Link
               href="https://ja.wikipedia.org/wiki/%E3%82%A6%E3%82%BD"
-              className="text-sm"
+              className="text-sm hover:underline"
             >
               ウソ（鷽、学名：Pyrrhula pyrrhula Linnaeus,
               1758）は、スズメ目アトリ科ウソ属に分類される鳥類の一種... ウソ -
               Wikipedia
             </Link>
-            <Link href="https://github.com/2ufkpfb9daxnik/pyrrhula">
+            <br></br>
+            <Link
+              href="https://github.com/2ufkpfb9daxnik/pyrrhula"
+              className="text-sm"
+            >
               GitHubリポジトリ
             </Link>
           </div>
