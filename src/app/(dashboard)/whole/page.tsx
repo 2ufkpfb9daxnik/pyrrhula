@@ -33,7 +33,7 @@ export default function HomePage() {
 
   const fetchPosts = async () => {
     try {
-      const response = await fetch("/api/posts");
+      const response = await fetch("/api/whole");
       if (!response.ok) {
         throw new Error("Failed to fetch posts");
       }

@@ -12,34 +12,15 @@ export async function GET(req: Request) {
     const session = await getServerSession(authOptions);
     console.log("セッション状態:", session ? "ログイン中" : "未ログイン");
 
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const { searchParams } = new URL(req.url);
     const cursor = searchParams.get("cursor");
-    const limit = 20;
+    console.log("カーソル:", cursor);
 
-    // フォローしているユーザーのIDを取得
-    const following = await prisma.follow.findMany({
-      where: {
-        followerId: session.user.id,
-      },
-      select: {
-        followedId: true,
-      },
-    });
+    const limit = 100;
 
-    const followingIds = following.map((f) => f.followedId);
-    // 自分の投稿も含める
-    followingIds.push(session.user.id);
-
-    // フォローしているユーザーの投稿を取得
+    // 投稿を取得
     const posts = await prisma.post.findMany({
       where: {
-        userId: {
-          in: followingIds,
-        },
         parentId: null, // トップレベルの投稿のみ
       },
       take: limit + 1,
@@ -56,22 +37,43 @@ export async function GET(req: Request) {
             icon: true,
           },
         },
-        parent: true,
+        parent: {
+          select: {
+            id: true,
+            content: true,
+            user: {
+              select: {
+                id: true,
+                username: true,
+              },
+            },
+          },
+        },
         _count: {
           select: {
             replies: true,
-            favoritedBy: true,
-            repostedBy: true,
           },
         },
-        favoritedBy: {
-          where: { userId: session.user.id },
-          select: { userId: true },
-        },
-        repostedBy: {
-          where: { userId: session.user.id },
-          select: { userId: true },
-        },
+        favoritedBy: session?.user
+          ? {
+              where: {
+                userId: session.user.id,
+              },
+              select: {
+                userId: true,
+              },
+            }
+          : false,
+        repostedBy: session?.user
+          ? {
+              where: {
+                userId: session.user.id,
+              },
+              select: {
+                userId: true,
+              },
+            }
+          : false,
       },
     });
 
@@ -88,16 +90,7 @@ export async function GET(req: Request) {
       favorites: post.favorites,
       reposts: post.reposts,
       user: post.user,
-      parent: post.parent
-        ? {
-            id: post.parent.id,
-            content: post.parent.content,
-            user: {
-              id: post.parent.userId,
-              username: "", // Need to fetch this from the parent post's user
-            },
-          }
-        : null,
+      parent: post.parent,
       _count: post._count,
       ...(session?.user && {
         isFavorited: post.favoritedBy.length > 0,
