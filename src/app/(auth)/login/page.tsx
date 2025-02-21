@@ -21,15 +21,6 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  const { data: session } = useSession();
-  const searchParams = useSearchParams();
-
-  // ログイン済みの場合はホームページにリダイレクト
-  useEffect(() => {
-    if (session) {
-      router.push("/home");
-    }
-  }, [session, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,24 +28,22 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const response = await signIn("credentials", {
+      const result = await signIn("credentials", {
         id,
         password,
         redirect: false,
       });
 
-      if (response?.error) {
+      if (!result?.ok) {
         setError("ユーザーIDまたはパスワードが正しくありません");
         return;
       }
 
-      // ログイン成功時の処理
-      const callbackUrl = searchParams.get("callbackUrl") || "/home";
-      router.push(callbackUrl);
+      router.push("/home");
       router.refresh();
     } catch (err) {
+      console.error("ログインエラー:", err);
       setError("ログイン中にエラーが発生しました");
-      console.error("Login error:", err);
     } finally {
       setIsLoading(false);
     }
