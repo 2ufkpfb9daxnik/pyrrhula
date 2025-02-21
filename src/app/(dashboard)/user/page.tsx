@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatDistanceToNow } from "@/lib/formatDistanceToNow";
 import { Star, Calendar, Trophy } from "lucide-react";
+import { toast } from "sonner";
+import { Share2 } from "lucide-react";
 
 interface User {
   id: string;
@@ -20,36 +22,126 @@ interface User {
   isFollower?: boolean;
 }
 
+interface PaginationInfo {
+  total: number;
+  pages: number;
+  currentPage: number;
+  hasMore: boolean;
+}
+
+const PowerPagination: React.FC<{
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+}> = ({ currentPage, totalPages, onPageChange }) => {
+  // 2のべき乗のページ番号を生成
+  const generatePowerPages = () => {
+    const pages = new Set<number>();
+
+    // 現在のページを追加
+    pages.add(currentPage);
+
+    // 前のページ（2のべき乗分）
+    let power = 1;
+    while (currentPage - power >= 1) {
+      pages.add(currentPage - power);
+      power *= 2;
+    }
+
+    // 次のページ（2のべき乗分）
+    power = 1;
+    while (currentPage + power <= totalPages) {
+      pages.add(currentPage + power);
+      power *= 2;
+    }
+
+    return Array.from(pages).sort((a, b) => a - b);
+  };
+
+  const powerPages = generatePowerPages();
+
+  return (
+    <div className="flex flex-wrap justify-center gap-2 pt-4">
+      {powerPages.map((page) => (
+        <Button
+          key={page}
+          variant={page === currentPage ? "default" : "outline"}
+          size="sm"
+          onClick={() => onPageChange(page)}
+          className="min-w-[40px]"
+        >
+          {page}
+        </Button>
+      ))}
+    </div>
+  );
+};
+
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [sortBy, setSortBy] = useState<"rate" | "createdAt">("rate");
   const [isLoading, setIsLoading] = useState(true);
+  const [pagination, setPagination] = useState<PaginationInfo | null>(null);
   const router = useRouter();
   const { data: session } = useSession();
 
+  // コンポーネントがマウントされたとき、または他のページから戻ってきたときに再取得
   useEffect(() => {
-    fetchUsers();
+    if (session) {
+      fetchUsers(pagination?.currentPage || 1);
+    }
+  }, [session]);
+
+  // ソート順が変更されたときは1ページ目から表示
+  useEffect(() => {
+    fetchUsers(1);
   }, [sortBy]);
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (page: number) => {
     try {
-      const response = await fetch(`/api/users?sort=${sortBy}`);
+      window.scrollTo(0, 0);
+      setIsLoading(true);
+      const response = await fetch(
+        `/api/users?sort=${sortBy}&page=${page}&includeFollowStatus=true`
+      );
       if (!response.ok) throw new Error("Failed to fetch users");
       const data = await response.json();
       setUsers(data.users);
+      setPagination(data.pagination);
     } catch (error) {
       console.error("Error fetching users:", error);
+      toast.error("ユーザー一覧の取得に失敗しました");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleFollow = async (userId: string) => {
+  const handleFollow = async (userId: string, isFollowing: boolean) => {
     if (!session) {
       router.push("/login");
       return;
     }
-    // フォロー処理の実装
+
+    try {
+      const response = await fetch(`/api/follow/${userId}`, {
+        method: isFollowing ? "DELETE" : "POST",
+      });
+
+      if (!response.ok) throw new Error("Failed to update follow status");
+
+      setUsers((prev) =>
+        prev.map((user) =>
+          user.id === userId
+            ? { ...user, isFollowing: !user.isFollowing }
+            : user
+        )
+      );
+
+      toast.success(isFollowing ? "フォロー解除しました" : "フォローしました");
+    } catch (error) {
+      console.error("Follow error:", error);
+      toast.error("操作に失敗しました");
+    }
   };
 
   if (isLoading) {
@@ -84,36 +176,27 @@ export default function UsersPage() {
         </div>
       </div>
 
-      <div>
+      <div className="space-y-4">
         {users.map((user) => (
           <div
             key={user.id}
-            className="border-b border-gray-800 px-4 py-3 hover:bg-gray-900/50"
+            className="border-b border-gray-800 px-4 py-3 hover:bg-gray-900/50 cursor-pointer"
+            onClick={() => router.push(`/user/${user.id}`)}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <Button
-                  variant="ghost"
-                  className="p-0"
-                  onClick={() => router.push(`/user/${user.id}`)}
-                >
-                  <Avatar className="size-12">
-                    <AvatarImage
-                      src={user.icon ?? undefined}
-                      alt={user.username}
-                    />
-                    <AvatarFallback>{user.username[0]}</AvatarFallback>
-                  </Avatar>
-                </Button>
+                <Avatar className="size-12">
+                  <AvatarImage
+                    src={user.icon ?? undefined}
+                    alt={user.username}
+                  />
+                  <AvatarFallback>{user.username[0]}</AvatarFallback>
+                </Avatar>
                 <div>
                   <div className="flex items-center space-x-2">
-                    <Button
-                      variant="ghost"
-                      className="p-0 text-base font-semibold hover:underline"
-                      onClick={() => router.push(`/user/${user.id}`)}
-                    >
+                    <span className="text-base font-semibold">
                       {user.username}
-                    </Button>
+                    </span>
                     <span className="text-sm text-gray-500">@{user.id}</span>
                   </div>
                   <div className="flex items-center space-x-3 text-sm text-gray-400">
@@ -131,16 +214,48 @@ export default function UsersPage() {
                   </div>
                 </div>
               </div>
-              <Button
-                variant={user.isFollowing ? "default" : "outline"}
-                onClick={() => handleFollow(user.id)}
-                disabled={!session}
-              >
-                {user.isFollowing ? "フォロー中" : "フォローする"}
-              </Button>
+              <div className="flex items-center space-x-2">
+                {session?.user?.id !== user.id && (
+                  <Button
+                    variant="outline"
+                    className={
+                      user.isFollowing
+                        ? "bg-secondary text-secondary-foreground"
+                        : "bg-white text-black"
+                    }
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleFollow(user.id, user.isFollowing || false);
+                    }}
+                    disabled={!session}
+                  >
+                    {user.isFollowing ? "フォロー解除" : "フォローする"}
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="border border-gray-800"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    router.push(`/followgraph/${user.id}`);
+                  }}
+                >
+                  フォローグラフを見る
+                </Button>
+              </div>
             </div>
           </div>
         ))}
+
+        {/* ページネーション */}
+        {pagination && (
+          <PowerPagination
+            currentPage={pagination.currentPage}
+            totalPages={pagination.pages}
+            onPageChange={fetchUsers}
+          />
+        )}
       </div>
     </div>
   );

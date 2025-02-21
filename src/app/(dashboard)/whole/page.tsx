@@ -6,6 +6,7 @@ import { Post } from "@/app/_components/post";
 import { MakePost } from "@/app/_components/makepost";
 import { Search } from "@/app/_components/search";
 import { Navigation } from "@/app/_components/navigation";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 interface Post {
   id: string;
@@ -69,25 +70,28 @@ export default function HomePage() {
   };
 
   return (
-    <>
-      {/* 左サイドバー */}
-      <div className="fixed left-16 top-0 flex h-full w-80 flex-col gap-4 border-r border-gray-800 p-4">
-        <MakePost onPostCreated={fetchPosts} />
-        <Search onSearch={handleSearch} />
-      </div>
-      {/* メインコンテンツ */}
-      <main className="flex-1">
-        <div
-          className="mx-auto max-w-2xl p-4"
-          style={{ marginLeft: "calc(50% - 21rem)" }}
-        >
-          <div className="space-y-4">
-            {posts.map((post) => (
-              <Post key={post.id} post={post} />
-            ))}
-          </div>
+    <TooltipProvider>
+      <>
+        <Navigation />
+        {/* 左サイドバー */}
+        <div className="fixed left-16 top-0 flex h-full w-80 flex-col gap-4 border-r border-gray-800 p-4">
+          <MakePost onPostCreated={fetchPosts} />
+          <Search onSearch={handleSearch} />
         </div>
-      </main>
-    </>
+        {/* メインコンテンツ */}
+        <main className="flex-1">
+          <div
+            className="mx-auto max-w-2xl p-4"
+            style={{ marginLeft: "calc(50% - 21rem)" }}
+          >
+            <div className="space-y-4">
+              {posts.map((post) => (
+                <Post key={post.id} post={post} />
+              ))}
+            </div>
+          </div>
+        </main>
+      </>
+    </TooltipProvider>
   );
 }

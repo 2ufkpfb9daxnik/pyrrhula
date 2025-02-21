@@ -100,9 +100,9 @@ model Post {
 
 model Follow {
   id         String   @id @default(uuid())
-  follower   User     @relation(fields: [followerId], references: [id], name: "Following")
+  follower   User     @relation("Following", fields: [followerId], references: [id])
   followerId String
-  followed   User     @relation(fields: [followedId], references: [id], name: "Followers")
+  followed   User     @relation("Followers", fields: [followedId], references: [id])
   followedId String
   createdAt  DateTime @default(now())
 

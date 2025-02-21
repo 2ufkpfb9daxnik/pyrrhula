@@ -19,11 +19,11 @@ export interface Post {
   };
 }
 
-export interface PostProps {
+export type PostProps = {
   post: Post;
   onRepostSuccess?: () => Promise<void>;
   onFavoriteSuccess?: () => Promise<void>;
-}
+};
 
 interface PostResponse {
   id: string;

@@ -1,36 +1,132 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Pyrrhula - シンプルな分散型マイクロブログ
 
-## Getting Started
+## TODO
 
-First, run the development server:
+- リプライ
+- フォローグラフ
+- 個別チャット
+- プロフィール設定
+- レート
+- アイコン
+- リアルタイム更新
+- レスポンシブ対応
+- 個人ページ
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## 概要
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Pyrrhulaは、シンプルさと使いやすさを重視した分散型マイクロブログプラットフォームです。手軽に情報発信や交流が行えます。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 開発背景
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+既存のSNSプラットフォームには以下のような課題があると考えました：
 
-## Learn More
+- 過度に複雑化したUI/UX
+- プライバシーへの懸念
+- アルゴリズムによる情報の偏り
 
-To learn more about Next.js, take a look at the following resources:
+これらの課題を解決するため、以下の特徴を持つプラットフォームを開発しました：
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- 直感的で分かりやすいUI
+- ユーザーデータの透明性
+- アルゴリズムに依存しない時系列タイムライン
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 公開URL
 
-## Deploy on Vercel
+[Pyrrhula](https://pyrrhula.vercel.app)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 特徴と機能
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### 1. シンプルな認証システム
+
+![認証画面](/screenshots/auth.png)
+
+- ユーザーIDとパスワードのみで登録可能
+- セキュアなJWT認証
+- パスワードの暗号化保存
+
+### 2. 直感的なタイムライン
+
+![タイムライン](/screenshots/timeline.png)
+
+- 時系列順の表示
+- 無限スクロール
+- レスポンシブデザイン
+
+### 3. インタラクション機能
+
+![インタラクション](/screenshots/interaction.png)
+
+- お気に入り登録
+- 投稿の拡散（リポスト）
+- リプライチェーン
+
+### 4. プロフィール管理
+
+![プロフィール](/screenshots/profile.png)
+
+<!-- - アイコン画像のアップロード -->
+
+<!-- - プロフィール情報の編集 -->
+
+- 投稿履歴の確認
+
+### 5. 通知システム
+
+![通知](/screenshots/notification.png)
+
+<!-- - リアルタイム通知 -->
+
+- アクション別の通知管理
+- 既読/未読の状態管理
+
+## 使用技術
+
+### フロントエンド
+
+- TypeScript 5.0
+- Next.js 14 (App Router)
+- TailwindCSS
+- Radix UI
+- ShadcnUI
+- React Hot Toast
+
+### バックエンド
+
+- Next.js API Routes
+- Prisma ORM
+- PostgreSQL
+- NextAuth.js
+
+### 開発ツール
+
+- Visual Studio Code
+- Supabase (データベースホスティング)
+- Vercel (デプロイ)
+- Git/GitHub (バージョン管理)
+
+### システム構成図
+
+![システム構成図](/docs/architecture.png)
+
+## 開発期間・体制
+
+- 開発体制：個人開発
+- 開発期間：2025.2 (約30時間)
+
+## 工夫した点
+
+- 意図的に投稿/アカウントの削除/編集機能を付けていません。今まで類似サービスを使ってきた経験からです。
+- 意図的にユーザーIDは変更できませんし、決めることもできません。単にログイン機能としてのみ使われます。
+
+## 既知の課題とTODO
+
+### 課題
+
+- 画像アップロード時のパフォーマンス改善
+- プッシュ通知の実装
+- 検索機能の強化
+
+## リンク
+
+- [2ufkpfbdaxnik](https://github.com/2ufkpfb9daxnik/pyrrhula)
+- [ポートフォリオ](https://2ufkpfb9daxnik.github.io/portfolio/page/pyrrhula)

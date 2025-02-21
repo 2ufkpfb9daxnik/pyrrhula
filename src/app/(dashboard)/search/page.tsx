@@ -2,26 +2,47 @@
 
 import { Search } from "@/app/_components/search";
 import { useState } from "react";
+import { Post as PostComponent } from "@/app/_components/post";
+import type { Post } from "@/app/_types/post";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { toast } from "sonner";
 
 export default function SearchPage() {
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [currentQuery, setCurrentQuery] = useState("");
+
   const handleSearch = async (query: string) => {
+    setCurrentQuery(query); // クエリを保存
+    setIsLoading(true);
     try {
       const response = await fetch(
-        `/api/posts/search?q=${encodeURIComponent(query)}`
+        `/api/search?q=${encodeURIComponent(query)}`
       );
       if (!response.ok) {
         throw new Error("検索に失敗しました");
       }
       const data = await response.json();
-      console.log(data);
+      setPosts(
+        data.posts.map((post: any) => ({
+          ...post,
+          createdAt: new Date(post.createdAt),
+        }))
+      );
+
+      if (data.posts.length === 0) {
+        toast.info("検索結果が見つかりませんでした");
+      }
     } catch (error) {
       console.error("Error searching posts:", error);
+      toast.error("検索中にエラーが発生しました");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -29,6 +50,22 @@ export default function SearchPage() {
     <div className="mx-auto max-w-2xl p-4">
       <h1 className="mb-6 text-2xl font-bold">検索</h1>
       <Search onSearch={handleSearch} />
+
+      {/* 検索結果の表示 */}
+      {isLoading ? (
+        <div className="mt-8 text-center text-muted-foreground">検索中...</div>
+      ) : posts.length > 0 ? (
+        <div className="mt-8 space-y-4">
+          {posts.map((post) => (
+            <PostComponent
+              key={post.id}
+              post={post}
+              onRepostSuccess={() => handleSearch(currentQuery)} // currentQueryを使用
+              onFavoriteSuccess={() => handleSearch(currentQuery)} // currentQueryを使用
+            />
+          ))}
+        </div>
+      ) : null}
 
       <Accordion type="single" collapsible className="mt-8">
         <AccordionItem value="advanced-search">

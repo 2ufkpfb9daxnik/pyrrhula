@@ -105,7 +105,7 @@ export async function POST(
       // 通知を作成
       prisma.notification.create({
         data: {
-          type: "rpt",
+          type: "rep",
           senderId: session.user.id,
           receiverId: post.userId,
           relatedPostId: params.id,

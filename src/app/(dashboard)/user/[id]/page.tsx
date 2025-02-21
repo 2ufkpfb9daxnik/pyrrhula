@@ -15,9 +15,13 @@ import {
   Users,
   MessageCircle,
   BarChart,
+  UserPlus,
+  UserMinus,
 } from "lucide-react";
-import type { Post as PostType } from "@/app/_components/post";
-import { Post } from "@/app/_components/post";
+import type { Post } from "@/app/_types/post";
+import { Post as PostComponent } from "@/app/_components/post";
+import { Navigation } from "@/app/_components/navigation";
+import { toast } from "sonner";
 
 interface UserDetail {
   id: string;
@@ -32,35 +36,34 @@ interface UserDetail {
   isFollowing?: boolean;
 }
 
-interface UserPost extends Post {
-  // Post interfaceを拡張
-}
-
 export default function UserProfilePage({
   params,
 }: {
-  params: { userId: string };
+  params: { id: string };
 }) {
   const [user, setUser] = useState<UserDetail | null>(null);
-  const [posts, setPosts] = useState<PostType[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [activeTab, setActiveTab] = useState<
     "posts" | "reposts" | "favorites" | "replies"
   >("posts");
   const [isLoading, setIsLoading] = useState(true);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [isFollowLoading, setIsFollowLoading] = useState(false);
   const { data: session } = useSession();
   const router = useRouter();
 
   useEffect(() => {
     fetchUserDetails();
-    fetchUserPosts();
-  }, [params.userId]);
+    fetchUserContent(activeTab);
+  }, [params.id, activeTab]);
 
   const fetchUserDetails = async () => {
     try {
-      const response = await fetch(`/api/users/${params.userId}`);
+      const response = await fetch(`/api/users/${params.id}`);
       if (!response.ok) throw new Error("Failed to fetch user details");
       const data = await response.json();
       setUser(data);
+      setIsFollowing(data.isFollowing);
     } catch (error) {
       console.error("Error fetching user details:", error);
     } finally {
@@ -68,128 +71,224 @@ export default function UserProfilePage({
     }
   };
 
-  const fetchUserPosts = async () => {
+  const fetchUserContent = async (
+    type: "posts" | "reposts" | "favorites" | "replies"
+  ) => {
     try {
-      const response = await fetch(`/api/posts?userId=${params.userId}`);
-      if (!response.ok) throw new Error("Failed to fetch user posts");
+      // typeをクエリパラメータとして追加
+      const response = await fetch(`/api/users/${params.id}?type=${type}`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch user ${type}`);
+      }
       const data = await response.json();
-      setPosts(data.posts);
+      setPosts(
+        data.posts.map((post: any) => ({
+          ...post,
+          createdAt: new Date(post.createdAt),
+        }))
+      );
     } catch (error) {
-      console.error("Error fetching user posts:", error);
+      console.error(`Error fetching user ${type}:`, error);
+      toast.error(`${type}の取得に失敗しました`);
+    }
+  };
+  const handleFollow = async () => {
+    if (!session) {
+      router.push("/login");
+      return;
+    }
+
+    setIsFollowLoading(true);
+    try {
+      const response = await fetch(`/api/follow/${params.id}`, {
+        method: isFollowing ? "DELETE" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        ...(isFollowing
+          ? {
+              // DELETE リクエストの場合、URLにクエリパラメータを追加
+              url: `/api/follow/${params.id}?userId=${params.id}`,
+            }
+          : {
+              // POST リクエストの場合、bodyにユーザーIDを含める
+              body: JSON.stringify({ userId: params.id }),
+            }),
+      });
+
+      if (!response.ok) throw new Error("Failed to update follow status");
+
+      setIsFollowing(!isFollowing);
+      setUser(
+        (prev) =>
+          prev && {
+            ...prev,
+            followersCount: prev.followersCount + (isFollowing ? -1 : 1),
+          }
+      );
+
+      toast.success(isFollowing ? "フォロー解除しました" : "フォローしました");
+    } catch (error) {
+      console.error("Follow error:", error);
+      toast.error("操作に失敗しました");
+    } finally {
+      setIsFollowLoading(false);
     }
   };
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        読み込み中...
+      <div className="flex min-h-screen">
+        <Navigation />
+        <div className="flex flex-1 items-center justify-center">
+          <p className="text-gray-500">読み込み中...</p>
+        </div>
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="mx-auto max-w-2xl p-4">
-        <div className="rounded-lg border border-gray-800 p-8 text-center">
-          ユーザーが見つかりません
+      <div className="flex min-h-screen">
+        <Navigation />
+        <div className="flex-1">
+          <div className="mx-auto max-w-2xl p-4">
+            <div className="rounded-lg border border-gray-800 p-8 text-center">
+              ユーザーが見つかりません
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-2xl p-4">
-      {/* ユーザープロフィールカード */}
-      <Card className="mb-6">
-        <CardContent className="p-6">
-          <div className="flex items-start space-x-4">
-            <Avatar className="size-20">
-              <AvatarImage src={user.icon ?? undefined} alt={user.username} />
-              <AvatarFallback>{user.username[0]}</AvatarFallback>
-            </Avatar>
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold">{user.username}</h1>
-              <p className="text-sm text-gray-500">@{user.id}</p>
-              {user.profile && (
-                <p className="mt-2 text-gray-300">{user.profile}</p>
-              )}
-              <div className="mt-4 flex flex-wrap gap-4 text-sm text-gray-400">
-                <div className="flex items-center">
-                  <MessageSquare className="mr-2 size-4" />
-                  投稿 {user.postCount}
-                </div>
-                <div className="flex items-center">
-                  <BarChart className="mr-2 size-4" />
-                  レート {user.rate}
-                </div>
-                <div className="flex items-center">
-                  <Users className="mr-2 size-4" />
-                  <span className="mr-4">フォロワー {user.followersCount}</span>
-                  フォロー中 {user.followingCount}
-                </div>
-                <div className="flex items-center">
-                  <Calendar className="mr-2 size-4" />
-                  登録日: {formatDistanceToNow(new Date(user.createdAt))}前
+    <div className="flex min-h-screen">
+      <Navigation />
+      <div className="flex-1">
+        <div className="mx-auto max-w-2xl p-4">
+          {/* ユーザープロフィールカード */}
+          <Card className="mb-6">
+            <CardContent className="p-6">
+              <div className="flex items-start justify-between">
+                <div className="flex items-start space-x-4">
+                  <Avatar className="size-20">
+                    <AvatarImage
+                      src={user.icon ?? undefined}
+                      alt={user.username}
+                    />
+                    <AvatarFallback>{user.username[0]}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h1 className="text-2xl font-bold">{user.username}</h1>
+                        <p className="text-sm text-gray-500">@{user.id}</p>
+                      </div>
+                      {session?.user?.id !== user.id && (
+                        <Button
+                          onClick={handleFollow}
+                          disabled={isFollowLoading}
+                          variant={isFollowing ? "outline" : "default"}
+                        >
+                          {isFollowing ? (
+                            <>
+                              <UserMinus className="mr-2 size-4" />
+                              フォロー解除
+                            </>
+                          ) : (
+                            <>
+                              <UserPlus className="mr-2 size-4" />
+                              フォロー
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                    {user.profile && (
+                      <p className="mt-2 text-gray-300">{user.profile}</p>
+                    )}
+                    <div className="mt-4 flex flex-wrap gap-4 text-sm text-gray-400">
+                      <div className="flex items-center">
+                        <MessageSquare className="mr-2 size-4" />
+                        投稿 {user.postCount}
+                      </div>
+                      <div className="flex items-center">
+                        <BarChart className="mr-2 size-4" />
+                        レート {user.rate}
+                      </div>
+                      <div className="flex items-center">
+                        <Users className="mr-2 size-4" />
+                        <span className="mr-4">
+                          フォロワー {user.followersCount}
+                        </span>
+                        フォロー中 {user.followingCount}
+                      </div>
+                      <div className="flex items-center">
+                        <Calendar className="mr-2 size-4" />
+                        登録日: {formatDistanceToNow(new Date(user.createdAt))}
+                        前
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
 
-      {/* タブ */}
-      <div className="mb-6 flex space-x-4">
-        <Button
-          variant={activeTab === "posts" ? "default" : "ghost"}
-          onClick={() => {
-            setActiveTab("posts");
-            router.push(`/user/${params.userId}`);
-          }}
-        >
-          <MessageSquare className="mr-2 size-4" />
-          投稿
-        </Button>
-        <Button
-          variant={activeTab === "reposts" ? "default" : "ghost"}
-          onClick={() => {
-            setActiveTab("reposts");
-            router.push(`/user/${params.userId}/reposts`);
-          }}
-        >
-          <RefreshCw className="mr-2 size-4" />
-          拡散
-        </Button>
-        <Button
-          variant={activeTab === "favorites" ? "default" : "ghost"}
-          onClick={() => {
-            setActiveTab("favorites");
-            router.push(`/user/${params.userId}/favorites`);
-          }}
-        >
-          <Star className="mr-2 size-4" />
-          お気に入り
-        </Button>
-        <Button
-          variant={activeTab === "replies" ? "default" : "ghost"}
-          onClick={() => {
-            setActiveTab("replies");
-            router.push(`/user/${params.userId}/replies`);
-          }}
-        >
-          <MessageCircle className="mr-2 size-4" />
-          返信
-        </Button>
-      </div>
-
-      {/* 投稿一覧 */}
-      <div className="space-y-4">
-        {posts.length === 0 ? (
-          <div className="rounded-lg border border-gray-800 p-8 text-center text-gray-500">
-            まだ投稿していません
+          {/* タブ */}
+          <div className="mb-6 flex space-x-4">
+            <Button
+              variant={activeTab === "posts" ? "default" : "ghost"}
+              onClick={() => setActiveTab("posts")}
+            >
+              <MessageSquare className="mr-2 size-4" />
+              投稿
+            </Button>
+            <Button
+              variant={activeTab === "reposts" ? "default" : "ghost"}
+              onClick={() => setActiveTab("reposts")}
+            >
+              <RefreshCw className="mr-2 size-4" />
+              拡散
+            </Button>
+            <Button
+              variant={activeTab === "favorites" ? "default" : "ghost"}
+              onClick={() => setActiveTab("favorites")}
+            >
+              <Star className="mr-2 size-4" />
+              お気に入り
+            </Button>
+            <Button
+              variant={activeTab === "replies" ? "default" : "ghost"}
+              onClick={() => setActiveTab("replies")}
+            >
+              <MessageCircle className="mr-2 size-4" />
+              返信
+            </Button>
           </div>
-        ) : (
-          posts.map((post) => <Post key={post.id} post={post} />)
-        )}
+
+          {/* 投稿一覧 */}
+          <div className="space-y-4">
+            {posts.length === 0 ? (
+              <div className="rounded-lg border border-gray-800 p-8 text-center text-gray-500">
+                {activeTab === "posts" && "まだ投稿していません"}
+                {activeTab === "reposts" && "まだ拡散していません"}
+                {activeTab === "favorites" && "まだお気に入りしていません"}
+                {activeTab === "replies" && "まだ返信していません"}
+              </div>
+            ) : (
+              posts.map((post) => (
+                <PostComponent
+                  key={post.id}
+                  post={post}
+                  onRepostSuccess={() => fetchUserContent(activeTab)}
+                  onFavoriteSuccess={() => fetchUserContent(activeTab)}
+                />
+              ))
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

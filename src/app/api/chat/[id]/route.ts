@@ -1,4 +1,3 @@
-// chat/[id]               GET/POST            チャット個別ページ取得/送信
 import { getServerSession } from "next-auth/next";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
@@ -9,7 +8,6 @@ import type {
   ChatHistoryResponse,
 } from "@/app/_types/chat";
 
-// チャット履歴の取得
 export async function GET(
   req: Request,
   { params }: { params: { id: string } }
@@ -20,7 +18,6 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // 相手のユーザーの存在確認と情報取得
     const otherUser = await prisma.user.findUnique({
       where: { id: params.id },
       select: {
@@ -34,12 +31,10 @@ export async function GET(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // ページネーションのパラメータ
     const { searchParams } = new URL(req.url);
     const cursor = searchParams.get("cursor");
     const limit = 50;
 
-    // チャット履歴を取得（自分と相手のメッセージのみ）
     const messages = await prisma.chat.findMany({
       where: {
         OR: [
@@ -66,12 +61,10 @@ export async function GET(
       },
     });
 
-    // 次ページの有無を確認
     const hasMore = messages.length > limit;
     const nextCursor = hasMore ? messages[limit - 1].id : undefined;
     const messageList = hasMore ? messages.slice(0, -1) : messages;
 
-    // メッセージを整形（自分のメッセージかどうかのフラグを追加）
     const formattedMessages = messageList.map((msg) => ({
       id: msg.id,
       message: msg.message,
@@ -96,19 +89,16 @@ export async function GET(
   }
 }
 
-// メッセージの送信
 export async function POST(
   req: Request,
   { params }: { params: { id: string } }
 ) {
   try {
-    // 認証チェック
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // 自分自身へのメッセージを防止
     if (session.user.id === params.id) {
       return NextResponse.json(
         { error: "Cannot send message to yourself" },
@@ -118,7 +108,6 @@ export async function POST(
 
     const body: ChatPostRequest = await req.json();
 
-    // メッセージのバリデーション
     if (!body.message.trim()) {
       return NextResponse.json(
         { error: "Message cannot be empty" },
@@ -126,7 +115,6 @@ export async function POST(
       );
     }
 
-    // 受信者の存在確認
     const receiver = await prisma.user.findUnique({
       where: { id: params.id },
     });
@@ -138,9 +126,7 @@ export async function POST(
       );
     }
 
-    // トランザクションでメッセージと通知を作成
     const [message, _] = await prisma.$transaction([
-      // メッセージを作成
       prisma.chat.create({
         data: {
           senderId: session.user.id,
@@ -155,7 +141,6 @@ export async function POST(
           receiverId: true,
         },
       }),
-      // チャット通知を作成
       prisma.notification.create({
         data: {
           type: "msg",
@@ -165,7 +150,6 @@ export async function POST(
       }),
     ]);
 
-    // レスポンスを整形
     const formattedMessage = {
       id: message.id,
       message: message.message,

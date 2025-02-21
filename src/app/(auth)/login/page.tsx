@@ -13,6 +13,7 @@ import {
   CardTitle,
   CardContent,
   CardFooter,
+  CardDescription,
 } from "@/components/ui/card";
 
 export default function LoginPage() {
@@ -21,6 +22,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,6 +58,9 @@ export default function LoginPage() {
           <CardTitle className="text-center text-2xl font-bold">
             ログイン
           </CardTitle>
+          <CardDescription className="text-center">
+            パスワードに漢字やひらがなを使うときは一旦パスワードを表示させるようにしてください
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {error && (
@@ -78,15 +83,26 @@ export default function LoginPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">パスワード</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="パスワードを入力"
-                required
-                disabled={isLoading}
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="パスワードを入力"
+                  required
+                  minLength={7}
+                  inputMode="text"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="absolute right-2 top-1/2 -translate-y-1/2"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? "非表示" : "表示"}
+                </Button>
+              </div>
             </div>
             <Button
               type="submit"

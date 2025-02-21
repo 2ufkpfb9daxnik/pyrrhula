@@ -57,7 +57,7 @@ export async function GET(req: Request) {
     // レスポンスデータの整形
     const formattedNotifications = notificationList.map((notification) => ({
       id: notification.id,
-      type: notification.type as "fol" | "fav" | "msg",
+      type: notification.type as "fol" | "fav" | "msg" | "rep",
       createdAt: notification.createdAt.toISOString(),
       ...(notification.sender && {
         sender: {

@@ -15,6 +15,7 @@ import {
 import { toast } from "sonner";
 import { SessionProvider } from "next-auth/react";
 import { Toaster } from "sonner";
+import { linkify } from "@/lib/linkify";
 
 interface Post {
   id: string;
@@ -25,10 +26,9 @@ interface Post {
   user: {
     id: string;
     username: string;
-    icon: string | null; // null許容に変更
+    icon: string | null;
   };
   parent?: {
-    // 親投稿の情報を保持
     id: string;
     content: string;
     user: {
@@ -39,11 +39,17 @@ interface Post {
   _count: {
     replies: number;
   };
-  isFavorited?: boolean; // お気に入り状態
-  isReposted?: boolean; // リポスト状態
+  isFavorited?: boolean;
+  isReposted?: boolean;
 }
 
-export function Post({ post }: { post: Post }) {
+interface PostProps {
+  post: Post;
+  onRepostSuccess?: () => Promise<void>;
+  onFavoriteSuccess?: () => Promise<void>;
+}
+
+export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
   const router = useRouter();
   const { data: session } = useSession();
   const [favorites, setFavorites] = useState(post.favorites);
@@ -72,6 +78,10 @@ export function Post({ post }: { post: Post }) {
 
       setFavorites((prev) => (isFavorited ? prev - 1 : prev + 1));
       setIsFavorited((prev) => !prev);
+
+      if (onFavoriteSuccess) {
+        await onFavoriteSuccess();
+      }
     } catch (error) {
       toast.error("操作に失敗しました");
     } finally {
@@ -95,6 +105,10 @@ export function Post({ post }: { post: Post }) {
 
       setReposts((prev) => (isReposted ? prev - 1 : prev + 1));
       setIsReposted((prev) => !prev);
+
+      if (onRepostSuccess) {
+        await onRepostSuccess();
+      }
     } catch (error) {
       toast.error("操作に失敗しました");
     } finally {
@@ -146,29 +160,29 @@ export function Post({ post }: { post: Post }) {
               {formatDistanceToNow(new Date(post.createdAt))}
             </span>
           </div>
-          <p className="mt-2">{post.content}</p>
+          <p className="mt-2 whitespace-pre-wrap break-words">
+            {linkify(post.content)}
+          </p>
           <div className="mt-3 flex items-center space-x-6">
+            {/* リプライボタン */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={handleFavorite}
+                  onClick={handleReply}
                   disabled={isLoading || !session}
                 >
-                  <Star
-                    className={`mr-1 size-4 ${
-                      isFavorited ? "fill-yellow-500 text-yellow-500" : ""
-                    }`}
-                  />
-                  <span>{favorites}</span>
+                  <MessageCircle className="mr-1 size-4" />
+                  <span>{post._count.replies}</span>
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                {session ? "お気に入り" : "ログインが必要です"}
+                {session ? "返信" : "ログインが必要です"}
               </TooltipContent>
             </Tooltip>
 
+            {/* リポストボタン */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -190,20 +204,25 @@ export function Post({ post }: { post: Post }) {
               </TooltipContent>
             </Tooltip>
 
+            {/* お気に入りボタン */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={handleReply}
-                  disabled={!session}
+                  onClick={handleFavorite}
+                  disabled={isLoading || !session}
                 >
-                  <MessageCircle className="mr-1 size-4" />
-                  <span>{post._count.replies}</span>
+                  <Star
+                    className={`mr-1 size-4 ${
+                      isFavorited ? "fill-yellow-500 text-yellow-500" : ""
+                    }`}
+                  />
+                  <span>{favorites}</span>
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                {session ? "返信" : "ログインが必要です"}
+                {session ? "お気に入り" : "ログインが必要です"}
               </TooltipContent>
             </Tooltip>
           </div>

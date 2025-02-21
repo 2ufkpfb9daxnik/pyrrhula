@@ -1,27 +1,27 @@
 // users/                  GET                 ユーザー一覧取得
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import type { UserListResponse } from "@/app/_types/users";
 
 export async function GET(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
     const { searchParams } = new URL(req.url);
-    const cursor = searchParams.get("cursor");
-    const limit = Number(searchParams.get("limit")) || 20;
-    const sortBy = searchParams.get("sort") || "rate"; // "rate" or "createdAt"
-    const order = searchParams.get("order") || "desc"; // "asc" or "desc"
+    const sort = searchParams.get("sort") || "rate";
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = 20;
+    const skip = (page - 1) * limit;
 
-    // 並び替え条件を設定
-    const orderBy = {
-      [sortBy === "rate" ? "rate" : "createdAt"]: order as "asc" | "desc",
-    };
+    const totalUsers = await prisma.user.count();
 
-    // ユーザー一覧を取得
     const users = await prisma.user.findMany({
-      take: limit + 1,
-      skip: cursor ? 1 : 0,
-      cursor: cursor ? { id: cursor } : undefined,
-      orderBy,
+      take: limit,
+      skip: skip,
+      orderBy: {
+        [sort]: "desc",
+      },
       select: {
         id: true,
         username: true,
@@ -29,23 +29,36 @@ export async function GET(req: Request) {
         rate: true,
         postCount: true,
         createdAt: true,
+        followers: session?.user
+          ? {
+              where: {
+                followerId: session.user.id,
+              },
+              select: {
+                followerId: true,
+              },
+            }
+          : undefined,
       },
     });
 
-    // 次ページの有無を確認
-    const hasMore = users.length > limit;
-    const nextCursor = hasMore ? users[limit - 1].id : undefined;
-    const userList = hasMore ? users.slice(0, -1) : users;
+    const formattedUsers = users.map((user) => ({
+      ...user,
+      isFollowing: user.followers?.length > 0,
+      followers: undefined,
+    }));
 
-    const response: UserListResponse = {
-      users: userList,
-      hasMore,
-      ...(nextCursor && { nextCursor }),
-    };
-
-    return NextResponse.json(response);
+    return NextResponse.json({
+      users: formattedUsers,
+      pagination: {
+        total: totalUsers,
+        pages: Math.ceil(totalUsers / limit),
+        currentPage: page,
+        hasMore: page * limit < totalUsers,
+      },
+    });
   } catch (error) {
-    console.error("[User List Error]:", error);
+    console.error("[Users Error]:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

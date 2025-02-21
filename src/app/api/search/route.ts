@@ -139,6 +139,11 @@ export async function GET(req: Request) {
             },
           },
         },
+        _count: {
+          select: {
+            replies: true,
+          },
+        },
       },
     });
 

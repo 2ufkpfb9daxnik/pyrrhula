@@ -34,12 +34,22 @@ export function MakePost({ onPostCreated }: MakePostProps) {
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+      e.preventDefault();
+      handleSubmit(
+        new Event("submit") as unknown as React.FormEvent<HTMLFormElement>
+      );
+    }
+  };
+
   return (
     <form onSubmit={handleSubmit} className="mb-8">
       <Textarea
         value={newPost}
         onChange={(e) => setNewPost(e.target.value)}
-        placeholder="いまどうしてる？"
+        placeholder="ctrl + enter で投稿可"
+        onKeyDown={handleKeyDown}
         maxLength={500}
         className="mb-2 w-full"
       />
