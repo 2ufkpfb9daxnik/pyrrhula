@@ -8,9 +8,14 @@ import type { TimelineResponse, CreatePostRequest } from "@/app/_types/post";
 // 投稿一覧を取得
 export async function GET(req: Request) {
   try {
+    console.log("タイムライン取得開始");
     const session = await getServerSession(authOptions);
+    console.log("セッション状態:", session ? "ログイン中" : "未ログイン");
+
     const { searchParams } = new URL(req.url);
     const cursor = searchParams.get("cursor");
+    console.log("カーソル:", cursor);
+
     const limit = 100;
 
     // 投稿を取得

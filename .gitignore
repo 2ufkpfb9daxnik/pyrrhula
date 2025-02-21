@@ -39,3 +39,5 @@ next-env.d.ts
 # other
 /.vscode
 /ignore
+
+.vercel
