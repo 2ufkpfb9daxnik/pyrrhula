@@ -89,7 +89,6 @@ graph TB
         Browser[ブラウザー]
         NextJS[Next.js App]
         React[React Components]
-        SWR[SWR Data Fetching]
         Auth[NextAuth.js]
     end
 
@@ -101,7 +100,6 @@ graph TB
 
     subgraph Database
         Supabase[Supabase PostgreSQL]
-        PgBouncer[Connection Pooling]
     end
 
     subgraph External
@@ -112,13 +110,9 @@ graph TB
 
     Browser --> NextJS
     NextJS --> React
-    React --> SWR
-    SWR --> API
     NextJS --> Auth
     Auth --> GitHub
     API --> Prisma
-    Prisma --> PgBouncer
-    PgBouncer --> Supabase
     NextJS --> Cache
     Cache --> CDN
     NextJS --> Vercel
@@ -128,9 +122,9 @@ graph TB
     classDef database fill:#9900ff,stroke:#333,stroke-width:2px;
     classDef external fill:#ff0099,stroke:#333,stroke-width:2px;
 
-    class Browser,NextJS,React,SWR,Auth primary;
+    class Browser,NextJS,React,Auth primary;
     class API,Prisma,Cache secondary;
-    class Supabase,PgBouncer database;
+    class Supabase database;
     class GitHub,Vercel,CDN external;
 ```
 
@@ -142,30 +136,25 @@ graph TB
 - **React 18**: Suspense, Server Componentsサポート
 - **TailwindCSS**: スタイリング
 - **ShadcnUI**: UIコンポーネント
-- **SWR**: データフェッチング
 - **NextAuth.js**: 認証
-- **Zod**: バリデーション
 
 ### バックエンド
 
 - **Next.js API Routes**: RESTful API
 - **Prisma**: TypeSafe ORM
 - **PostgreSQL**: データベース
-- **PgBouncer**: コネクションプーリング
 
 ### インフラストラクチャ
 
 - **Vercel**: ホスティング & デプロイメント
 - **Supabase**: データベースホスティング
 - **GitHub Actions**: CI/CD
-- **Edge Functions**: エッジでの処理
 
 ### 開発ツール
 
 - **TypeScript**: 型安全性
 - **ESLint**: コード品質
 - **Prettier**: コードフォーマット
-- **Husky**: Gitフック
 
 ## 開発期間・体制
 
@@ -177,9 +166,7 @@ graph TB
 - 意図的に投稿/アカウントの削除/編集機能を付けていません。今まで類似サービスを使ってきた経験からです。
 - 意図的にユーザーIDは変更できませんし、決めることもできません。単にログイン機能としてのみ使われます。
 
-## 既知の課題とTODO
-
-### 課題
+## 既知の課題
 
 - 画像アップロード時のパフォーマンス改善
 - プッシュ通知の実装
