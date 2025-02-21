@@ -16,11 +16,10 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!session) {
-      router.push("/login");
       return;
     }
     fetchPosts();
-  }, [session, router]);
+  }, [session]);
 
   const fetchPosts = async () => {
     try {

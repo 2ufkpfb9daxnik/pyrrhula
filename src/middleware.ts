@@ -2,12 +2,19 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
+// 認証が不要なパスのリスト
+const publicPaths = [
+  '/api/login',
+  '/api/auth'
+];
+
 export async function middleware(request: NextRequest) {
-  // チャット以外のGETリクエストは認証不要
-  if (
-    request.method === "GET" &&
-    !request.nextUrl.pathname.startsWith("/api/chat")
-  ) {
+  // パスの取得
+  const path = request.nextUrl.pathname;
+
+  // 認証不要なパスかチェック
+  if (publicPaths.some(publicPath => path.startsWith(publicPath))) {
+    console.log("認証スキップ:", path);
     return NextResponse.next();
   }
 
@@ -30,5 +37,9 @@ export async function middleware(request: NextRequest) {
 
 // ミドルウェアを適用するパスを指定
 export const config = {
-  matcher: "/api/:path*",
+  matcher: [
+    '/api/:path*',
+    '/home/:path*',
+    '/admin/:path*'
+  ]
 };
