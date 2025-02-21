@@ -81,32 +81,91 @@ Pyrrhulaは、シンプルさと使いやすさを重視した分散型マイク
 
 ## 使用技術
 
+## システム構成図
+
+```mermaid
+graph TB
+    subgraph Client
+        Browser[ブラウザー]
+        NextJS[Next.js App]
+        React[React Components]
+        SWR[SWR Data Fetching]
+        Auth[NextAuth.js]
+    end
+
+    subgraph Server
+        API[Next.js API Routes]
+        Prisma[Prisma ORM]
+        Cache[Next.js Cache]
+    end
+
+    subgraph Database
+        Supabase[Supabase PostgreSQL]
+        PgBouncer[Connection Pooling]
+    end
+
+    subgraph External
+        GitHub[GitHub OAuth]
+        Vercel[Vercel Platform]
+        CDN[Vercel Edge Network]
+    end
+
+    Browser --> NextJS
+    NextJS --> React
+    React --> SWR
+    SWR --> API
+    NextJS --> Auth
+    Auth --> GitHub
+    API --> Prisma
+    Prisma --> PgBouncer
+    PgBouncer --> Supabase
+    NextJS --> Cache
+    Cache --> CDN
+    NextJS --> Vercel
+
+    classDef primary fill:#ff9900,stroke:#333,stroke-width:2px;
+    classDef secondary fill:#00ff99,stroke:#333,stroke-width:2px;
+    classDef database fill:#9900ff,stroke:#333,stroke-width:2px;
+    classDef external fill:#ff0099,stroke:#333,stroke-width:2px;
+
+    class Browser,NextJS,React,SWR,Auth primary;
+    class API,Prisma,Cache secondary;
+    class Supabase,PgBouncer database;
+    class GitHub,Vercel,CDN external;
+```
+
+## 技術スタックの詳細
+
 ### フロントエンド
 
-- TypeScript 5.0
-- Next.js 14 (App Router)
-- TailwindCSS
-- Radix UI
-- ShadcnUI
-- React Hot Toast
+- **Next.js 14**: App Routerを使用したサーバーコンポーネント
+- **React 18**: Suspense, Server Componentsサポート
+- **TailwindCSS**: スタイリング
+- **ShadcnUI**: UIコンポーネント
+- **SWR**: データフェッチング
+- **NextAuth.js**: 認証
+- **Zod**: バリデーション
 
 ### バックエンド
 
-- Next.js API Routes
-- Prisma ORM
-- PostgreSQL
-- NextAuth.js
+- **Next.js API Routes**: RESTful API
+- **Prisma**: TypeSafe ORM
+- **PostgreSQL**: データベース
+- **PgBouncer**: コネクションプーリング
+
+### インフラストラクチャ
+
+- **Vercel**: ホスティング & デプロイメント
+- **Supabase**: データベースホスティング
+- **GitHub Actions**: CI/CD
+- **Edge Functions**: エッジでの処理
 
 ### 開発ツール
 
-- Visual Studio Code
-- Supabase (データベースホスティング)
-- Vercel (デプロイ)
-- Git/GitHub (バージョン管理)
-
-### システム構成図
-
-![システム構成図](/docs/architecture.png)
+- **TypeScript**: 型安全性
+- **ESLint**: コード品質
+- **Prettier**: コードフォーマット
+- **Husky**: Gitフック
 
 ## 開発期間・体制
 
