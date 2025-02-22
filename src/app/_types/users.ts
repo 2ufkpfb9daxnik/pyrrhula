@@ -13,6 +13,7 @@ export interface UserListResponse {
   }[];
   hasMore: boolean;
   nextCursor?: string;
+  total?: number; // 追加: 総ユーザー数
 }
 
 export interface UserDetailResponse {

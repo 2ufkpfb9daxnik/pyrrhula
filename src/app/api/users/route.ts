@@ -6,7 +6,6 @@ import type { UserListResponse } from "@/app/_types/users";
 import { calculateRating } from "@/lib/rating";
 
 // エッジランタイムとキャッシュを維持
-export const runtime = "edge";
 export const revalidate = 60; // 1分間キャッシュ
 
 export async function GET(req: Request) {
@@ -14,7 +13,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const sort = searchParams.get("sort") || "rate";
     const page = parseInt(searchParams.get("page") || "1");
-    const limit = 10;
+    const limit = 5;
     const skip = (page - 1) * limit;
 
     // Prismaクエリを最適化
@@ -54,10 +53,10 @@ export async function GET(req: Request) {
       ...user,
       ratingColor: calculateRating(user._count.posts, user.postCount),
     }));
-
     const response: UserListResponse = {
       users: formattedUsers,
       hasMore: page * limit < totalUsers,
+      total: totalUsers, // 総ユーザー数を追加
       nextCursor: page * limit < totalUsers ? String(page + 1) : undefined,
     };
 

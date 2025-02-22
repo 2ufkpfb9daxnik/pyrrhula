@@ -37,9 +37,11 @@ const PowerPagination: React.FC<{
   totalPages: number;
   onPageChange: (page: number) => void;
 }> = ({ currentPage, totalPages, onPageChange }) => {
-  // 2のべき乗のページ番号を生成
   const generatePowerPages = () => {
     const pages = new Set<number>();
+
+    // 常に1ページ目を表示
+    pages.add(1);
 
     // 現在のページを追加
     pages.add(currentPage);
@@ -58,6 +60,11 @@ const PowerPagination: React.FC<{
       power *= 2;
     }
 
+    // 最後のページを追加（総ページ数が2以上の場合）
+    if (totalPages > 1) {
+      pages.add(totalPages);
+    }
+
     return Array.from(pages).sort((a, b) => a - b);
   };
 
@@ -65,16 +72,21 @@ const PowerPagination: React.FC<{
 
   return (
     <div className="flex flex-wrap justify-center gap-2 pt-4">
-      {powerPages.map((page) => (
-        <Button
-          key={page}
-          variant={page === currentPage ? "default" : "outline"}
-          size="sm"
-          onClick={() => onPageChange(page)}
-          className="min-w-[40px]"
-        >
-          {page}
-        </Button>
+      {powerPages.map((page, index) => (
+        <>
+          {index > 0 && powerPages[index] - powerPages[index - 1] > 1 && (
+            <span className="flex items-center px-2">...</span>
+          )}
+          <Button
+            key={page}
+            variant={page === currentPage ? "default" : "outline"}
+            size="sm"
+            onClick={() => onPageChange(page)}
+            className="min-w-[40px]"
+          >
+            {page}
+          </Button>
+        </>
       ))}
     </div>
   );
@@ -104,18 +116,18 @@ export default function UsersPage() {
     try {
       setIsLoading(true);
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8秒でタイムアウト
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
 
       const params = new URLSearchParams({
         sort: sortBy,
         page: page.toString(),
-        limit: "10",
+        limit: "5",
         includeFollowStatus: session ? "true" : "false",
       });
 
       const response = await fetch(`/api/users?${params}`, {
         signal: controller.signal,
-        next: { revalidate: 60 }, // クライアント側でもキャッシュを有効化
+        next: { revalidate: 60 },
       });
 
       clearTimeout(timeoutId);
@@ -131,9 +143,11 @@ export default function UsersPage() {
 
       const data = await response.json();
       setUsers(data.users);
+
+      // ページネーション情報の修正
       setPagination({
-        total: data.total,
-        pages: Math.ceil(data.total / 10),
+        total: data.total || 0, // APIからの総ユーザー数
+        pages: Math.ceil(data.total / 5), // limitで割って総ページ数を計算
         currentPage: page,
         hasMore: data.hasMore,
       });

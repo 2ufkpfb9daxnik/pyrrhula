@@ -6,7 +6,20 @@ const nextConfig = {
   },
   poweredByHeader: false,
   reactStrictMode: true,
+  // キャッシュヘッダーの設定を追加
+  async headers() {
+    return [
+      {
+        source: "/api/users",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, s-maxage=60, stale-while-revalidate=30",
+          },
+        ],
+      },
+    ];
+  },
 };
 
-// CommonJS形式からESM形式に変更
 export default nextConfig;
