@@ -63,7 +63,7 @@ export default function LoginPage() {
             パスワードに漢字やひらがなを使うときは一旦パスワードを表示させるようにしてください。
             <br></br>
             ユーザーIDとユーザー名は違います。新規登録したときに、上から落ちてきたやつが、ユーザーIDです。もしユーザーIDがわからない場合は、
-            <Link href="/users" className="text-blue-500 hover:underline">
+            <Link href="/user" className="text-blue-500 hover:underline">
               ユーザー一覧
             </Link>
             から探すと見つかる可能性があります。
