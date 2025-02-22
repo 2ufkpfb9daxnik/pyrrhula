@@ -63,9 +63,10 @@ export default function FollowGraphPage({
     index: number,
     totalAtDepth: number
   ) => {
-    const radius = depth * 200;
+    const radius = depth * 300; // 200から300に増加
     const angleStep = (2 * Math.PI) / totalAtDepth;
-    const angle = index * angleStep;
+    // 開始角度をずらして、ノードがより均等に配置されるように
+    const angle = index * angleStep + Math.PI / 4;
     return {
       x: radius * Math.cos(angle),
       y: radius * Math.sin(angle),
@@ -78,7 +79,7 @@ export default function FollowGraphPage({
       const graphEdges: Edge[] = [];
       const nodesAtDepth = new Map<number, number>();
       const processedNodes = new Map<string, number>();
-
+      // processGraphData 関数内の processNode 関数を修正
       const processNode = (node: UserNode) => {
         if (processedNodes.has(node.id)) return;
 
@@ -88,16 +89,18 @@ export default function FollowGraphPage({
         processedNodes.set(node.id, indexAtDepth);
 
         // ノードを追加
+        const position =
+          node.depth === 0
+            ? { x: 0, y: 0 }
+            : calculatePosition(
+                node.depth,
+                indexAtDepth,
+                nodesAtDepth.get(node.depth) || 1 // ここを修正
+              );
+
         graphNodes.push({
           id: node.id,
-          position:
-            node.depth === 0
-              ? { x: 0, y: 0 }
-              : calculatePosition(
-                  node.depth,
-                  indexAtDepth,
-                  Math.max(node.children.length, 4)
-                ),
+          position: position,
           data: {
             username: node.username,
             icon: node.icon,
@@ -106,23 +109,34 @@ export default function FollowGraphPage({
           type: "custom",
         });
 
-        // 子ノードを処理
+        // 子ノードを処理（先に全ノードを追加）
         node.children.forEach((child) => processNode(child));
 
-        // エッジを追加
-        node.following.forEach((targetId) => {
-          graphEdges.push({
-            id: `${node.id}->${targetId}`,
-            source: node.id,
-            target: targetId,
-            animated: true,
-            markerEnd: {
-              type: MarkerType.Arrow,
-              color: "#94a3b8",
-            },
-            style: { stroke: "#94a3b8", strokeWidth: 1.5 },
+        // エッジを追加（全ノードの追加後に実行）
+        if (node.following) {
+          node.following.forEach((targetId) => {
+            if (processedNodes.has(targetId)) {
+              // ターゲットノードが存在する場合のみエッジを追加
+              graphEdges.push({
+                id: `${node.id}->${targetId}`,
+                source: node.id,
+                target: targetId,
+                type: "smoothstep", // エッジの種類を変更
+                animated: true,
+                markerEnd: {
+                  type: MarkerType.Arrow,
+                  width: 20,
+                  height: 20,
+                  color: "#94a3b8",
+                },
+                style: {
+                  stroke: "#94a3b8",
+                  strokeWidth: 1.5,
+                },
+              });
+            }
           });
-        });
+        }
       };
 
       processNode(userData);
@@ -174,8 +188,24 @@ export default function FollowGraphPage({
         minZoom={0.1}
         maxZoom={1.5}
         defaultEdgeOptions={{
-          type: "straight",
+          type: "smoothstep",
           animated: true,
+          style: {
+            stroke: "#94a3b8",
+            strokeWidth: 1.5,
+          },
+          markerEnd: {
+            type: MarkerType.Arrow,
+            width: 20,
+            height: 20,
+            color: "#94a3b8",
+          },
+        }}
+        // ノードの配置をより適切に
+        fitViewOptions={{
+          padding: 0.2,
+          minZoom: 0.1,
+          maxZoom: 1.5,
         }}
         className="bg-background"
       >
