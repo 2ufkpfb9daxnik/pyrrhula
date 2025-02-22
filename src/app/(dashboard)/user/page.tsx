@@ -208,7 +208,7 @@ export default function UsersPage() {
             className="flex items-center"
           >
             <Trophy className="mr-2 size-4" />
-            レート順
+            最古登録順
           </Button>
           <Button
             variant={sortBy === "createdAt" ? "default" : "outline"}
@@ -216,7 +216,7 @@ export default function UsersPage() {
             className="flex items-center"
           >
             <Calendar className="mr-2 size-4" />
-            登録日順
+            最新登録順
           </Button>
         </div>
       </div>
@@ -288,7 +288,7 @@ export default function UsersPage() {
                     router.push(`/followgraph/${user.id}`);
                   }}
                 >
-                  フォローグラフを見る
+                  フォローグラフ壊れています
                 </Button>
               </div>
             </div>

@@ -8,6 +8,10 @@ import { calculateRating } from "@/lib/rating";
 // エッジランタイムとキャッシュを維持
 export const revalidate = 60; // 1分間キャッシュ
 
+// レート計算のキャッシュを追加
+const CACHE_TTL = 60 * 60 * 1000; // 1時間
+const rateCache = new Map<string, { rate: number; timestamp: number }>();
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -15,6 +19,12 @@ export async function GET(req: Request) {
     const page = parseInt(searchParams.get("page") || "1");
     const limit = 5;
     const skip = (page - 1) * limit;
+
+    // レート順の場合はインデックスを活用
+    const orderBy =
+      sort === "rate"
+        ? { rate: "desc" as const, id: "asc" as const } // 複合インデックス用
+        : { [sort]: "desc" as const };
 
     // Prismaクエリを最適化
     const [users, totalUsers] = await Promise.all([
