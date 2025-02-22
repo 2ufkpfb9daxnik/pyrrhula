@@ -136,7 +136,7 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
       toast.error("ログインが必要です");
       return;
     }
-    router.push(`/compose/reply/${post.id}`);
+    router.push(`/post/${post.id}`);
   };
 
   const handlePostClick = (e: React.MouseEvent) => {
