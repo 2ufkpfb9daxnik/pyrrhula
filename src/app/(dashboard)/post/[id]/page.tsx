@@ -67,6 +67,24 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
     },
   });
 
+  {
+    /* 返信投稿フォーム */
+  }
+  {
+    session && (
+      <div className="mb-8">
+        <Separator className="mb-4" />
+        <MakePost
+          onPostCreated={handlePostCreated}
+          replyTo={{
+            id: post.id,
+            content: post.content,
+            username: post.user.username,
+          }}
+        />
+      </div>
+    );
+  }
   return (
     <div className="mx-auto max-w-2xl p-4">
       {/* 親投稿 */}
@@ -87,24 +105,30 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
       )}
 
       {/* メイン投稿 */}
-      <div className="mb-8">
+      <div className="mb-4">
         <Post post={convertToPost(post)} />
       </div>
 
-      {/* 返信投稿フォーム */}
-      {session && (
-        <div className="mb-8">
-          <Separator className="mb-4" />
-          <MakePost
-            onPostCreated={handlePostCreated}
-            replyTo={{
-              id: post.id,
-              content: post.content,
-              username: post.user.username,
-            }}
-          />
-        </div>
-      )}
+      {/* 統計情報とリンク */}
+      <div className="mb-8 flex items-center justify-around rounded-lg border border-gray-800 p-4">
+        <Button
+          variant="ghost"
+          className="flex flex-col items-center space-y-1"
+          onClick={() => router.push(`/post/${post.id}/repost`)}
+        >
+          <span className="text-lg font-bold">{post.reposts}</span>
+          <span className="text-sm text-gray-500">拡散した人</span>
+        </Button>
+        <Separator orientation="vertical" className="h-12" />
+        <Button
+          variant="ghost"
+          className="flex flex-col items-center space-y-1"
+          onClick={() => router.push(`/post/${post.id}/favorite`)}
+        >
+          <span className="text-lg font-bold">{post.favorites}</span>
+          <span className="text-sm text-gray-500">お気に入りした人</span>
+        </Button>
+      </div>
 
       {/* 返信一覧 */}
       <div className="space-y-4">

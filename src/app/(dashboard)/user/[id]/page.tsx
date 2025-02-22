@@ -17,6 +17,7 @@ import {
   BarChart,
   UserPlus,
   UserMinus,
+  Send,
 } from "lucide-react";
 import type { Post } from "@/app/_types/post";
 import { Post as PostComponent } from "@/app/_components/post";
@@ -186,23 +187,32 @@ export default function UserProfilePage({
                         <p className="text-sm text-gray-500">@{user.id}</p>
                       </div>
                       {session?.user?.id !== user.id && (
-                        <Button
-                          onClick={handleFollow}
-                          disabled={isFollowLoading}
-                          variant={isFollowing ? "outline" : "default"}
-                        >
-                          {isFollowing ? (
-                            <>
-                              <UserMinus className="mr-2 size-4" />
-                              フォロー解除
-                            </>
-                          ) : (
-                            <>
-                              <UserPlus className="mr-2 size-4" />
-                              フォロー
-                            </>
-                          )}
-                        </Button>
+                        <div className="mt-4 flex items-center space-x-4">
+                          <Button
+                            onClick={handleFollow}
+                            disabled={isFollowLoading}
+                            variant={isFollowing ? "outline" : "default"}
+                          >
+                            {isFollowing ? (
+                              <>
+                                <UserMinus className="mr-2 size-4" />
+                                フォロー解除
+                              </>
+                            ) : (
+                              <>
+                                <UserPlus className="mr-2 size-4" />
+                                フォロー
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            onClick={() => router.push(`/chat/${user.id}`)}
+                          >
+                            <Send className="mr-2 size-4" />
+                            チャット
+                          </Button>
+                        </div>
                       )}
                     </div>
                     {user.profile && (
@@ -217,12 +227,26 @@ export default function UserProfilePage({
                         <BarChart className="mr-2 size-4" />
                         レート {user.rate}
                       </div>
-                      <div className="flex items-center">
+                      <div className="flex items-center space-x-4">
                         <Users className="mr-2 size-4" />
-                        <span className="mr-4">
+                        <Button
+                          variant="link"
+                          className="h-auto p-0 text-gray-400 hover:text-white"
+                          onClick={() =>
+                            router.push(`/user/${user.id}/follower`)
+                          }
+                        >
                           フォロワー {user.followersCount}
-                        </span>
-                        フォロー中 {user.followingCount}
+                        </Button>
+                        <Button
+                          variant="link"
+                          className="h-auto p-0 text-gray-400 hover:text-white"
+                          onClick={() =>
+                            router.push(`/user/${user.id}/following`)
+                          }
+                        >
+                          フォロー中 {user.followingCount}
+                        </Button>
                       </div>
                       <div className="flex items-center">
                         <Calendar className="mr-2 size-4" />

@@ -26,3 +26,16 @@ export interface UserFavoritePostsResponse {
   hasMore: boolean;
   nextCursor?: string;
 }
+
+export interface FavoriteUser {
+  id: string;
+  username: string;
+  icon: string | null;
+  createdAt: Date;
+}
+
+export interface FavoriteListResponse {
+  users: FavoriteUser[];
+  hasMore: boolean;
+  nextCursor?: string;
+}

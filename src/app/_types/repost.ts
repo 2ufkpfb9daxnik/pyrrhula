@@ -1,10 +1,12 @@
+export interface RepostUser {
+  id: string;
+  username: string;
+  icon: string | null;
+  createdAt: Date;
+}
+
 export interface RepostListResponse {
-  users: {
-    id: string;
-    username: string;
-    icon: string | null;
-    createdAt: Date; // リポスト日時
-  }[];
+  users: RepostUser[];
   hasMore: boolean;
   nextCursor?: string;
 }
