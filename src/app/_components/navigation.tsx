@@ -16,11 +16,12 @@ import {
   LogIn,
 } from "lucide-react";
 import { useNotifications } from "@/app/_hooks/useNotifications";
+import type { Notification } from "@/app/_types/notification"; // この行を追加
 
 export function Navigation() {
   const router = useRouter();
   const { data: session } = useSession();
-  const { hasUnread, markAsRead } = useNotifications();
+  const { hasUnread, markAsRead, lastNotification } = useNotifications();
 
   const handleProfileClick = () => {
     if (session?.user?.id) {
@@ -33,6 +34,23 @@ export function Navigation() {
     markAsRead();
     router.push("/notification");
   };
+
+  function getNotificationText(notification: Notification): string {
+    switch (notification.type) {
+      case "fol":
+        return `${notification.sender?.username}さんにフォローされました`;
+      case "fav":
+        return `${notification.sender?.username}さんが投稿をお気に入りに追加しました`;
+      case "msg":
+        return `${notification.sender?.username}さんからメッセージが届きました`;
+      case "rep":
+        return `${notification.sender?.username}さんが投稿を拡散しました`;
+      case "reply":
+        return `${notification.sender?.username}さんが投稿にリプライしました`;
+      default:
+        return "新しい通知があります";
+    }
+  }
 
   return (
     <nav className="fixed bottom-0 left-0 flex w-full flex-row items-center justify-around bg-gray-900 p-2 md:top-0 md:h-full md:w-16 md:flex-col md:justify-start md:space-y-8 md:py-8">
@@ -64,7 +82,11 @@ export function Navigation() {
           variant="ghost"
           size="icon"
           onClick={handleNotificationClick}
-          title="通知"
+          title={
+            lastNotification
+              ? `最新の通知: ${getNotificationText(lastNotification)}`
+              : "通知"
+          }
           className="md:w-full"
         >
           <Bell className="size-6" />
@@ -107,13 +129,13 @@ export function Navigation() {
         <User className="size-6" />
       </Button>
 
-      {/* 全体タイムラインボタン - デスクトップのみ */}
+      {/* 全体タイムラインボタン - hidden クラスを削除 */}
       <Button
         variant="ghost"
         size="icon"
         onClick={() => router.push("/whole")}
         title="全体タイムライン"
-        className="hidden md:flex md:w-full"
+        className="md:w-full" // hidden md:flex を削除
       >
         <Globe className="size-6" />
       </Button>

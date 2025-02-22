@@ -1,52 +1,67 @@
-import { useState, useEffect } from "react";
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
+import type {
+  NotificationsResponse,
+  Notification,
+} from "@/app/_types/notification";
 
 export function useNotifications() {
   const [hasUnread, setHasUnread] = useState(false);
+  const [lastNotification, setLastNotification] = useState<Notification | null>(
+    null
+  );
   const { data: session } = useSession();
 
-  useEffect(() => {
+  const checkNotifications = useCallback(async () => {
     if (!session?.user) return;
 
-    // 初回の未読通知チェック
-    checkUnreadNotifications();
-
-    // WebSocketコネクションの設定
-    const ws = new WebSocket(
-      process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:3000"
-    );
-
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.type === "notification" && data.userId === session.user.id) {
-        setHasUnread(true);
-      }
-    };
-
-    // 定期的なポーリング（WebSocketのフォールバック）
-    const interval = setInterval(checkUnreadNotifications, 30000);
-
-    return () => {
-      ws.close();
-      clearInterval(interval);
-    };
-  }, [session]);
-
-  const checkUnreadNotifications = async () => {
     try {
-      const response = await fetch("/api/notifications/unread");
-      if (response.ok) {
-        const { hasUnread } = await response.json();
-        setHasUnread(hasUnread);
+      const response = await fetch("/api/notifications");
+      if (!response.ok) return;
+
+      const data: NotificationsResponse = await response.json();
+
+      if (data.notifications.length > 0) {
+        const latestNotification = data.notifications[0];
+
+        // 最新の通知が保存されていない、または異なる場合
+        if (
+          !lastNotification ||
+          latestNotification.id !== lastNotification.id ||
+          new Date(latestNotification.createdAt) >
+            new Date(lastNotification.createdAt)
+        ) {
+          setHasUnread(true);
+          setLastNotification(latestNotification);
+        }
       }
     } catch (error) {
       console.error("Failed to check notifications:", error);
     }
-  };
+  }, [session, lastNotification]);
 
-  const markAsRead = () => {
+  // 1分ごとにポーリング
+  useEffect(() => {
+    if (!session?.user) return;
+
+    // 初回チェック
+    checkNotifications();
+
+    // ポーリングの設定
+    const interval = setInterval(checkNotifications, 60000);
+
+    return () => clearInterval(interval);
+  }, [session, checkNotifications]);
+
+  const markAsRead = useCallback(() => {
     setHasUnread(false);
-  };
+  }, []);
 
-  return { hasUnread, markAsRead };
+  return {
+    hasUnread,
+    markAsRead,
+    lastNotification, // 最新の通知情報も返す
+  };
 }
