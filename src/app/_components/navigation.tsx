@@ -15,10 +15,12 @@ import {
   LogOut,
   LogIn,
 } from "lucide-react";
+import { useNotifications } from "@/app/_hooks/useNotifications";
 
 export function Navigation() {
   const router = useRouter();
   const { data: session } = useSession();
+  const { hasUnread, markAsRead } = useNotifications();
 
   const handleProfileClick = () => {
     if (session?.user?.id) {
@@ -26,6 +28,10 @@ export function Navigation() {
     } else {
       router.push("/login");
     }
+  };
+  const handleNotificationClick = () => {
+    markAsRead();
+    router.push("/notification");
   };
 
   return (
@@ -53,15 +59,20 @@ export function Navigation() {
       </Button>
 
       {/* 通知ボタン */}
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => router.push("/notification")}
-        title="通知"
-        className="md:w-full"
-      >
-        <Bell className="size-6" />
-      </Button>
+      <div className="relative">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleNotificationClick}
+          title="通知"
+          className="md:w-full"
+        >
+          <Bell className="size-6" />
+          {hasUnread && (
+            <span className="absolute -right-1 -top-1 size-3 rounded-full bg-red-500" />
+          )}
+        </Button>
+      </div>
 
       {/* チャットボタン */}
       <Button
