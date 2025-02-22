@@ -70,7 +70,7 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
 
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/posts/${post.id}/favorite`, {
+      const response = await fetch(`/api/post/${post.id}/favorite`, {
         method: isFavorited ? "DELETE" : "POST",
       });
 
