@@ -1,3 +1,5 @@
+import type { RatingColor } from "./rating";
+
 export interface UserListResponse {
   users: {
     id: string;
@@ -6,6 +8,8 @@ export interface UserListResponse {
     rate: number;
     postCount: number;
     createdAt: Date;
+    ratingColor?: RatingColor; // オプショナルとして追加
+    recentPostCount?: number; // オプショナルとして追加
   }[];
   hasMore: boolean;
   nextCursor?: string;
@@ -21,6 +25,7 @@ export interface UserDetailResponse {
   createdAt: Date;
   followersCount: number;
   followingCount: number;
-  isFollowing?: boolean; // 閲覧者がこのユーザーをフォローしているか
+  isFollowing?: boolean;
+  ratingColor?: RatingColor; // オプショナルとして追加
+  recentPostCount?: number; // オプショナルとして追加
 }
-

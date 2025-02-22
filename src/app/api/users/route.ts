@@ -1,9 +1,9 @@
-// users/                  GET                 ユーザー一覧取得
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import type { UserListResponse } from "@/app/_types/users";
+import { calculateRating } from "@/lib/rating";
 
 export async function GET(req: Request) {
   try {
@@ -14,8 +14,10 @@ export async function GET(req: Request) {
     const limit = 20;
     const skip = (page - 1) * limit;
 
+    // 総ユーザー数を取得
     const totalUsers = await prisma.user.count();
 
+    // ユーザー一覧を取得
     const users = await prisma.user.findMany({
       take: limit,
       skip: skip,
@@ -29,6 +31,11 @@ export async function GET(req: Request) {
         rate: true,
         postCount: true,
         createdAt: true,
+        _count: {
+          select: {
+            posts: true,
+          },
+        },
         followers: session?.user
           ? {
               where: {
@@ -42,21 +49,43 @@ export async function GET(req: Request) {
       },
     });
 
-    const formattedUsers = users.map((user) => ({
-      ...user,
-      isFollowing: user.followers?.length > 0,
-      followers: undefined,
-    }));
+    // 各ユーザーの直近の投稿数とレーティングを計算
+    const formattedUsers = await Promise.all(
+      users.map(async (user) => {
+        // 直近30日の投稿数を取得
+        const recentPosts = await prisma.post.count({
+          where: {
+            userId: user.id,
+            createdAt: {
+              gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 過去30日
+            },
+          },
+        });
 
-    return NextResponse.json({
+        // レーティングカラーを計算
+        const ratingColor = calculateRating(recentPosts, user._count.posts);
+
+        return {
+          id: user.id,
+          username: user.username,
+          icon: user.icon,
+          rate: user.rate,
+          postCount: user._count.posts,
+          createdAt: user.createdAt,
+          isFollowing: user.followers?.length > 0,
+          ratingColor,
+          recentPostCount: recentPosts,
+        };
+      })
+    );
+
+    const response: UserListResponse = {
       users: formattedUsers,
-      pagination: {
-        total: totalUsers,
-        pages: Math.ceil(totalUsers / limit),
-        currentPage: page,
-        hasMore: page * limit < totalUsers,
-      },
-    });
+      hasMore: page * limit < totalUsers,
+      nextCursor: page * limit < totalUsers ? String(page + 1) : undefined,
+    };
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error("[Users Error]:", error);
     return NextResponse.json(

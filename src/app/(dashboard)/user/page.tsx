@@ -20,6 +20,7 @@ interface User {
   createdAt: string;
   isFollowing?: boolean;
   isFollower?: boolean;
+  ratingColor: RatingColor;
 }
 
 interface PaginationInfo {
@@ -180,7 +181,7 @@ export default function UsersPage() {
         {users.map((user) => (
           <div
             key={user.id}
-            className="border-b border-gray-800 px-4 py-3 hover:bg-gray-900/50 cursor-pointer"
+            className="cursor-pointer border-b border-gray-800 px-4 py-3 hover:bg-gray-900/50"
             onClick={() => router.push(`/user/${user.id}`)}
           >
             <div className="flex items-center justify-between">
@@ -194,7 +195,9 @@ export default function UsersPage() {
                 </Avatar>
                 <div>
                   <div className="flex items-center space-x-2">
-                    <span className="text-base font-semibold">
+                    <span
+                      className={`text-base font-semibold ${user.ratingColor}`}
+                    >
                       {user.username}
                     </span>
                     <span className="text-sm text-gray-500">@{user.id}</span>

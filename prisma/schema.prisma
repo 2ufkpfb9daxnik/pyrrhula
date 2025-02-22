@@ -153,8 +153,6 @@ model Notification {
   senderId      String?  @db.VarChar(16)
   type          String   @db.VarChar(8) // さらに短く制限
   relatedPostId String?
-  read       Boolean  @default(false)  // このフィールドを追加
-
   createdAt     DateTime @default(now())
   post          Post?    @relation(fields: [relatedPostId], references: [id])
 
@@ -181,7 +179,7 @@ model Favorite {
   @@index([userId])
 }
 
-// 拡散の中間テーブル 
+// 拡散の中間テーブル
 model Repost {
   id        String   @id @default(uuid())
   post      Post     @relation(fields: [postId], references: [id])
@@ -191,7 +189,7 @@ model Repost {
   createdAt DateTime @default(now())
 
   @@unique([postId, userId])
-  @@index([postId]) 
+  @@index([postId])
   @@index([userId])
 }
 

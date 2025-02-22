@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { SessionProvider } from "next-auth/react";
 import { Toaster } from "sonner";
 import { linkify } from "@/lib/linkify";
+import { useRating } from "@/app/_hooks/useRating";
 
 interface Post {
   id: string;
@@ -57,6 +58,7 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
   const [isFavorited, setIsFavorited] = useState(post.isFavorited);
   const [isReposted, setIsReposted] = useState(post.isReposted);
   const [isLoading, setIsLoading] = useState(false);
+  const { rating } = useRating(post.user.id);
 
   const handleUserClick = () => {
     router.push(`/user/${post.user.id}`);
@@ -176,11 +178,8 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
           <div className="flex items-center space-x-2">
             <Button
               variant="ghost"
-              className="h-auto p-0 font-bold hover:underline"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleUserClick();
-              }}
+              className={`h-auto p-0 font-bold hover:underline ${rating?.color ?? "text-gray-300"}`}
+              onClick={handleUserClick}
             >
               {post.user.username}
             </Button>
