@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Network } from "vis-network";
+import { Network, NodeOptions, Node, Edge } from "vis-network";
 import { DataSet } from "vis-data";
 import { useRouter } from "next/navigation";
 
@@ -35,8 +35,8 @@ export default function FollowGraphPage({
 
         if (networkRef.current) {
           // ノードとエッジのデータセットを作成
-          const nodes = new DataSet();
-          const edges = new DataSet();
+          const nodes = new DataSet<Node>();
+          const edges = new DataSet<Edge>();
           const processedNodes = new Set<string>();
 
           // ノードを再帰的に処理する関数
@@ -54,7 +54,7 @@ export default function FollowGraphPage({
               borderWidth: 2,
               borderColor: depth === 0 ? "#4CAF50" : "#2196F3",
               brokenImage: "/default-avatar.png",
-            });
+            } as Node);
 
             // フォロー関係のエッジを追加
             user.following.forEach((targetId) => {
@@ -64,7 +64,7 @@ export default function FollowGraphPage({
                 arrows: "to",
                 color: { color: "#666666", opacity: 0.8 },
                 width: 1,
-              });
+              } as Edge);
             });
 
             // 子ノードを再帰的に処理
@@ -104,8 +104,10 @@ export default function FollowGraphPage({
             },
             edges: {
               smooth: {
+                enabled: true,
                 type: "continuous",
                 forceDirection: "none",
+                roundness: 0.5,
               },
             },
           };
