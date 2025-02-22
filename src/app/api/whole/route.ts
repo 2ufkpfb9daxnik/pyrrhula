@@ -16,7 +16,7 @@ export async function GET(req: Request) {
     const cursor = searchParams.get("cursor");
     console.log("カーソル:", cursor);
 
-    const limit = 100;
+    const limit = 50;
 
     // 投稿を取得
     const posts = await prisma.post.findMany({
