@@ -5,49 +5,43 @@ import { authOptions } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import type { TimelineResponse, CreatePostRequest } from "@/app/_types/post";
 
+const limit = 100;
+
 // 投稿一覧を取得
 export async function GET(req: Request) {
   try {
-    console.log("タイムライン取得開始");
+    const { searchParams } = new URL(req.url);
+    const since = searchParams.get("since");
     const session = await getServerSession(authOptions);
-    console.log("セッション状態:", session ? "ログイン中" : "未ログイン");
 
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { searchParams } = new URL(req.url);
-    const cursor = searchParams.get("cursor");
-    const limit = 20;
-
-    // フォローしているユーザーのIDを取得
-    const following = await prisma.follow.findMany({
-      where: {
-        followerId: session.user.id,
-      },
-      select: {
-        followedId: true,
-      },
-    });
-
-    const followingIds = following.map((f) => f.followedId);
-    // 自分の投稿も含める
-    followingIds.push(session.user.id);
-
-    // フォローしているユーザーの投稿を取得
     const posts = await prisma.post.findMany({
       where: {
-        userId: {
-          in: followingIds,
-        },
-        parentId: null, // トップレベルの投稿のみ
+        // フォローしているユーザーの投稿を取得
+        OR: [
+          { userId: session.user.id },
+          {
+            userId: {
+              in: await prisma.follow
+                .findMany({
+                  where: { followerId: session.user.id },
+                  select: { followedId: true },
+                })
+                .then((follows) => follows.map((f) => f.followedId)),
+            },
+          },
+        ],
+        // since パラメータがある場合は、その時刻以降の投稿のみ取得
+        ...(since && {
+          createdAt: {
+            gt: new Date(since),
+          },
+        }),
       },
-      take: limit + 1,
-      skip: cursor ? 1 : 0,
-      cursor: cursor ? { id: cursor } : undefined,
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: { createdAt: "desc" },
       include: {
         user: {
           select: {

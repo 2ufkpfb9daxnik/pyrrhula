@@ -9,6 +9,7 @@ import type { Post } from "@/app/_types/post";
 import { Post as PostComponent } from "@/app/_components/post"; // PostコンポーネントをPostComponentとしてインポート
 import { MakePost } from "@/app/_components/makepost";
 import { Search } from "@/app/_components/search";
+import { useInterval } from "@/app/_hooks/useInterval";
 // 右下の投稿ボタン用コンポーネントを追加
 import { Plus } from "lucide-react";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
@@ -27,20 +28,57 @@ export default function HomePage() {
   const { data: session } = useSession();
   const router = useRouter();
   const [parentPost, setParentPost] = useState<Post | null>(null);
+  const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date());
+
+  // 60秒ごとにタイムラインを更新
+  useInterval(() => {
+    if (session) {
+      fetchLatestPosts();
+    }
+  }, 6000); // 60秒 = 60000ミリ秒
+
+  // 新しい投稿のみを取得する関数
+  const fetchLatestPosts = async () => {
+    try {
+      const response = await fetch(
+        `/api/posts?since=${lastUpdateTime.toISOString()}`
+      );
+      if (!response.ok) {
+        throw new Error("Failed to fetch new posts");
+      }
+
+      const data = await response.json();
+      if (data.posts.length > 0) {
+        // 新しい投稿がある場合のみ、状態を更新
+        setPosts((prevPosts) => [
+          ...data.posts.map((post: any) => ({
+            ...post,
+            createdAt: new Date(post.createdAt),
+          })),
+          ...prevPosts,
+        ]);
+        setLastUpdateTime(new Date());
+      }
+    } catch (error) {
+      console.error("Error fetching new posts:", error);
+    }
+  };
+
+  // 初回読み込み時の動作を修正
+  useEffect(() => {
+    if (!session) return;
+
+    fetchUserInfo();
+    fetchPosts().then(() => {
+      setLastUpdateTime(new Date());
+    });
+  }, [session]);
 
   const handleUserClick = () => {
     if (session?.user?.id) {
       router.push(`/user/${session.user.id}`);
     }
   };
-
-  useEffect(() => {
-    if (!session) {
-      return;
-    }
-    fetchUserInfo();
-    fetchPosts();
-  }, [session]);
 
   const fetchUserInfo = async () => {
     if (!session?.user?.id) return;

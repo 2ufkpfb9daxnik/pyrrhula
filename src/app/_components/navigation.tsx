@@ -30,6 +30,7 @@ export function Navigation() {
 
   return (
     <nav className="fixed bottom-0 left-0 flex w-full flex-row items-center justify-around bg-gray-900 p-2 md:top-0 md:h-full md:w-16 md:flex-col md:justify-start md:space-y-8 md:py-8">
+      {/* ホームボタン */}
       <Button
         variant="ghost"
         size="icon"
@@ -40,6 +41,7 @@ export function Navigation() {
         <Home className="size-6" />
       </Button>
 
+      {/* 検索ボタン */}
       <Button
         variant="ghost"
         size="icon"
@@ -50,6 +52,7 @@ export function Navigation() {
         <Search className="size-6" />
       </Button>
 
+      {/* 通知ボタン */}
       <Button
         variant="ghost"
         size="icon"
@@ -60,6 +63,7 @@ export function Navigation() {
         <Bell className="size-6" />
       </Button>
 
+      {/* チャットボタン */}
       <Button
         variant="ghost"
         size="icon"
@@ -70,6 +74,18 @@ export function Navigation() {
         <MessageCircle className="size-6" />
       </Button>
 
+      {/* ユーザー一覧ボタン - モバイルでも表示 */}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => router.push("/user")}
+        title="ユーザー一覧"
+        className="md:w-full"
+      >
+        <Users className="size-6" />
+      </Button>
+
+      {/* プロフィールボタン */}
       <Button
         variant="ghost"
         size="icon"
@@ -80,26 +96,7 @@ export function Navigation() {
         <User className="size-6" />
       </Button>
 
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => router.push("/user")}
-        title="ユーザー一覧"
-        className="hidden md:flex md:w-full"
-      >
-        <Users className="size-6" />
-      </Button>
-
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => router.push(session ? "/logout" : "/login")}
-        title={session ? "ログアウト" : "ログイン"}
-        className="md:w-full"
-      >
-        {session ? <LogOut className="size-6" /> : <LogIn className="size-6" />}
-      </Button>
-
+      {/* 全体タイムラインボタン - デスクトップのみ */}
       <Button
         variant="ghost"
         size="icon"
@@ -108,6 +105,17 @@ export function Navigation() {
         className="hidden md:flex md:w-full"
       >
         <Globe className="size-6" />
+      </Button>
+
+      {/* ログイン/ログアウトボタン */}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => router.push(session ? "/logout" : "/login")}
+        title={session ? "ログアウト" : "ログイン"}
+        className="md:w-full"
+      >
+        {session ? <LogOut className="size-6" /> : <LogIn className="size-6" />}
       </Button>
     </nav>
   );
