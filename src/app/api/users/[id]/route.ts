@@ -16,7 +16,7 @@ export async function GET(
     const { searchParams } = new URL(req.url);
     const type = searchParams.get("type") || "profile";
     const cursor = searchParams.get("cursor");
-    const limit = 20;
+    const limit = 10;
 
     // プロフィール情報の取得
     if (type === "profile") {
@@ -34,33 +34,78 @@ export async function GET(
           followingCount: true,
         },
       });
+      return NextResponse.json(user);
+    }
 
-      if (!user) {
+    // フォロワー/フォロイーの取得を追加
+    if (type === "followers" || type === "following") {
+      const users = await prisma.user.findUnique({
+        where: { id: params.id },
+        select: {
+          [type === "followers" ? "followers" : "following"]: {
+            take: limit + 1,
+            skip: cursor ? 1 : 0,
+            cursor: cursor ? { id: cursor } : undefined,
+            select: {
+              [type === "followers" ? "follower" : "followed"]: {
+                select: {
+                  id: true,
+                  username: true,
+                  icon: true,
+                  postCount: true,
+                  rate: true,
+                  createdAt: true,
+                  followersCount: true,
+                  followingCount: true,
+                  followers: session?.user
+                    ? {
+                        where: {
+                          followerId: session.user.id,
+                        },
+                        select: {
+                          followerId: true,
+                        },
+                      }
+                    : undefined,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!users) {
         return NextResponse.json({ error: "User not found" }, { status: 404 });
       }
 
-      // フォロー状態の確認
-      let isFollowing = false;
-      if (session?.user) {
-        const follow = await prisma.follow.findUnique({
-          where: {
-            followerId_followedId: {
-              followerId: session.user.id,
-              followedId: params.id,
-            },
-          },
-        });
-        isFollowing = !!follow;
-      }
+      const userList = users[
+        type === "followers" ? "followers" : "following"
+      ].map((follow: any) => {
+        const userData =
+          type === "followers" ? follow.follower : follow.followed;
+        return {
+          id: userData.id,
+          username: userData.username,
+          icon: userData.icon,
+          postCount: userData.postCount,
+          rate: userData.rate,
+          createdAt: userData.createdAt,
+          followersCount: userData.followersCount,
+          followingCount: userData.followingCount,
+          isFollowing: userData.followers?.length > 0,
+        };
+      });
 
-      const response: UserDetailResponse = {
-        ...user,
-        ...(session?.user && { isFollowing }),
-      };
+      const hasMore = userList.length > limit;
+      const nextCursor = hasMore ? userList[limit - 1].id : undefined;
+      const formattedUsers = hasMore ? userList.slice(0, -1) : userList;
 
-      return NextResponse.json(response);
+      return NextResponse.json({
+        users: formattedUsers,
+        hasMore,
+        ...(nextCursor && { nextCursor }),
+      });
     }
-
     // 投稿の取得
     if (type === "posts") {
       const posts = await prisma.post.findMany({

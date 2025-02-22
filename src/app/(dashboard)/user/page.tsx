@@ -108,7 +108,7 @@ export default function UsersPage() {
       const params = new URLSearchParams({
         sort: sortBy,
         page: page.toString(),
-        limit: "20", // 1ページあたりの件数を制限
+        limit: "10", // 1ページあたりの件数を制限
         includeFollowStatus: session ? "true" : "false", // ログイン時のみフォロー状態を取得
       });
 
