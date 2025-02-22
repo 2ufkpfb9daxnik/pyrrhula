@@ -50,7 +50,11 @@ export default function NotificationPage() {
       if (!response.ok) throw new Error("Failed to fetch notifications");
 
       const data: NotificationsResponse = await response.json();
-      setNotifications((prev) => [...prev, ...data.notifications]);
+      // カーソルが存在しない（初回ロード）の場合は配列を置き換え、
+      // カーソルが存在する（追加ロード）の場合は配列を結合
+      setNotifications((prev) =>
+        cursor ? [...prev, ...data.notifications] : data.notifications
+      );
       setHasMore(data.hasMore);
       setCursor(data.nextCursor);
     } catch (error) {

@@ -15,6 +15,7 @@ import {
   CardFooter,
   CardDescription,
 } from "@/components/ui/card";
+import Link from "next/link";
 
 export default function LoginPage() {
   const [id, setId] = useState("");
@@ -59,7 +60,11 @@ export default function LoginPage() {
             ログイン
           </CardTitle>
           <CardDescription className="text-center">
-            パスワードに漢字やひらがなを使うときは一旦パスワードを表示させるようにしてください
+            パスワードに漢字やひらがなを使うときは一旦パスワードを表示させるようにしてください。
+            <br></br>
+            ユーザーIDとユーザー名は違います。新規登録したときに、上から落ちてきたやつが、ユーザーIDです。もしユーザーIDがわからない場合は、
+            <Link href="/users">ユーザー一覧</Link>
+            から探すと見つかる可能性があります。
           </CardDescription>
         </CardHeader>
         <CardContent>
