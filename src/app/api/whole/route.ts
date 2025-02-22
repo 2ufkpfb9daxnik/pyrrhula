@@ -1,27 +1,19 @@
-// posts/                  GET/POST            投稿する/見る(supabase/next.js(vercel)/reactでリアルタイムに画面更新)
 import { getServerSession } from "next-auth/next";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import type { TimelineResponse, CreatePostRequest } from "@/app/_types/post";
 
-// 投稿一覧を取得
 export async function GET(req: Request) {
   try {
-    console.log("タイムライン取得開始");
     const session = await getServerSession(authOptions);
-    console.log("セッション状態:", session ? "ログイン中" : "未ログイン");
-
     const { searchParams } = new URL(req.url);
     const cursor = searchParams.get("cursor");
-    console.log("カーソル:", cursor);
-
     const limit = 50;
 
-    // 投稿を取得
     const posts = await prisma.post.findMany({
       where: {
-        parentId: null, // トップレベルの投稿のみ
+        parentId: null,
       },
       take: limit + 1,
       skip: cursor ? 1 : 0,
@@ -77,12 +69,10 @@ export async function GET(req: Request) {
       },
     });
 
-    // 次ページの有無を確認
     const hasMore = posts.length > limit;
     const nextCursor = hasMore ? posts[limit - 1].id : undefined;
     const postList = hasMore ? posts.slice(0, -1) : posts;
 
-    // レスポンスデータの整形
     const formattedPosts = postList.map((post) => ({
       id: post.id,
       content: post.content,
@@ -113,6 +103,8 @@ export async function GET(req: Request) {
     );
   }
 }
+
+// ...existing POST function...
 
 // 新規投稿を作成
 export async function POST(req: Request) {

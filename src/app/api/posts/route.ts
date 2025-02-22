@@ -10,38 +10,42 @@ const limit = 100;
 // 投稿一覧を取得
 export async function GET(req: Request) {
   try {
-    const { searchParams } = new URL(req.url);
-    const since = searchParams.get("since");
     const session = await getServerSession(authOptions);
-
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { searchParams } = new URL(req.url);
+    const cursor = searchParams.get("cursor");
+    const since = searchParams.get("since");
+    const limit = 50;
+
+    const followings = await prisma.follow.findMany({
+      where: {
+        followerId: session.user.id,
+      },
+      select: {
+        followedId: true,
+      },
+    });
+
+    const followingIds = followings.map((f) => f.followedId);
+
     const posts = await prisma.post.findMany({
       where: {
-        // フォローしているユーザーの投稿を取得
-        OR: [
-          { userId: session.user.id },
-          {
-            userId: {
-              in: await prisma.follow
-                .findMany({
-                  where: { followerId: session.user.id },
-                  select: { followedId: true },
-                })
-                .then((follows) => follows.map((f) => f.followedId)),
-            },
-          },
-        ],
-        // since パラメータがある場合は、その時刻以降の投稿のみ取得
+        OR: [{ userId: session.user.id }, { userId: { in: followingIds } }],
         ...(since && {
           createdAt: {
             gt: new Date(since),
           },
         }),
       },
-      orderBy: { createdAt: "desc" },
+      take: limit + 1,
+      skip: cursor ? 1 : 0,
+      cursor: cursor ? { id: cursor } : undefined,
+      orderBy: {
+        createdAt: "desc",
+      },
       include: {
         user: {
           select: {
@@ -105,7 +109,11 @@ export async function GET(req: Request) {
       ...(nextCursor && { nextCursor }),
     };
 
-    return NextResponse.json(response);
+    return NextResponse.json({
+      posts: postList,
+      hasMore,
+      ...(nextCursor && { nextCursor }),
+    });
   } catch (error) {
     console.error("[Timeline Error]:", error);
     return NextResponse.json(

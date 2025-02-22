@@ -14,6 +14,7 @@ import { useInterval } from "@/app/_hooks/useInterval";
 import { Plus } from "lucide-react";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 
 interface UserInfo {
   icon: string | null;
@@ -29,6 +30,8 @@ export default function HomePage() {
   const router = useRouter();
   const [parentPost, setParentPost] = useState<Post | null>(null);
   const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date());
+  const [hasMore, setHasMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | undefined>();
 
   // 60秒ごとにタイムラインを更新
   useInterval(() => {
@@ -96,19 +99,41 @@ export default function HomePage() {
     }
   };
 
-  const fetchPosts = async () => {
+  const fetchPosts = async (cursor?: string) => {
     try {
-      const response = await fetch("/api/posts/");
+      setIsLoading(true);
+      const params = new URLSearchParams();
+      if (cursor) {
+        params.append("cursor", cursor);
+      }
+
+      const response = await fetch(`/api/posts?${params}`);
       if (!response.ok) {
         throw new Error("Failed to fetch timeline");
       }
       const data = await response.json();
-      setPosts(
-        data.posts.map((post: any) => ({
-          ...post,
-          createdAt: new Date(post.createdAt),
-        }))
-      );
+
+      if (cursor) {
+        // 追加読み込みの場合は既存の投稿に追加
+        setPosts((prev) => [
+          ...prev,
+          ...data.posts.map((post: any) => ({
+            ...post,
+            createdAt: new Date(post.createdAt),
+          })),
+        ]);
+      } else {
+        // 初回読み込みの場合は置き換え
+        setPosts(
+          data.posts.map((post: any) => ({
+            ...post,
+            createdAt: new Date(post.createdAt),
+          }))
+        );
+      }
+
+      setHasMore(data.hasMore);
+      setNextCursor(data.nextCursor);
     } catch (error) {
       console.error("Error fetching timeline:", error);
     } finally {
@@ -239,6 +264,27 @@ export default function HomePage() {
                   onFavoriteSuccess={fetchPosts}
                 />
               ))
+            )}
+
+            {/* もっと読み込むボタン */}
+            {hasMore && (
+              <div className="flex justify-center py-4">
+                <Button
+                  variant="outline"
+                  onClick={() => fetchPosts(nextCursor)}
+                  disabled={isLoading}
+                  className="w-full max-w-xs"
+                >
+                  {isLoading ? (
+                    <div className="flex items-center gap-2">
+                      <Spinner size="sm" />
+                      読み込み中...
+                    </div>
+                  ) : (
+                    "もっと読み込む"
+                  )}
+                </Button>
+              </div>
             )}
           </div>
         </div>

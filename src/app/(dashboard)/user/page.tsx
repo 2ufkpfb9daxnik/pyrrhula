@@ -253,7 +253,7 @@ export default function UsersPage() {
                     </span>
                     <span className="flex items-center">
                       <Calendar className="mr-1 size-4" />
-                      {formatDistanceToNow(new Date(user.createdAt))}前
+                      {formatDistanceToNow(new Date(user.createdAt))}
                     </span>
                     {user.isFollower && (
                       <span className="text-gray-500">フォロワー</span>

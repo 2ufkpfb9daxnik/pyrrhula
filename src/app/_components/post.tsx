@@ -32,7 +32,7 @@ interface Post {
   parent?: {
     id: string;
     content: string;
-    user: {
+    user?: {
       id: string;
       username: string;
     };
@@ -152,11 +152,12 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
       className="cursor-pointer border-b border-gray-700 p-4 transition-colors hover:bg-gray-900/50"
       onClick={handlePostClick}
     >
-      {post.parent && (
-        <div className="mb-2 text-sm text-gray-500">
-          返信先: @{post.parent.user.username}
-        </div>
-      )}
+      {post.parent &&
+        post.parent.user && ( // userの存在確認を追加
+          <div className="mb-2 text-sm text-gray-500">
+            返信先: @{post.parent.user.username}
+          </div>
+        )}
       <div className="flex items-start space-x-3">
         <Button
           variant="ghost"

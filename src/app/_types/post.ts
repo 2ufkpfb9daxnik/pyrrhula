@@ -51,11 +51,12 @@ interface PostResponse {
   isReposted?: boolean;
 }
 
-export interface TimelineResponse {
-  posts: PostResponse[];
+export type TimelineResponse = {
+  posts: Post[];
   hasMore: boolean;
   nextCursor?: string;
-}
+  isInitialLoad?: boolean;
+};
 
 export interface CreatePostRequest {
   content: string;
