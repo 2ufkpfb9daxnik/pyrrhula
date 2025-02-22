@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+
 interface MakePostProps {
   onPostCreated: () => void;
   replyTo?: {
@@ -14,14 +15,14 @@ interface MakePostProps {
 }
 
 export function MakePost({ onPostCreated, replyTo, inputRef }: MakePostProps) {
-  const [newPost, setNewPost] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const [content, setContent] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Ctrl + Enter で投稿
     if (e.ctrlKey && e.key === "Enter") {
       e.preventDefault();
-      if (newPost.length > 0 && !isLoading) {
+      if (content.length > 0 && !isLoading) {
         handleSubmit(e as any);
       }
     }
@@ -29,6 +30,8 @@ export function MakePost({ onPostCreated, replyTo, inputRef }: MakePostProps) {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (content.trim().length === 0) return;
+
     setIsLoading(true);
 
     try {
@@ -36,13 +39,13 @@ export function MakePost({ onPostCreated, replyTo, inputRef }: MakePostProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          content: newPost,
-          parentId: replyTo?.id, // 返信の場合は親投稿のIDを含める
+          content: content.trim(),
+          parentId: replyTo?.id,
         }),
       });
 
       if (response.ok) {
-        setNewPost("");
+        setContent("");
         onPostCreated();
       }
     } catch (error) {
@@ -61,17 +64,21 @@ export function MakePost({ onPostCreated, replyTo, inputRef }: MakePostProps) {
         </div>
       )}
       <Textarea
-        ref={inputRef} // inputRef を設定
+        ref={inputRef}
         placeholder={replyTo ? "返信を入力..." : "今何してる？"}
         value={content}
         onChange={(e) => setContent(e.target.value)}
+        onKeyDown={handleKeyDown}
         className="min-h-24 resize-none border-gray-800 bg-transparent"
       />
       <div className="flex items-center justify-between">
         <span className="text-sm text-gray-500">
-          残り {500 - newPost.length} 文字
+          残り {500 - content.length} 文字
         </span>
-        <Button type="submit" disabled={newPost.length === 0 || isLoading}>
+        <Button
+          type="submit"
+          disabled={content.trim().length === 0 || isLoading}
+        >
           {isLoading ? "投稿中..." : "投稿"}
         </Button>
       </div>
