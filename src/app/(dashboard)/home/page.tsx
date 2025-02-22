@@ -9,6 +9,10 @@ import type { Post } from "@/app/_types/post";
 import { Post as PostComponent } from "@/app/_components/post"; // PostコンポーネントをPostComponentとしてインポート
 import { MakePost } from "@/app/_components/makepost";
 import { Search } from "@/app/_components/search";
+// 右下の投稿ボタン用コンポーネントを追加
+import { Plus } from "lucide-react";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 interface UserInfo {
   icon: string | null;
@@ -123,9 +127,8 @@ export default function HomePage() {
 
   return (
     <div className="flex min-h-screen">
-      {/* 左サイドバー */}
-      <div className="fixed left-16 top-0 flex h-full w-80 flex-col gap-4 border-r border-gray-800 p-4">
-        {/* ユーザー情報 */}
+      {/* 左サイドバー - モバイルでは非表示 */}
+      <div className="fixed hidden h-full w-80 flex-col gap-4 border-r border-gray-800 p-4 md:left-16 md:top-0 md:flex">
         <button
           onClick={handleUserClick}
           className="flex w-full items-start space-x-3 border-b border-gray-800 pb-4 text-left transition-colors hover:bg-gray-800/50"
@@ -159,9 +162,25 @@ export default function HomePage() {
 
         <Search onSearch={handleSearch} />
       </div>
+
       {/* メインコンテンツ */}
       <main className="flex-1">
-        <div className="mx-auto max-w-2xl p-4 lg:ml-96">
+        <div className="mx-auto max-w-2xl p-4 md:ml-96">
+          {/* モバイル用ヘッダー */}
+          <div className="mb-4 flex items-center justify-between border-b border-gray-800 pb-4 md:hidden">
+            <button
+              onClick={handleUserClick}
+              className="flex items-center space-x-2"
+            >
+              <Avatar className="size-8">
+                <AvatarImage src={session?.user?.image ?? undefined} />
+                <AvatarFallback>{session?.user?.name?.[0]}</AvatarFallback>
+              </Avatar>
+              <span className="font-semibold">{session?.user?.name}</span>
+            </button>
+            <Search onSearch={handleSearch} />
+          </div>
+
           <div className="space-y-4">
             {posts.length === 0 ? (
               <div className="rounded-lg border border-gray-800 p-8 text-center">
@@ -186,6 +205,23 @@ export default function HomePage() {
           </div>
         </div>
       </main>
+
+      {/* モバイル用投稿ボタン */}
+      <Dialog>
+        <DialogTrigger asChild>
+          <Button
+            className="fixed bottom-20 right-4 size-14 rounded-full p-0 shadow-lg md:hidden"
+            variant="default"
+          >
+            <Plus className="size-6" />
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="w-[calc(100%-32px)] max-w-[425px]">
+          <div className="pt-6">
+            <MakePost onPostCreated={handlePostCreated} />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
