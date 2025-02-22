@@ -36,7 +36,7 @@ interface Post {
       username: string;
     };
   };
-  _count: {
+  _count?: {
     replies: number;
   };
   isFavorited?: boolean;
@@ -207,7 +207,7 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
                   disabled={isLoading || !session}
                 >
                   <MessageCircle className="mr-1 size-4" />
-                  <span>{post._count.replies}</span>
+                  <span>{post._count?.replies ?? 0}</span>
                 </Button>
               </TooltipTrigger>
               <TooltipContent>

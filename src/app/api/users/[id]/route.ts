@@ -62,7 +62,6 @@ export async function GET(
     }
 
     // 投稿の取得
-
     if (type === "posts") {
       const posts = await prisma.post.findMany({
         where: {
@@ -84,23 +83,32 @@ export async function GET(
           _count: {
             select: {
               replies: true,
-              favoritedBy: true, // favorites を favoritedBy に変更
-              repostedBy: true, // reposts を repostedBy に変更
+              favoritedBy: true,
+              repostedBy: true,
             },
           },
-          favoritedBy: session
+          favoritedBy: session?.user
             ? {
-                where: { userId: session.user.id },
+                where: {
+                  userId: session.user.id,
+                },
+                select: {
+                  userId: true,
+                },
               }
-            : false,
-          repostedBy: session
+            : undefined,
+          repostedBy: session?.user
             ? {
-                where: { userId: session.user.id },
+                where: {
+                  userId: session.user.id,
+                },
+                select: {
+                  userId: true,
+                },
               }
-            : false,
+            : undefined,
         },
       });
-
       const hasMore = posts.length > limit;
       const nextCursor = hasMore ? posts[limit - 1].id : undefined;
       const postList = hasMore ? posts.slice(0, -1) : posts;
@@ -131,6 +139,51 @@ export async function GET(
     console.error("[User API Error]:", error);
     return NextResponse.json(
       { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
+    }
+
+    if (session.user.id !== params.id) {
+      return NextResponse.json(
+        { error: "他のユーザーのプロフィールは編集できません" },
+        { status: 403 }
+      );
+    }
+
+    const body = await req.json();
+    const { username, profile, icon } = body;
+
+    const updatedUser = await prisma.user.update({
+      where: { id: params.id },
+      data: {
+        username: username,
+        profile: profile,
+        icon: icon,
+      },
+      select: {
+        id: true,
+        username: true,
+        icon: true,
+        profile: true,
+      },
+    });
+
+    return NextResponse.json(updatedUser);
+  } catch (error) {
+    console.error("[User Update Error]:", error);
+    return NextResponse.json(
+      { error: "サーバーエラーが発生しました" },
       { status: 500 }
     );
   }

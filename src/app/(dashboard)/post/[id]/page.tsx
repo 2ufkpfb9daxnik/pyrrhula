@@ -130,6 +130,21 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
         </Button>
       </div>
 
+      {/* 返信投稿フォーム */}
+      {session && (
+        <div className="mb-8">
+          <Separator className="mb-4" />
+          <MakePost
+            onPostCreated={handlePostCreated}
+            replyTo={{
+              id: post.id,
+              content: post.content,
+              username: post.user.username,
+            }}
+          />
+        </div>
+      )}
+
       {/* 返信一覧 */}
       <div className="space-y-4">
         <h2 className="text-xl font-bold">返信一覧</h2>

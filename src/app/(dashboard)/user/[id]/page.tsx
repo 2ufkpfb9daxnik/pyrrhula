@@ -23,6 +23,8 @@ import type { Post } from "@/app/_types/post";
 import { Post as PostComponent } from "@/app/_components/post";
 import { Navigation } from "@/app/_components/navigation";
 import { toast } from "sonner";
+import { format } from "date-fns";
+import { ja } from "date-fns/locale/ja";
 
 interface UserDetail {
   id: string;
@@ -71,17 +73,30 @@ export default function UserProfilePage({
       setIsLoading(false);
     }
   };
-
   const fetchUserContent = async (
     type: "posts" | "reposts" | "favorites" | "replies"
   ) => {
     try {
-      // typeをクエリパラメータとして追加
+      setPosts([]); // コンテンツ取得前に投稿をクリア
       const response = await fetch(`/api/users/${params.id}?type=${type}`);
+
+      if (response.status === 404) {
+        // 404の場合は空の配列を設定（存在しないことを示す）
+        setPosts([]);
+        return;
+      }
+
       if (!response.ok) {
         throw new Error(`Failed to fetch user ${type}`);
       }
+
       const data = await response.json();
+
+      if (!data.posts || !Array.isArray(data.posts)) {
+        setPosts([]);
+        return;
+      }
+
       setPosts(
         data.posts.map((post: any) => ({
           ...post,
@@ -91,8 +106,10 @@ export default function UserProfilePage({
     } catch (error) {
       console.error(`Error fetching user ${type}:`, error);
       toast.error(`${type}の取得に失敗しました`);
+      setPosts([]);
     }
   };
+
   const handleFollow = async () => {
     if (!session) {
       router.push("/login");
@@ -186,6 +203,17 @@ export default function UserProfilePage({
                         <h1 className="text-2xl font-bold">{user.username}</h1>
                         <p className="text-sm text-gray-500">@{user.id}</p>
                       </div>
+                      <div className="mb-4 flex items-center justify-between">
+                        {session?.user?.id === params.id && (
+                          <Button
+                            onClick={() => router.push(`/editprofile`)}
+                            variant="outline"
+                            className="ml-4"
+                          >
+                            プロフィールを編集
+                          </Button>
+                        )}
+                      </div>
                       {session?.user?.id !== user.id && (
                         <div className="mt-4 flex items-center space-x-4">
                           <Button
@@ -250,8 +278,17 @@ export default function UserProfilePage({
                       </div>
                       <div className="flex items-center">
                         <Calendar className="mr-2 size-4" />
-                        登録日: {formatDistanceToNow(new Date(user.createdAt))}
-                        前
+                        <div className="flex flex-col">
+                          <span>
+                            {formatDistanceToNow(new Date(user.createdAt))}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {format(
+                              new Date(user.createdAt),
+                              "yyyy年MM月dd日 HH:mm"
+                            )}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -296,10 +333,10 @@ export default function UserProfilePage({
           <div className="space-y-4">
             {posts.length === 0 ? (
               <div className="rounded-lg border border-gray-800 p-8 text-center text-gray-500">
-                {activeTab === "posts" && "まだ投稿していません"}
-                {activeTab === "reposts" && "まだ拡散していません"}
-                {activeTab === "favorites" && "まだお気に入りしていません"}
-                {activeTab === "replies" && "まだ返信していません"}
+                {activeTab === "posts" && "投稿がありません"}
+                {activeTab === "reposts" && "拡散した投稿がありません"}
+                {activeTab === "favorites" && "お気に入りの投稿がありません"}
+                {activeTab === "replies" && "返信した投稿がありません"}
               </div>
             ) : (
               posts.map((post) => (
