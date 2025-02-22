@@ -128,7 +128,7 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
     // ボタンやアバター以外の領域がクリックされた場合
     const target = e.target as HTMLElement;
     if (!target.closest("button") && !target.closest('[role="button"]')) {
-      router.push(`/posts/${post.id}`);
+      router.push(`/post/${post.id}`);
     }
   };
 
