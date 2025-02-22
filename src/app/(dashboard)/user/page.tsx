@@ -103,25 +103,44 @@ export default function UsersPage() {
   const fetchUsers = async (page: number) => {
     try {
       setIsLoading(true);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8秒でタイムアウト
 
-      // 1. クエリパラメータの最適化
       const params = new URLSearchParams({
         sort: sortBy,
         page: page.toString(),
-        limit: "10", // 1ページあたりの件数を制限
-        includeFollowStatus: session ? "true" : "false", // ログイン時のみフォロー状態を取得
+        limit: "10",
+        includeFollowStatus: session ? "true" : "false",
       });
 
-      const response = await fetch(`/api/users?${params}`);
-      if (!response.ok) throw new Error("Failed to fetch users");
+      const response = await fetch(`/api/users?${params}`, {
+        signal: controller.signal,
+        next: { revalidate: 60 }, // クライアント側でもキャッシュを有効化
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        if (response.status === 504) {
+          throw new Error(
+            "サーバーの応答がタイムアウトしました。後でもう一度お試しください。"
+          );
+        }
+        throw new Error("ユーザー情報の取得に失敗しました");
+      }
 
       const data = await response.json();
       setUsers(data.users);
-      setPagination(data.pagination);
+      setPagination({
+        total: data.total,
+        pages: Math.ceil(data.total / 10),
+        currentPage: page,
+        hasMore: data.hasMore,
+      });
     } catch (error) {
       console.error("Error fetching users:", error);
       toast.error(
-        "一時的なエラーが発生しました。しばらく待ってから再度お試しください"
+        error instanceof Error ? error.message : "一時的なエラーが発生しました"
       );
     } finally {
       setIsLoading(false);

@@ -5,19 +5,19 @@ import { NextResponse } from "next/server";
 import type { UserListResponse } from "@/app/_types/users";
 import { calculateRating } from "@/lib/rating";
 
+// キャッシュの設定を追加
+export const runtime = "edge";
+export const revalidate = 60; // 1分間キャッシュ
+
 export async function GET(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
     const { searchParams } = new URL(req.url);
     const sort = searchParams.get("sort") || "rate";
     const page = parseInt(searchParams.get("page") || "1");
-    const limit = 20;
+    const limit = 10;
     const skip = (page - 1) * limit;
 
-    // 総ユーザー数を取得
-    const totalUsers = await prisma.user.count();
-
-    // ユーザー一覧を取得
+    // 基本的なユーザー情報のみを取得
     const users = await prisma.user.findMany({
       take: limit,
       skip: skip,
@@ -31,53 +31,35 @@ export async function GET(req: Request) {
         rate: true,
         postCount: true,
         createdAt: true,
-        _count: {
-          select: {
-            posts: true,
-          },
-        },
-        followers: session?.user
-          ? {
-              where: {
-                followerId: session.user.id,
-              },
-              select: {
-                followerId: true,
-              },
-            }
-          : undefined,
       },
     });
 
-    // 各ユーザーの直近の投稿数とレーティングを計算
-    const formattedUsers = await Promise.all(
-      users.map(async (user) => {
-        // 直近30日の投稿数を取得
-        const recentPosts = await prisma.post.count({
-          where: {
-            userId: user.id,
-            createdAt: {
-              gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 過去30日
-            },
+    // 総数のクエリを分離（パフォーマンス改善）
+    const [totalUsers, recentPosts] = await Promise.all([
+      prisma.user.count(),
+      // 直近の投稿数は必要なユーザーのみ取得
+      prisma.post.groupBy({
+        by: ["userId"],
+        where: {
+          userId: {
+            in: users.map((u) => u.id),
           },
-        });
+          createdAt: {
+            gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+          },
+        },
+        _count: true,
+      }),
+    ]);
 
-        // レーティングカラーを計算
-        const ratingColor = calculateRating(recentPosts, user._count.posts);
-
-        return {
-          id: user.id,
-          username: user.username,
-          icon: user.icon,
-          rate: user.rate,
-          postCount: user._count.posts,
-          createdAt: user.createdAt,
-          isFollowing: user.followers?.length > 0,
-          ratingColor,
-          recentPostCount: recentPosts,
-        };
-      })
-    );
+    const formattedUsers = users.map((user) => {
+      const recentPostCount =
+        recentPosts.find((p) => p.userId === user.id)?._count || 0;
+      return {
+        ...user,
+        ratingColor: calculateRating(recentPostCount, user.postCount),
+      };
+    });
 
     const response: UserListResponse = {
       users: formattedUsers,
