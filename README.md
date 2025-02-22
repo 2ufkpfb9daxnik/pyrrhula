@@ -158,7 +158,7 @@ graph TB
 - **TailwindCSS**: スタイリング
 - **ShadcnUI**: UIコンポーネント
 - **NextAuth.js**: 認証
-- **D3.js**:フォローグラフの描画
+- **! 何故かvercelで動作が確認できません D3.js→VisJSに以降**:フォローグラフの描画
 
 ### バックエンド
 
