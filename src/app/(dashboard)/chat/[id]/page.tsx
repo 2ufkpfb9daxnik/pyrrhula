@@ -98,6 +98,14 @@ export default function ChatPage({ params }: { params: { id: string } }) {
       setIsSending(false);
     }
   };
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && e.ctrlKey) {
+      e.preventDefault();
+      if (newMessage.trim() && !isSending) {
+        handleSubmit(e as unknown as React.FormEvent);
+      }
+    }
+  };
 
   if (!session) {
     return (
@@ -118,7 +126,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   }
 
   return (
-    <div className="flex h-screen flex-col">
+    <div className="mx-auto flex h-screen max-w-4xl flex-col">
       {/* ヘッダー */}
       <div className="border-b border-gray-800 p-4">
         <div className="flex items-center space-x-4">
@@ -170,7 +178,8 @@ export default function ChatPage({ params }: { params: { id: string } }) {
           <Textarea
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="メッセージを入力..."
+            onKeyDown={handleKeyDown}
+            placeholder="ctrl + enter で送信"
             className="min-h-[60px] flex-1 resize-none"
             maxLength={1000}
           />

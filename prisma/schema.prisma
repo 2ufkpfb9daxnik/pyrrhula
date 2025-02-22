@@ -53,14 +53,11 @@ model User {
   // フォロー関連
   follows   Follow[] @relation("Following")
   followers Follow[] @relation("Followers")
-  
-  // お気に入り・拡散関連
-  favorites Favorite[] @relation("UserFavoritePosts")
-  reposts   Repost[]   @relation("UserRepostedPosts")
 
   // チャット関連
   sentChats     Chat[] @relation("ChatSender")
   receivedChats Chat[] @relation("ChatReceiver")
+  chatRooms     ChatRoomParticipant[]
 
   // 通知関連
   receivedNotifications Notification[] @relation("NotificationReceiver")
@@ -110,6 +107,26 @@ model Follow {
   @@unique([followerId, followedId])
 }
 
+model ChatRoom {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt  // 最終メッセージ時刻を追跡するために追加
+  
+  // 参加者（2人）
+  participants ChatRoomParticipant[]
+  // チャットメッセージ
+  messages     Chat[]
+}
+
+model ChatRoomParticipant {
+  userId     String
+  chatRoomId String
+  user       User     @relation(fields: [userId], references: [id])
+  chatRoom   ChatRoom @relation(fields: [chatRoomId], references: [id])
+
+  @@id([userId, chatRoomId])
+}
+
 model Chat {
   id            String         @id @default(cuid()) // ユニークなメッセージ ID
   senderId      String         @db.VarChar(16) // 送信者のユーザー ID
@@ -122,6 +139,10 @@ model Chat {
   sender   User @relation("ChatSender", fields: [senderId], references: [id])
   receiver User @relation("ChatReceiver", fields: [receiverId], references: [id])
 
+  chatRoomId String
+  chatRoom   ChatRoom @relation(fields: [chatRoomId], references: [id])
+ 
+  @@index([chatRoomId])  // チャットメッセージの取得を最適化
   @@index([senderId])
   @@index([receiverId])
 }
@@ -149,9 +170,8 @@ model Favorite {
   id        String   @id @default(uuid())
   post      Post     @relation(fields: [postId], references: [id])
   postId    String
-  user      User     @relation("UserFavoritePosts", fields: [userId], references: [id], map: "favorite_user_fkey")
+  user      User     @relation("UserFavorites", fields: [userId], references: [id])
   userId    String
-  favoriteBy User    @relation("UserFavorites", fields: [userId], references: [id], map: "favorite_by_user_fkey")
   createdAt DateTime @default(now())
 
   @@unique([postId, userId])
@@ -164,9 +184,8 @@ model Repost {
   id        String   @id @default(uuid())
   post      Post     @relation(fields: [postId], references: [id])
   postId    String
-  user      User     @relation("UserRepostedPosts", fields: [userId], references: [id], map: "repost_user_fkey")
+  user      User     @relation("UserReposts", fields: [userId], references: [id])
   userId    String
-  repostedBy User    @relation("UserReposts", fields: [userId], references: [id], map: "repost_by_user_fkey")
   createdAt DateTime @default(now())
 
   @@unique([postId, userId])

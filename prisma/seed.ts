@@ -112,12 +112,22 @@ const main = async () => {
     },
   });
 
+  // チャットルームを作成
+  const chatRoom = await prisma.chatRoom.create({
+    data: {
+      participants: {
+        create: [{ userId: normalUser.id }, { userId: adminUser.id }],
+      },
+    },
+  });
+
   // チャットメッセージを作成
   await prisma.chat.create({
     data: {
       senderId: normalUser.id,
       receiverId: adminUser.id,
       message: "初めまして！よろしくお願いします。",
+      chatRoomId: chatRoom.id, // チャットルームIDを指定
     },
   });
 

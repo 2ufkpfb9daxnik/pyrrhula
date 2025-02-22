@@ -63,8 +63,27 @@ export default function ChatPage() {
     }
   };
 
-  const handleChatClick = (chatId: string) => {
-    router.push(`/chat/${chatId}`);
+  const handleChatClick = (otherUserId: string) => {
+    router.push(`/chat/${otherUserId}`);
+  };
+
+  const getLatestChats = (chats: Chat[]) => {
+    const latestChatsMap = new Map<string, Chat>();
+
+    chats.forEach((chat) => {
+      const existingChat = latestChatsMap.get(chat.otherUser.id);
+      if (
+        !existingChat ||
+        new Date(chat.createdAt) > new Date(existingChat.createdAt)
+      ) {
+        latestChatsMap.set(chat.otherUser.id, chat);
+      }
+    });
+
+    return Array.from(latestChatsMap.values()).sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
   };
 
   if (isLoading) {
@@ -98,11 +117,11 @@ export default function ChatPage() {
         <p className="text-center text-gray-500">チャットがありません。</p>
       ) : (
         <div className="space-y-4">
-          {chats.map((chat) => (
+          {getLatestChats(chats).map((chat) => (
             <Card
-              key={chat.id}
+              key={chat.otherUser.id}
               className="cursor-pointer transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
-              onClick={() => handleChatClick(chat.id)}
+              onClick={() => handleChatClick(chat.otherUser.id)}
             >
               <CardHeader className="flex flex-row items-center space-x-4 pb-2">
                 <Avatar>

@@ -2,6 +2,7 @@
 const nextConfig = {
   experimental: {
     forceSwcTransforms: true,
+    appDir: true,
   },
   poweredByHeader: false,
   reactStrictMode: true,
