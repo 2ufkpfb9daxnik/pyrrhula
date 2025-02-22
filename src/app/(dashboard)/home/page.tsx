@@ -105,6 +105,9 @@ export default function HomePage() {
         <p className="text-gray-500">
           タイムラインを表示するにはログインが必要です
         </p>
+        <p>
+          もしログインしているのにタイムラインが表示されないなら、しばらく待ってから再読み込みしてみてください。
+        </p>
       </div>
     );
   }
