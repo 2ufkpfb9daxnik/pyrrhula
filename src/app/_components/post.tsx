@@ -61,34 +61,47 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
   const handleUserClick = () => {
     router.push(`/user/${post.user.id}`);
   };
+  const handleFavorite = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!session || isLoading) return;
 
-  const handleFavorite = async () => {
-    if (!session) {
-      toast.error("ログインが必要です");
-      return;
-    }
-
-    setIsLoading(true);
     try {
-      const response = await fetch(`/api/post/${post.id}/favorite`, {
-        method: isFavorited ? "DELETE" : "POST",
+      setIsLoading(true);
+
+      const response = await fetch(`/api/posts/${post.id}/favorite`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
       });
 
-      if (!response.ok) throw new Error("Failed to favorite");
+      if (!response.ok) {
+        const error = await response.json();
+        console.error("お気に入りエラーレスポンス:", error);
+        throw new Error(error.message || "お気に入りに失敗しました");
+      }
 
-      setFavorites((prev) => (isFavorited ? prev - 1 : prev + 1));
+      const data = await response.json();
+      console.log("お気に入り成功:", data);
+
+      // ローカルの状態を更新
       setIsFavorited((prev) => !prev);
+      setFavorites((prev) => (isFavorited ? prev - 1 : prev + 1));
 
       if (onFavoriteSuccess) {
-        await onFavoriteSuccess();
+        onFavoriteSuccess();
       }
+
+      toast.success(
+        isFavorited ? "お気に入りを解除しました" : "お気に入りに追加しました"
+      );
     } catch (error) {
-      toast.error("操作に失敗しました");
+      console.error("お気に入り処理エラー:", error);
+      toast.error("お気に入りの処理に失敗しました");
     } finally {
       setIsLoading(false);
     }
   };
-
   const handleRepost = async () => {
     if (!session) {
       toast.error("ログインが必要です");
