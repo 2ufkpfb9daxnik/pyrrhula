@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 import type { UserListResponse } from "@/app/_types/users";
 import { calculateRating } from "@/lib/rating";
 
-// キャッシュの設定を追加
+// エッジランタイムとキャッシュを維持
 export const runtime = "edge";
 export const revalidate = 60; // 1分間キャッシュ
 
@@ -17,49 +17,43 @@ export async function GET(req: Request) {
     const limit = 10;
     const skip = (page - 1) * limit;
 
-    // 基本的なユーザー情報のみを取得
-    const users = await prisma.user.findMany({
-      take: limit,
-      skip: skip,
-      orderBy: {
-        [sort]: "desc",
-      },
-      select: {
-        id: true,
-        username: true,
-        icon: true,
-        rate: true,
-        postCount: true,
-        createdAt: true,
-      },
-    });
-
-    // 総数のクエリを分離（パフォーマンス改善）
-    const [totalUsers, recentPosts] = await Promise.all([
-      prisma.user.count(),
-      // 直近の投稿数は必要なユーザーのみ取得
-      prisma.post.groupBy({
-        by: ["userId"],
-        where: {
-          userId: {
-            in: users.map((u) => u.id),
-          },
-          createdAt: {
-            gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+    // Prismaクエリを最適化
+    const [users, totalUsers] = await Promise.all([
+      prisma.user.findMany({
+        take: limit,
+        skip: skip,
+        orderBy: {
+          [sort]: "desc",
+        },
+        select: {
+          id: true,
+          username: true,
+          icon: true,
+          rate: true,
+          postCount: true,
+          createdAt: true,
+          // 投稿数を直接集計
+          _count: {
+            select: {
+              posts: {
+                where: {
+                  createdAt: {
+                    gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+                  },
+                },
+              },
+            },
           },
         },
-        _count: true,
       }),
+      prisma.user.count(),
     ]);
 
-    const formattedUsers = users.map((user) => {
-      const recentPostCount =
-        recentPosts.find((p) => p.userId === user.id)?._count || 0;
-      return {
-        ...user,
-        ratingColor: calculateRating(recentPostCount, user.postCount),
-      };
-    });
+    // レスポンスの整形を最適化
+    const formattedUsers = users.map((user) => ({
+      ...user,
+      ratingColor: calculateRating(user._count.posts, user.postCount),
+    }));
 
     const response: UserListResponse = {
       users: formattedUsers,
@@ -67,7 +61,14 @@ export async function GET(req: Request) {
       nextCursor: page * limit < totalUsers ? String(page + 1) : undefined,
     };
 
-    return NextResponse.json(response);
+    // キャッシュヘッダーを追加
+    return new NextResponse(JSON.stringify(response), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=30",
+      },
+    });
   } catch (error) {
     console.error("[Users Error]:", error);
     return NextResponse.json(
