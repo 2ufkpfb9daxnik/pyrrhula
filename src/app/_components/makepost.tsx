@@ -9,13 +9,14 @@ interface MakePostProps {
     id: string;
     content: string;
     username: string;
-  } | null; // undefined の代わりに null も許容
+  } | null;
+  inputRef?: React.RefObject<HTMLTextAreaElement>;
 }
 
-export function MakePost({ onPostCreated, replyTo }: MakePostProps) {
+export function MakePost({ onPostCreated, replyTo, inputRef }: MakePostProps) {
   const [newPost, setNewPost] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-
+  const [content, setContent] = useState("");
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Ctrl + Enter で投稿
     if (e.ctrlKey && e.key === "Enter") {
@@ -60,12 +61,11 @@ export function MakePost({ onPostCreated, replyTo }: MakePostProps) {
         </div>
       )}
       <Textarea
-        value={newPost}
-        onChange={(e) => setNewPost(e.target.value)}
-        placeholder={replyTo ? "返信を入力..." : "ctrl + enter で投稿可"}
-        onKeyDown={handleKeyDown}
-        maxLength={500}
-        className="mb-2 w-full"
+        ref={inputRef} // inputRef を設定
+        placeholder={replyTo ? "返信を入力..." : "今何してる？"}
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        className="min-h-24 resize-none border-gray-800 bg-transparent"
       />
       <div className="flex items-center justify-between">
         <span className="text-sm text-gray-500">

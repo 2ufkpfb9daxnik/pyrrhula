@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -32,6 +32,8 @@ export default function HomePage() {
   const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date());
   const [hasMore, setHasMore] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | undefined>();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const postInputRef = useRef<HTMLTextAreaElement>(null);
 
   // 60秒ごとにタイムラインを更新
   useInterval(() => {
@@ -76,6 +78,35 @@ export default function HomePage() {
       setLastUpdateTime(new Date());
     });
   }, [session]);
+
+  // キーボードショートカットのイベントリスナーを追加
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (
+        e.key === "n" &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        document.activeElement?.tagName !== "TEXTAREA" &&
+        document.activeElement?.tagName !== "INPUT"
+      ) {
+        e.preventDefault();
+        // モバイル表示の場合はダイアログを開く
+        if (window.innerWidth < 768) {
+          setIsDialogOpen(true);
+          // ダイアログが開いた後にフォーカスを設定するため、少し遅延させる
+          setTimeout(() => {
+            postInputRef.current?.focus();
+          }, 100);
+        } else {
+          // デスクトップ表示の場合は直接フォーカス
+          postInputRef.current?.focus();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyPress);
+    return () => window.removeEventListener("keydown", handleKeyPress);
+  }, []);
 
   const handleUserClick = () => {
     if (session?.user?.id) {
@@ -221,6 +252,7 @@ export default function HomePage() {
                 }
               : null
           }
+          inputRef={postInputRef}
         />
 
         <Search onSearch={handleSearch} />
@@ -291,7 +323,7 @@ export default function HomePage() {
       </main>
 
       {/* モバイル用投稿ボタン */}
-      <Dialog>
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogTrigger asChild>
           <Button
             className="fixed bottom-20 right-4 size-14 rounded-full p-0 shadow-lg md:hidden"
@@ -302,7 +334,10 @@ export default function HomePage() {
         </DialogTrigger>
         <DialogContent className="w-[calc(100%-32px)] max-w-[425px]">
           <div className="pt-6">
-            <MakePost onPostCreated={handlePostCreated} />
+            <MakePost
+              onPostCreated={handlePostCreated}
+              inputRef={postInputRef} // モバイル用にも参照を渡す
+            />
           </div>
         </DialogContent>
       </Dialog>
