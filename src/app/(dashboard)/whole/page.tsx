@@ -73,16 +73,16 @@ export default function HomePage() {
     <TooltipProvider>
       <>
         <Navigation />
-        {/* 左サイドバー */}
-        <div className="fixed left-16 top-0 flex h-full w-80 flex-col gap-4 border-r border-gray-800 p-4">
+        {/* 左サイドバー - モバイルでは非表示 */}
+        <div className="fixed left-16 top-0 hidden h-full w-80 flex-col gap-4 border-r border-gray-800 p-4 md:flex">
           <MakePost onPostCreated={fetchPosts} />
           <Search onSearch={handleSearch} />
         </div>
-        {/* メインコンテンツ */}
+        {/* メインコンテンツ - モバイルではフル幅 */}
         <main className="flex-1">
           <div
-            className="mx-auto max-w-2xl p-4"
-            style={{ marginLeft: "calc(50% - 21rem)" }}
+            className="mx-auto max-w-2xl p-4 md:ml-[calc(50%-21rem)]"
+            style={{ marginLeft: undefined }} // インラインスタイルを削除
           >
             <div className="space-y-4">
               {posts.map((post) => (

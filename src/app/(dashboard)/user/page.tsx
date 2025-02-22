@@ -99,21 +99,30 @@ export default function UsersPage() {
   useEffect(() => {
     fetchUsers(1);
   }, [sortBy]);
-
+  // APIルートの最適化
   const fetchUsers = async (page: number) => {
     try {
-      window.scrollTo(0, 0);
       setIsLoading(true);
-      const response = await fetch(
-        `/api/users?sort=${sortBy}&page=${page}&includeFollowStatus=true`
-      );
+
+      // 1. クエリパラメータの最適化
+      const params = new URLSearchParams({
+        sort: sortBy,
+        page: page.toString(),
+        limit: "20", // 1ページあたりの件数を制限
+        includeFollowStatus: session ? "true" : "false", // ログイン時のみフォロー状態を取得
+      });
+
+      const response = await fetch(`/api/users?${params}`);
       if (!response.ok) throw new Error("Failed to fetch users");
+
       const data = await response.json();
       setUsers(data.users);
       setPagination(data.pagination);
     } catch (error) {
       console.error("Error fetching users:", error);
-      toast.error("ユーザー一覧の取得に失敗しました");
+      toast.error(
+        "一時的なエラーが発生しました。しばらく待ってから再度お試しください"
+      );
     } finally {
       setIsLoading(false);
     }
