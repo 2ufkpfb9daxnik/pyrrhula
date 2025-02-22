@@ -11,6 +11,8 @@ import { Star, Calendar, Trophy } from "lucide-react";
 import { toast } from "sonner";
 import { Share2 } from "lucide-react";
 
+type RatingColor = string;
+
 interface User {
   id: string;
   username: string;
