@@ -17,7 +17,7 @@ export async function updateUserStats(userId: string) {
           where: {
             userId,
             createdAt: {
-              gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+              gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
             },
           },
         }),

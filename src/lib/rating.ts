@@ -10,10 +10,10 @@ export function calculateRating(
   const score = recentScore + totalScore;
 
   // スコアに基づいてレーティングカラーを決定
-  if (score >= 1000) return "text-red-500";
-  if (score >= 500) return "text-orange-500";
-  if (score >= 250) return "text-yellow-500";
-  if (score >= 125) return "text-purple-500";
+  if (score >= 200000) return "text-red-500";
+  if (score >= 10000) return "text-orange-500";
+  if (score >= 1000) return "text-yellow-500";
+  if (score >= 250) return "text-purple-500";
   if (score >= 62) return "text-blue-500";
   if (score >= 31) return "text-cyan-500";
   if (score >= 15) return "text-green-500";
