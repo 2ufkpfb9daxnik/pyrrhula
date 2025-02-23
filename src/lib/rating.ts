@@ -4,14 +4,16 @@ export function calculateRating(
   recentPosts: number,
   totalPosts: number
 ): RatingColor {
-  // 直近の投稿数と全体の投稿数から基本スコアを計算
+  // 直近30日の投稿数と全体の投稿数から基本スコアを計算
   const recentScore = Math.min(recentPosts / 50, 1) * 70;
   const totalScore = Math.min(totalPosts / 1000, 1) * 30;
   const score = recentScore + totalScore;
 
   // スコアに基づいてレーティングカラーを決定
-  if (score >= 200000) return "text-red-500";
-  if (score >= 10000) return "text-orange-500";
+  if (score >= 200000)
+    return "bg-gradient-to-r from-red-500 via-yellow-500 to-blue-500";
+  if (score >= 30000) return "text-red-500";
+  if (score >= 5000) return "text-orange-500";
   if (score >= 1000) return "text-yellow-500";
   if (score >= 250) return "text-purple-500";
   if (score >= 62) return "text-blue-500";

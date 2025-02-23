@@ -9,7 +9,8 @@ export type RatingColor =
   | "text-purple-500" // 紫
   | "text-yellow-500" // 黄
   | "text-orange-500" // 橙
-  | "text-red-500"; // 赤
+  | "text-red-500" // 赤
+  | "bg-gradient-to-r from-red-500 via-yellow-500 to-blue-500"; // 虹
 
 export interface UserRating {
   color: RatingColor;
