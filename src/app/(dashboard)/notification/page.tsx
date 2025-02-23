@@ -116,7 +116,7 @@ export default function NotificationPage() {
         {notifications.map((notification) => (
           <div
             key={notification.id}
-            className="flex items-start space-x-4 rounded-lg border border-gray-800 bg-gray-900 p-4"
+            className="rounded-lg border border-gray-800 bg-gray-900 p-4"
             onClick={() => {
               if (notification.relatedPost) {
                 router.push(`/post/${notification.relatedPost.id}`);
@@ -125,33 +125,35 @@ export default function NotificationPage() {
               }
             }}
           >
-            {notification.sender && (
-              <Avatar className="size-10">
-                <AvatarImage
-                  src={notification.sender.icon ?? undefined}
-                  alt={notification.sender.username}
-                />
-                <AvatarFallback>
-                  {notification.sender.username[0]}
-                </AvatarFallback>
-              </Avatar>
-            )}
-            <div className="flex-1">
-              <div className="flex items-center space-x-2">
-                {getNotificationIcon(notification.type)}
-                <p className="text-sm">
-                  {getNotificationContent(notification)}
+            <div className="flex items-start space-x-4">
+              {notification.sender && (
+                <Avatar className="size-10 shrink-0">
+                  <AvatarImage
+                    src={notification.sender.icon ?? undefined}
+                    alt={notification.sender.username}
+                  />
+                  <AvatarFallback>
+                    {notification.sender.username[0]}
+                  </AvatarFallback>
+                </Avatar>
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center space-x-2">
+                  {getNotificationIcon(notification.type)}
+                  <p className="text-sm">
+                    {getNotificationContent(notification)}
+                  </p>
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  {formatDistanceToNow(new Date(notification.createdAt))}
                 </p>
               </div>
-              {notification.relatedPost && (
-                <p className="mt-2 text-sm text-gray-400">
-                  {notification.relatedPost.content}
-                </p>
-              )}
-              <p className="mt-1 text-xs text-gray-500">
-                {formatDistanceToNow(new Date(notification.createdAt))}
-              </p>
             </div>
+            {notification.relatedPost && (
+              <p className="mt-2 pl-14 text-sm text-gray-400">
+                {notification.relatedPost.content}
+              </p>
+            )}
           </div>
         ))}
 

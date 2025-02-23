@@ -53,7 +53,7 @@ export function Navigation() {
   }
 
   return (
-    <nav className="fixed bottom-0 left-0 flex w-full flex-row items-center justify-around bg-gray-900 p-2 md:top-0 md:h-full md:w-16 md:flex-col md:justify-start md:space-y-8 md:py-8">
+    <nav className="fixed inset-x-0 bottom-0 z-50 flex h-16 items-center justify-around border-t border-gray-800 bg-background md:left-0 md:top-0 md:h-screen md:w-16 md:flex-col md:items-center md:justify-start md:space-y-4 md:border-r md:border-t-0 md:p-4">
       {/* ホームボタン */}
       <Button
         variant="ghost"

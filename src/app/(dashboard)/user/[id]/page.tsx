@@ -215,7 +215,7 @@ export default function UserProfilePage({
                         )}
                       </div>
                       {session?.user?.id !== user.id && (
-                        <div className="mt-4 flex items-center space-x-4">
+                        <div className="mt-4 flex flex-col space-y-2">
                           <Button
                             onClick={handleFollow}
                             disabled={isFollowLoading}
@@ -255,27 +255,24 @@ export default function UserProfilePage({
                         <BarChart className="mr-2 size-4" />
                         レート {user.rate}
                       </div>
-                      <div className="flex items-center space-x-4">
+                      <Button
+                        variant="link"
+                        className="h-auto p-0 text-gray-400 hover:text-white"
+                        onClick={() =>
+                          router.push(`/user/${user.id}/following`)
+                        }
+                      >
                         <Users className="mr-2 size-4" />
-                        <Button
-                          variant="link"
-                          className="h-auto p-0 text-gray-400 hover:text-white"
-                          onClick={() =>
-                            router.push(`/user/${user.id}/follower`)
-                          }
-                        >
-                          フォロワー {user.followersCount}
-                        </Button>
-                        <Button
-                          variant="link"
-                          className="h-auto p-0 text-gray-400 hover:text-white"
-                          onClick={() =>
-                            router.push(`/user/${user.id}/following`)
-                          }
-                        >
-                          フォロー中 {user.followingCount}
-                        </Button>
-                      </div>
+                        フォロー中 {user.followingCount}
+                      </Button>
+                      <Button
+                        variant="link"
+                        className="h-auto p-0 text-gray-400 hover:text-white"
+                        onClick={() => router.push(`/user/${user.id}/follower`)}
+                      >
+                        <Users className="mr-2 size-4" />
+                        フォロワー {user.followersCount}
+                      </Button>
                       <div className="flex items-center">
                         <Calendar className="mr-2 size-4" />
                         <div className="flex flex-col">

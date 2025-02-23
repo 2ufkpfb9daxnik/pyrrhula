@@ -217,7 +217,9 @@ export default function UsersPage() {
   return (
     <div className="mx-auto max-w-2xl p-4">
       <div className="mb-6 flex items-center justify-between border-b border-gray-800 pb-4">
-        <h1 className="text-2xl font-bold">ユーザー一覧</h1>
+        <h1 className="text-2xl font-bold">
+          ユーザー<br></br>一覧
+        </h1>
         <div className="flex space-x-2">
           <Button
             variant={sortBy === "rate" ? "default" : "outline"}
@@ -246,47 +248,62 @@ export default function UsersPage() {
             onClick={() => router.push(`/user/${user.id}`)}
           >
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <Avatar className="size-12">
-                  <AvatarImage
-                    src={user.icon ?? undefined}
-                    alt={user.username}
-                  />
-                  <AvatarFallback>{user.username[0]}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <span
-                      className={`text-base font-semibold ${user.ratingColor}`}
-                    >
-                      {user.username}
-                    </span>
-                    <span className="text-sm text-gray-500">@{user.id}</span>
-                  </div>
-                  <div className="flex items-center space-x-3 text-sm text-gray-400">
-                    <span className="flex items-center">
-                      <Star className="mr-1 size-4" />
-                      {user.rate}
-                    </span>
-                    <span className="flex items-center">
-                      <Calendar className="mr-1 size-4" />
-                      {formatDistanceToNow(new Date(user.createdAt))}
-                    </span>
-                    {user.isFollower && (
-                      <span className="text-gray-500">フォロワー</span>
-                    )}
+              {/* ユーザー情報部分 */}
+              <div className="min-w-0 flex-1">
+                {" "}
+                {/* min-w-0を追加してフレックスアイテムが収縮できるようにする */}
+                <div className="flex items-center space-x-3">
+                  <Avatar className="size-12 shrink-0">
+                    {" "}
+                    {/* flex-shrink-0を追加してアバターのサイズを固定 */}
+                    <AvatarImage
+                      src={user.icon ?? undefined}
+                      alt={user.username}
+                    />
+                    <AvatarFallback>{user.username[0]}</AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    {" "}
+                    {/* min-w-0を追加して長いテキストを省略できるようにする */}
+                    <div className="flex items-center space-x-2">
+                      <span
+                        className={`text-base font-semibold ${user.ratingColor} truncate`}
+                      >
+                        {user.username}
+                      </span>
+                      <span className="truncate text-sm text-gray-500">
+                        @{user.id}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-3 text-sm text-gray-400">
+                      <span className="flex items-center">
+                        <Star className="mr-1 size-4" />
+                        {user.rate}
+                      </span>
+                      <span className="flex items-center">
+                        <Calendar className="mr-1 size-4" />
+                        {formatDistanceToNow(new Date(user.createdAt))}
+                      </span>
+                      {user.isFollower && (
+                        <span className="text-gray-500">フォロワー</span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
-              <div className="flex items-center space-x-2">
+
+              {/* ボタン部分 */}
+              <div className="ml-4 flex shrink-0 flex-col items-end space-y-2">
+                {" "}
+                {/* flex-shrink-0とml-4を追加 */}
                 {session?.user?.id !== user.id && (
                   <Button
                     variant="outline"
-                    className={
+                    className={`w-28 ${
                       user.isFollowing
                         ? "bg-secondary text-secondary-foreground"
                         : "bg-white text-black"
-                    }
+                    }`}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleFollow(user.id, user.isFollowing || false);
@@ -299,28 +316,30 @@ export default function UsersPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="border border-gray-800"
+                  className="w-28 border border-gray-800"
                   onClick={(e) => {
                     e.stopPropagation();
                     router.push(`/followgraph/${user.id}`);
                   }}
                 >
-                  フォローグラフ壊れています
+                  フォローグラフ
+                  <br />
+                  (壊れています)
                 </Button>
               </div>
             </div>
           </div>
         ))}
-
-        {/* ページネーション */}
-        {pagination && (
-          <PowerPagination
-            currentPage={pagination.currentPage}
-            totalPages={pagination.pages}
-            onPageChange={fetchUsers}
-          />
-        )}
       </div>
+
+      {/* ページネーション */}
+      {pagination && (
+        <PowerPagination
+          currentPage={pagination.currentPage}
+          totalPages={pagination.pages}
+          onPageChange={fetchUsers}
+        />
+      )}
     </div>
   );
 }

@@ -152,113 +152,125 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
       className="cursor-pointer border-b border-gray-700 p-4 transition-colors hover:bg-gray-900/50"
       onClick={handlePostClick}
     >
-      {post.parent &&
-        post.parent.user && ( // userの存在確認を追加
-          <div className="mb-2 text-sm text-gray-500">
-            返信先: @{post.parent.user.username}
-          </div>
-        )}
-      <div className="flex items-start space-x-3">
-        <Button
-          variant="ghost"
-          className="p-0 hover:bg-transparent"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleUserClick();
-          }}
-        >
-          <Avatar>
-            <AvatarImage
-              src={post.user.icon ?? undefined}
-              alt={post.user.username}
-            />
-            <AvatarFallback>{post.user.username[0]}</AvatarFallback>
-          </Avatar>
-        </Button>
-        <div className="flex-1">
-          <div className="flex items-center space-x-2">
+      {post.parent && post.parent.user && (
+        <div className="mb-2 text-sm text-gray-500">
+          返信先: @{post.parent.user.username}
+        </div>
+      )}
+      <div className="flex flex-col space-y-3">
+        {" "}
+        <div className="flex items-start space-x-3">
+          {" "}
+          {/* items-center から items-start に変更 */}
+          <Button
+            variant="ghost"
+            className="p-0 hover:bg-transparent"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleUserClick();
+            }}
+          >
+            <Avatar>
+              <AvatarImage
+                src={post.user.icon ?? undefined}
+                alt={post.user.username}
+              />
+              <AvatarFallback>{post.user.username[0]}</AvatarFallback>
+            </Avatar>
+          </Button>
+          <div className="flex flex-col">
+            {" "}
+            {/* flex-col クラスのみを保持 */}
             <Button
               variant="ghost"
-              className={`h-auto p-0 font-bold hover:underline ${rating?.color ?? "text-gray-300"}`}
+              className={`h-auto w-full justify-start p-0 text-base font-bold hover:underline ${
+                rating?.color ?? "text-gray-300"
+              }`}
+              {
+                /* justify-start と w-full を追加 */ ...AvatarFallback
+              }
               onClick={handleUserClick}
             >
               {post.user.username}
             </Button>
-            <span className="text-gray-500">@{post.user.id}</span>
-            <span className="text-gray-500">·</span>
-            <span className="text-gray-500">
-              {formatDistanceToNow(new Date(post.createdAt))}
-            </span>
+            <div className="flex items-center space-x-2 text-sm">
+              <span className="text-gray-500">@{post.user.id}</span>
+              <span className="text-gray-500">·</span>
+              <span className="text-gray-500">
+                {formatDistanceToNow(new Date(post.createdAt))}
+              </span>
+            </div>
           </div>
-          <p className="mt-2 whitespace-pre-wrap break-words">
-            {linkify(post.content)}
-          </p>
-          <div className="mt-3 flex items-center space-x-6">
-            {/* リプライボタン */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleReply();
-                  }}
-                  disabled={isLoading || !session}
-                >
-                  <MessageCircle className="mr-1 size-4" />
-                  <span>{post._count?.replies ?? 0}</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {session ? "返信" : "ログインが必要です"}
-              </TooltipContent>
-            </Tooltip>
+        </div>
+        {/* 投稿本文 */}
+        <p className="mt-2 whitespace-pre-wrap break-words">
+          {linkify(post.content)}
+        </p>
+        <div className="mt-3 flex items-center space-x-6">
+          {/* リプライボタン */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleReply();
+                }}
+                disabled={isLoading || !session}
+              >
+                <MessageCircle className="mr-1 size-4" />
+                <span>{post._count?.replies ?? 0}</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {session ? "返信" : "ログインが必要です"}
+            </TooltipContent>
+          </Tooltip>
 
-            {/* リポストボタン */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleRepost}
-                  disabled={isLoading || !session}
-                >
-                  <RefreshCw
-                    className={`mr-1 size-4 ${
-                      isReposted ? "text-green-500" : ""
-                    }`}
-                  />
-                  <span>{reposts}</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {session ? "リポスト" : "ログインが必要です"}
-              </TooltipContent>
-            </Tooltip>
+          {/* リポストボタン */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleRepost}
+                disabled={isLoading || !session}
+              >
+                <RefreshCw
+                  className={`mr-1 size-4 ${
+                    isReposted ? "text-green-500" : ""
+                  }`}
+                />
+                <span>{reposts}</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {session ? "リポスト" : "ログインが必要です"}
+            </TooltipContent>
+          </Tooltip>
 
-            {/* お気に入りボタン */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleFavorite}
-                  disabled={isLoading || !session}
-                >
-                  <Star
-                    className={`mr-1 size-4 ${
-                      isFavorited ? "fill-yellow-500 text-yellow-500" : ""
-                    }`}
-                  />
-                  <span>{favorites}</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {session ? "お気に入り" : "ログインが必要です"}
-              </TooltipContent>
-            </Tooltip>
-          </div>
+          {/* お気に入りボタン */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleFavorite}
+                disabled={isLoading || !session}
+              >
+                <Star
+                  className={`mr-1 size-4 ${
+                    isFavorited ? "fill-yellow-500 text-yellow-500" : ""
+                  }`}
+                />
+                <span>{favorites}</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {session ? "お気に入り" : "ログインが必要です"}
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
     </div>

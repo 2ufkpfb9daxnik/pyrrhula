@@ -260,7 +260,8 @@ export default function HomePage() {
       </div>
 
       {/* メインコンテンツ */}
-      <main className="flex-1">
+      <main className="flex-1 pb-16 md:pb-0">
+        {/* pb-16を追加してナビゲーションバーのスペースを確保 */}
         <div className="mx-auto max-w-2xl p-4 md:ml-96">
           {/* モバイル用ヘッダー */}
           <div className="mb-4 flex items-center justify-between border-b border-gray-800 pb-4 md:hidden">
