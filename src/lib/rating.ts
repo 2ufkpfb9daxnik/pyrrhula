@@ -14,11 +14,11 @@ export function calculateRating(
   if (score >= 500) return "text-orange-500";
   if (score >= 250) return "text-yellow-500";
   if (score >= 125) return "text-purple-500";
-  if (score >= 55) return "text-blue-500";
-  if (score >= 45) return "text-cyan-500";
-  if (score >= 35) return "text-green-500";
-  if (score >= 25) return "text-lime-500";
-  if (score >= 15) return "text-amber-700";
-  if (score >= 5) return "text-gray-500";
+  if (score >= 62) return "text-blue-500";
+  if (score >= 31) return "text-cyan-500";
+  if (score >= 15) return "text-green-500";
+  if (score >= 7) return "text-lime-500";
+  if (score >= 3) return "text-amber-700";
+  if (score >= 1) return "text-gray-500";
   return "text-gray-300";
 }
