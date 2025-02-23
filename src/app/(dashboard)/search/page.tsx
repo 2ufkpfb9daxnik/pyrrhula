@@ -1,9 +1,9 @@
 "use client";
 
-import { Search } from "@/app/_components/search";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Post as PostComponent } from "@/app/_components/post";
 import type { Post } from "@/app/_types/post";
+import { Search } from "@/app/_components/search";
 import {
   Accordion,
   AccordionContent,
@@ -11,14 +11,24 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { toast } from "sonner";
+import { useSearchParams } from "next/navigation";
 
 export default function SearchPage() {
+  const searchParams = useSearchParams();
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [currentQuery, setCurrentQuery] = useState("");
 
+  // URLパラメータからの初期検索
+  useEffect(() => {
+    const query = searchParams.get("q");
+    if (query) {
+      handleSearch(query);
+    }
+  }, [searchParams]);
+
   const handleSearch = async (query: string) => {
-    setCurrentQuery(query); // クエリを保存
+    setCurrentQuery(query);
     setIsLoading(true);
     try {
       const response = await fetch(
@@ -36,7 +46,11 @@ export default function SearchPage() {
       );
 
       if (data.posts.length === 0) {
-        toast.info("検索結果が見つかりませんでした");
+        toast.info(
+          query.startsWith("#")
+            ? `ハッシュタグ ${query} の投稿は見つかりませんでした`
+            : "検索結果が見つかりませんでした"
+        );
       }
     } catch (error) {
       console.error("Error searching posts:", error);
@@ -48,8 +62,22 @@ export default function SearchPage() {
 
   return (
     <div className="mx-auto max-w-2xl p-4">
-      <h1 className="mb-6 text-2xl font-bold">検索</h1>
-      <Search onSearch={handleSearch} />
+      <h1 className="mb-6 text-2xl font-bold">
+        {currentQuery ? (
+          currentQuery.startsWith("#") ? (
+            <>ハッシュタグ {currentQuery} の検索結果</>
+          ) : (
+            <>「{currentQuery}」の検索結果</>
+          )
+        ) : (
+          <>検索</>
+        )}
+      </h1>
+
+      <Search
+        onSearch={handleSearch}
+        initialQuery={searchParams.get("q") || ""}
+      />
 
       {/* 検索結果の表示 */}
       {isLoading ? (
@@ -60,13 +88,18 @@ export default function SearchPage() {
             <PostComponent
               key={post.id}
               post={post}
-              onRepostSuccess={() => handleSearch(currentQuery)} // currentQueryを使用
-              onFavoriteSuccess={() => handleSearch(currentQuery)} // currentQueryを使用
+              onRepostSuccess={() => handleSearch(currentQuery)}
+              onFavoriteSuccess={() => handleSearch(currentQuery)}
             />
           ))}
         </div>
+      ) : currentQuery ? (
+        <div className="mt-8 text-center text-muted-foreground">
+          検索結果が見つかりませんでした
+        </div>
       ) : null}
 
+      {/* 高度な検索オプション */}
       <Accordion type="single" collapsible className="mt-8">
         <AccordionItem value="advanced-search">
           <AccordionTrigger>高度な検索オプション</AccordionTrigger>
@@ -124,10 +157,17 @@ export default function SearchPage() {
                 </code>
               </div>
 
+              {/* ハッシュタグ検索の説明を追加 */}
+              <div className="space-y-2">
+                <h3 className="font-medium">ハッシュタグ検索</h3>
+                <p>ハッシュタグで投稿を検索</p>
+                <code className="block rounded bg-muted p-2">#pyrrhula</code>
+              </div>
+
               <div className="space-y-2">
                 <h3 className="font-medium">組み合わせ例</h3>
                 <code className="block rounded bg-muted p-2">
-                  from:pyrrhula since:2024-02-01 fav_gt:10
+                  #pyrrhula since:2024-02-01 fav_gt:10
                 </code>
               </div>
             </div>

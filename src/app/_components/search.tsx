@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 
 interface SearchProps {
   onSearch: (query: string) => void;
+  initialQuery?: string;
 }
 
 export function Search({ onSearch }: SearchProps) {
