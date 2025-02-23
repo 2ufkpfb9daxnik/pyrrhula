@@ -219,7 +219,6 @@ export default function UsersPage() {
       <div className="mb-6 flex items-center justify-between border-b border-gray-800 pb-4">
         <h1 className="text-2xl font-bold">ユーザー一覧</h1>
         <div className="flex space-x-2">
-          <p className="text-sm ">並べ替えは若干前後します</p>
           <Button
             variant={sortBy === "rate" ? "default" : "outline"}
             onClick={() => setSortBy("rate")}
