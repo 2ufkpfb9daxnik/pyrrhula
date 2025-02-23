@@ -2,11 +2,10 @@
 const nextConfig = {
   experimental: {
     forceSwcTransforms: true,
-    appDir: true,
   },
   poweredByHeader: false,
   reactStrictMode: true,
-  // キャッシュヘッダーの設定を追加
+  output: "standalone",
   async headers() {
     return [
       {
@@ -18,7 +17,19 @@ const nextConfig = {
           },
         ],
       },
+      {
+        source: "/api/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "no-store",
+          },
+        ],
+      },
     ];
+  },
+  images: {
+    domains: ["avatars.githubusercontent.com"],
   },
 };
 

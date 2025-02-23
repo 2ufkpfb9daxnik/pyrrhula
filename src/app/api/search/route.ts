@@ -3,9 +3,14 @@ import { getServerSession } from "next-auth/next";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import type { SearchQuery, SearchResponse } from "@/app/_types/search";
+import { headers } from "next/headers";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET(req: Request) {
   try {
+    const headersList = headers();
     const { searchParams } = new URL(req.url);
 
     // 基本的なパラメータを取得
@@ -160,7 +165,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json(response);
   } catch (error) {
-    console.error("[Search Error]:", error);
+    console.error("[Search API Error]:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
