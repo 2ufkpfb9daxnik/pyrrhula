@@ -15,6 +15,7 @@ import { Plus } from "lucide-react";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { LoaderCircle } from "lucide-react";
 
 interface UserInfo {
   icon: string | null;
@@ -214,7 +215,7 @@ export default function HomePage() {
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <p className="text-gray-500">読み込み中...</p>
+        <LoaderCircle className="size-20 text-gray-500" />
       </div>
     );
   }
@@ -309,8 +310,7 @@ export default function HomePage() {
                 >
                   {isLoading ? (
                     <div className="flex items-center gap-2">
-                      <Spinner size="sm" />
-                      読み込み中...
+                      <LoaderCircle className="size-4 animate-spin" />
                     </div>
                   ) : (
                     "もっと読み込む"

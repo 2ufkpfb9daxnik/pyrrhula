@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "@/lib/formatDistanceToNow";
 import { toast } from "sonner";
 import type { UserFollowersResponse } from "@/app/_types/follow";
+import { LoaderCircle } from "lucide-react";
 
 type Follower = UserFollowersResponse["followers"][0];
 
@@ -85,7 +86,7 @@ export default function FollowersPage({ params }: { params: { id: string } }) {
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <p className="text-gray-500">読み込み中...</p>
+        <LoaderCircle className="size-12 animate-spin" />
       </div>
     );
   }
@@ -154,7 +155,11 @@ export default function FollowersPage({ params }: { params: { id: string } }) {
               onClick={handleLoadMore}
               disabled={isLoading}
             >
-              {isLoading ? "読み込み中..." : "もっと見る"}
+              {isLoading ? (
+                <LoaderCircle className="size-4 animate-spin" />
+              ) : (
+                "もっと見る"
+              )}
             </Button>
           )}
         </div>

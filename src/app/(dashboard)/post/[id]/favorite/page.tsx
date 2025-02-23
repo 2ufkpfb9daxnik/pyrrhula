@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "@/lib/formatDistanceToNow";
 import { toast } from "sonner";
 import type { FavoriteListResponse } from "@/app/_types/favorite";
+import { LoaderCircle } from "lucide-react";
 
 export default function FavoriteListPage({
   params,
@@ -61,7 +62,7 @@ export default function FavoriteListPage({
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <p className="text-gray-500">読み込み中...</p>
+        <LoaderCircle className="size-12 animate-spin" />
       </div>
     );
   }
@@ -116,7 +117,11 @@ export default function FavoriteListPage({
               onClick={handleLoadMore}
               disabled={isLoading}
             >
-              {isLoading ? "読み込み中..." : "もっと見る"}
+              {isLoading ? (
+                <LoaderCircle className="size-4 animate-spin" />
+              ) : (
+                "もっと見る"
+              )}
             </Button>
           )}
         </div>

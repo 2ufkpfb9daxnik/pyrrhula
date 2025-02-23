@@ -24,7 +24,7 @@ import { Post as PostComponent } from "@/app/_components/post";
 import { Navigation } from "@/app/_components/navigation";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { ja } from "date-fns/locale/ja";
+import { LoaderCircle } from "lucide-react";
 
 interface UserDetail {
   id: string;
@@ -159,7 +159,7 @@ export default function UserProfilePage({
       <div className="flex min-h-screen">
         <Navigation />
         <div className="flex flex-1 items-center justify-center">
-          <p className="text-gray-500">読み込み中...</p>
+          <LoaderCircle className="size-20 animate-spin" />
         </div>
       </div>
     );

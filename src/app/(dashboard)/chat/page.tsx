@@ -13,6 +13,7 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { CreateGroupChatModal } from "@/app/_components/groupchat";
+import { LoaderCircle } from "lucide-react";
 
 interface Chat {
   id: string;
@@ -132,7 +133,7 @@ export default function ChatPage() {
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
-        読み込み中...
+        <LoaderCircle className="size-12 animate-spin text-gray-500" />
       </div>
     );
   }

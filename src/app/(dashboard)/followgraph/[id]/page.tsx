@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { Network, NodeOptions, Node, Edge } from "vis-network";
 import { DataSet } from "vis-data";
 import { useRouter } from "next/navigation";
+import { LoaderCircle } from "lucide-react";
 
 interface UserNode {
   id: string;
@@ -148,7 +149,7 @@ export default function FollowGraphPage({
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <div className="text-lg">読み込み中...</div>
+        <LoaderCircle size={48} className="text-gray-500" />
       </div>
     );
   }

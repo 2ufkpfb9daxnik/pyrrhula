@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import type { ChatMessage, ChatHistoryResponse } from "@/app/_types/chat";
+import { LoaderCircle } from "lucide-react";
 
 export default function ChatPage({ params }: { params: { id: string } }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -120,7 +121,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <p className="text-gray-500">読み込み中...</p>
+        <LoaderCircle className="size-12 animate-spin text-gray-500" />
       </div>
     );
   }

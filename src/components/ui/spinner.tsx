@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { LoaderCircle } from "lucide-react";
 
 interface SpinnerProps extends React.HTMLAttributes<HTMLDivElement> {
   size?: "sm" | "md" | "lg";
@@ -19,7 +20,7 @@ export function Spinner({ className, size = "md", ...props }: SpinnerProps) {
       role="status"
       {...props}
     >
-      <span className="sr-only">読み込み中...</span>
+      <LoaderCircle className="animate-spin" />
     </div>
   );
 }

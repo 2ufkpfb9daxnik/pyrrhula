@@ -14,7 +14,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { Users } from "lucide-react";
+import { LoaderCircle, Users } from "lucide-react";
 
 interface GroupMessage {
   id: string;
@@ -154,7 +154,7 @@ export default function GroupChatPage({ params }: { params: { id: string } }) {
   if (isLoading || !groupChat) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <p className="text-gray-500">読み込み中...</p>
+        <LoaderCircle className="size-12 animate-spin text-gray-500" />
       </div>
     );
   }

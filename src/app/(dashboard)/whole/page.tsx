@@ -9,7 +9,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { Plus } from "lucide-react";
+import { LoaderCircle, Plus } from "lucide-react";
 
 interface Post {
   id: string;
@@ -188,8 +188,7 @@ export default function HomePage() {
                   >
                     {isLoading ? (
                       <div className="flex items-center gap-2">
-                        <Spinner className="size-4" />
-                        読み込み中...
+                        <LoaderCircle className="animate-spin"></LoaderCircle>
                       </div>
                     ) : (
                       "もっと読み込む"

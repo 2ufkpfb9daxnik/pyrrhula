@@ -7,7 +7,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatDistanceToNow } from "@/lib/formatDistanceToNow";
-import { Star, Calendar, Trophy } from "lucide-react";
+import { Star, Calendar, Trophy, LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Share2 } from "lucide-react";
 
@@ -209,7 +209,7 @@ export default function UsersPage() {
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
-        読み込み中...
+        <LoaderCircle className="size-12 animate-spin" />
       </div>
     );
   }

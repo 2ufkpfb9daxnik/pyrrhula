@@ -11,6 +11,7 @@ import { Post } from "@/app/_components/post";
 import { MakePost } from "@/app/_components/makepost";
 import { toast } from "sonner";
 import type { PostDetailResponse } from "@/app/_types/post";
+import { LoaderCircle } from "lucide-react";
 
 export default function PostDetailPage({ params }: { params: { id: string } }) {
   const [post, setPost] = useState<PostDetailResponse | null>(null);
@@ -45,7 +46,7 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <p className="text-gray-500">読み込み中...</p>
+        <LoaderCircle className="size-12 animate-spin" />
       </div>
     );
   }

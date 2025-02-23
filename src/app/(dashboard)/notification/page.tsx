@@ -6,7 +6,7 @@ import { useSession } from "next-auth/react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "@/lib/formatDistanceToNow";
-import { MessageCircle, Heart, UserPlus } from "lucide-react";
+import { MessageCircle, Heart, UserPlus, LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Share2 } from "lucide-react";
 
@@ -104,7 +104,7 @@ export default function NotificationPage() {
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
-        読み込み中...
+        <LoaderCircle className="size-10 animate-spin text-gray-500" />
       </div>
     );
   }

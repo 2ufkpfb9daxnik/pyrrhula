@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "@/lib/formatDistanceToNow";
 import { toast } from "sonner";
 import type { RepostListResponse } from "@/app/_types/repost";
+import { LoaderCircle } from "lucide-react";
 
 type RepostUser = RepostListResponse["users"][0];
 
@@ -59,7 +60,7 @@ export default function RepostListPage({ params }: { params: { id: string } }) {
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <p className="text-gray-500">読み込み中...</p>
+        <LoaderCircle className="size-12 animate-spin" />
       </div>
     );
   }
@@ -114,7 +115,11 @@ export default function RepostListPage({ params }: { params: { id: string } }) {
               onClick={handleLoadMore}
               disabled={isLoading}
             >
-              {isLoading ? "読み込み中..." : "もっと見る"}
+              {isLoading ? (
+                <LoaderCircle className="animate-spin"></LoaderCircle>
+              ) : (
+                "もっと見る"
+              )}
             </Button>
           )}
         </div>
