@@ -30,8 +30,8 @@ export function MakePost({ onPostCreated, replyTo, inputRef }: MakePostProps) {
     const mentions = content.match(MENTION_PATTERN);
     if (!mentions) return;
 
-    // 重複を削除
-    const uniqueMentions = [...new Set(mentions)];
+    // 重複を削除 - スプレッド構文を Array.from() に変更
+    const uniqueMentions = Array.from(new Set(mentions));
 
     for (const mention of uniqueMentions) {
       const username = mention.slice(1); // @を除去
