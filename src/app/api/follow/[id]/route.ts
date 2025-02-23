@@ -2,7 +2,9 @@ import { getServerSession } from "next-auth/next";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import { updateUserStats } from "@/lib/user-stats";
 
+// フォローする
 // フォローする
 export async function POST(
   req: Request,
@@ -16,7 +18,6 @@ export async function POST(
 
     const targetUserId = params.id;
 
-    // 自分自身をフォローできない
     if (session.user.id === targetUserId) {
       return NextResponse.json(
         { error: "Cannot follow yourself" },
@@ -24,42 +25,64 @@ export async function POST(
       );
     }
 
-    // フォロー対象ユーザーの存在確認
-    const targetUser = await prisma.user.findUnique({
-      where: { id: targetUserId },
-    });
+    // トランザクションで全ての操作を実行
+    const result = await prisma.$transaction(async (prisma) => {
+      // フォロー対象ユーザーの存在確認
+      const targetUser = await prisma.user.findUnique({
+        where: { id: targetUserId },
+      });
 
-    if (!targetUser) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
+      if (!targetUser) {
+        throw new Error("User not found");
+      }
 
-    // トランザクションでフォローと通知を作成
-    const [follow, _] = await prisma.$transaction([
       // フォロー作成
-      prisma.follow.create({
+      const follow = await prisma.follow.create({
         data: {
           followerId: session.user.id,
           followedId: targetUserId,
         },
-      }),
-      // フォロー通知作成
-      prisma.notification.create({
+      });
+
+      // 通知作成
+      await prisma.notification.create({
         data: {
           type: "fol",
           senderId: session.user.id,
           receiverId: targetUserId,
         },
-      }),
-    ]);
+      });
 
-    return NextResponse.json(follow, { status: 201 });
+      // フォロワー数とフォロー数を更新
+      await Promise.all([
+        prisma.user.update({
+          where: { id: targetUserId },
+          data: {
+            followersCount: { increment: 1 },
+          },
+        }),
+        prisma.user.update({
+          where: { id: session.user.id },
+          data: {
+            followingCount: { increment: 1 },
+          },
+        }),
+      ]);
+
+      return follow;
+    });
+
+    return NextResponse.json(result, { status: 201 });
   } catch (error) {
-    // ユニーク制約違反（既にフォロー済み）
     if ((error as any).code === "P2002") {
       return NextResponse.json(
         { error: "Already following this user" },
         { status: 409 }
       );
+    }
+
+    if (error instanceof Error && error.message === "User not found") {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     console.error("[Follow Error]:", error);
@@ -83,19 +106,39 @@ export async function DELETE(
 
     const targetUserId = params.id;
 
-    // フォロー関係を削除
-    const follow = await prisma.follow.delete({
-      where: {
-        followerId_followedId: {
-          followerId: session.user.id,
-          followedId: targetUserId,
+    // トランザクションで全ての操作を実行
+    const result = await prisma.$transaction(async (prisma) => {
+      // フォロー関係を削除
+      const follow = await prisma.follow.delete({
+        where: {
+          followerId_followedId: {
+            followerId: session.user.id,
+            followedId: targetUserId,
+          },
         },
-      },
+      });
+
+      // フォロワー数とフォロー数を更新
+      await Promise.all([
+        prisma.user.update({
+          where: { id: targetUserId },
+          data: {
+            followersCount: { decrement: 1 },
+          },
+        }),
+        prisma.user.update({
+          where: { id: session.user.id },
+          data: {
+            followingCount: { decrement: 1 },
+          },
+        }),
+      ]);
+
+      return follow;
     });
 
-    return NextResponse.json(follow);
+    return NextResponse.json(result);
   } catch (error) {
-    // レコードが見つからない（フォローしていない）
     if ((error as any).code === "P2025") {
       return NextResponse.json(
         { error: "Not following this user" },
@@ -111,6 +154,7 @@ export async function DELETE(
   }
 }
 
+// ユーザー情報を取得
 export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions);

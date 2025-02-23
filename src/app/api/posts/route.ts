@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import type { TimelineResponse, CreatePostRequest } from "@/app/_types/post";
+import { updateUserStats } from "@/lib/user-stats";
 
 const limit = 100;
 
@@ -133,7 +134,6 @@ export async function POST(req: Request) {
 
     const body: CreatePostRequest = await req.json();
 
-    // 投稿内容のバリデーション
     if (!body.content.trim()) {
       return NextResponse.json(
         { error: "Content cannot be empty" },
@@ -141,25 +141,57 @@ export async function POST(req: Request) {
       );
     }
 
-    // 投稿を作成
-    const post = await prisma.post.create({
-      data: {
-        content: body.content.trim(),
-        userId: session.user.id,
-        ...(body.parentId && { parentId: body.parentId }),
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-            icon: true,
+    // トランザクションを使用して、投稿作成と統計更新を原子的に実行
+    const result = await prisma.$transaction(async (prisma) => {
+      // 1. 投稿を作成
+      const post = await prisma.post.create({
+        data: {
+          content: body.content.trim(),
+          userId: session.user.id,
+          ...(body.parentId && { parentId: body.parentId }),
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              icon: true,
+            },
           },
         },
-      },
+      });
+
+      // 2. 投稿数とレートを更新
+      const [postCount, recentPosts] = await Promise.all([
+        prisma.post.count({
+          where: { userId: session.user.id },
+        }),
+        prisma.post.count({
+          where: {
+            userId: session.user.id,
+            createdAt: {
+              gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+            },
+          },
+        }),
+      ]);
+
+      // レートを計算（例: 過去30日の投稿数 * 10 + 総投稿数）
+      const rate = recentPosts * 10 + postCount;
+
+      // ユーザー情報を更新
+      await prisma.user.update({
+        where: { id: session.user.id },
+        data: {
+          postCount,
+          rate,
+        },
+      });
+
+      return post;
     });
 
-    return NextResponse.json(post, { status: 201 });
+    return NextResponse.json(result, { status: 201 });
   } catch (error) {
     console.error("[Create Post Error]:", error);
     return NextResponse.json(

@@ -19,6 +19,8 @@ interface User {
   icon: string | null;
   rate: number;
   postCount: number;
+  followersCount: number;
+  followingCount: number;
   createdAt: string;
   isFollowing?: boolean;
   isFollower?: boolean;
@@ -142,12 +144,27 @@ export default function UsersPage() {
       }
 
       const data = await response.json();
-      setUsers(data.users);
 
-      // ページネーション情報の修正
+      // データの整形を確実に行う
+      const formattedUsers = data.users.map((user: any) => ({
+        id: user.id,
+        username: user.username,
+        icon: user.icon,
+        rate: user.rate,
+        postCount: user.postCount,
+        followersCount: user.followersCount,
+        followingCount: user.followingCount,
+        createdAt: user.createdAt,
+        isFollowing: user.isFollowing || false,
+        isFollower: user.isFollower || false,
+        ratingColor: user.ratingColor,
+      }));
+
+      setUsers(formattedUsers);
+
       setPagination({
-        total: data.total || 0, // APIからの総ユーザー数
-        pages: Math.ceil(data.total / 5), // limitで割って総ページ数を計算
+        total: data.total || 0,
+        pages: Math.ceil(data.total / 5),
         currentPage: page,
         hasMore: data.hasMore,
       });
@@ -202,13 +219,14 @@ export default function UsersPage() {
       <div className="mb-6 flex items-center justify-between border-b border-gray-800 pb-4">
         <h1 className="text-2xl font-bold">ユーザー一覧</h1>
         <div className="flex space-x-2">
+          <p className="text-sm ">並べ替えは若干前後します</p>
           <Button
             variant={sortBy === "rate" ? "default" : "outline"}
             onClick={() => setSortBy("rate")}
             className="flex items-center"
           >
             <Trophy className="mr-2 size-4" />
-            最古登録順
+            レート順
           </Button>
           <Button
             variant={sortBy === "createdAt" ? "default" : "outline"}
@@ -216,7 +234,7 @@ export default function UsersPage() {
             className="flex items-center"
           >
             <Calendar className="mr-2 size-4" />
-            最新登録順
+            登録順
           </Button>
         </div>
       </div>
