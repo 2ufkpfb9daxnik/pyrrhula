@@ -215,7 +215,7 @@ export default function HomePage() {
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <LoaderCircle className="size-20 text-gray-500" />
+        <LoaderCircle className="size-20 animate-spin text-gray-500" />
       </div>
     );
   }
