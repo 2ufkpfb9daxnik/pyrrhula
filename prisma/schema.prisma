@@ -1,19 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// このファイルを更新したら...
-// 0. `npm run dev` や `npx prisma studio` を停止
-// 1. dev.db を削除
-// 2. npx prisma db push
-// 3. npx prisma generate
-// 4. npx prisma db seed
-
-//本番運用の開始後は npx prisma migrate という「既存レコードを残したままスキーマを変更するコマンド」を使用してください
-
-//本番環境に移行する前： npx prisma migrate dev --name init
-
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
   previewFeatures = ["referentialIntegrity"]
 }
 
@@ -24,73 +10,51 @@ datasource db {
 }
 
 model User {
-  id        String   @id @map("user_id") @db.VarChar(16) // ユーザー ID（最大 16 文字）
-  username  String   @unique @db.VarChar(32) // 表示名（最大 32 文字）
-  password  String // ハッシュ化されたパスワード
-  icon      String? // アイコン（URL または NULL）
-  isAdmin   Boolean  @default(false) // 管理者フラグ
-  createdAt DateTime @default(now()) // アカウント作成日時
-
-  // プロフィール関連
-  profile     String?  @db.Text     // プロフィール文
-
-  // 統計情報
-  followersCount  Int   @default(0)  // フォロワー数
-  followingCount  Int   @default(0)  // フォロー数
-  
-  // アクション履歴
-  repliedPosts    Post[]    @relation("UserReplies")    // 返信した投稿
-  favoritePosts   Favorite[] @relation("UserFavorites")  // お気に入りした投稿
-  repostedPosts   Repost[]   @relation("UserReposts")    // 拡散した投稿
-  
-  // レート関連
-  rate      Int @default(0) // レート（投稿数と100投稿の速度で判定）
-  postCount Int @default(0) // 総投稿数
-
-  // 投稿関連
-  posts Post[]
-
-  // フォロー関連
-  follows   Follow[] @relation("Following")
-  followers Follow[] @relation("Followers")
-
-  // チャット関連
-  sentChats     Chat[] @relation("ChatSender")
-  receivedChats Chat[] @relation("ChatReceiver")
-  chatRooms     ChatRoomParticipant[]
-
-  // 通知関連
-  receivedNotifications Notification[] @relation("NotificationReceiver")
-  sentNotifications     Notification[] @relation("NotificationSender")
-
-  // ブロック関連
-  blocking   Block[] @relation("Blocking")     // ブロックしているユーザー
-  blockedBy  Block[] @relation("BlockedBy")    // ブロックされているユーザー
-
-  // ミュート関連
-  muting    Mute[] @relation("Muting")      // ミュートしているユーザー
-  mutedBy   Mute[] @relation("MutedBy")     // ミュートされているユーザー
+  id                    String                @id @map("user_id") @db.VarChar(16)
+  username              String                @unique @db.VarChar(32)
+  password              String
+  icon                  String?
+  isAdmin               Boolean               @default(false)
+  createdAt             DateTime              @default(now())
+  profile               String?
+  followersCount        Int                   @default(0)
+  followingCount        Int                   @default(0)
+  rate                  Int                   @default(0)
+  postCount             Int                   @default(0)
+  blockedBy             Block[]               @relation("BlockedBy")
+  blocking              Block[]               @relation("Blocking")
+  receivedChats         Chat[]                @relation("ChatReceiver")
+  sentChats             Chat[]                @relation("ChatSender")
+  chatRooms             ChatRoomParticipant[]
+  favoritePosts         Favorite[]            @relation("UserFavorites")
+  followers             Follow[]              @relation("Followers")
+  follows               Follow[]              @relation("Following")
+  groupChatMemberships  GroupChatMember[]
+  groupMessages         GroupMessage[]
+  mutedBy               Mute[]                @relation("MutedBy")
+  muting                Mute[]                @relation("Muting")
+  receivedNotifications Notification[]        @relation("NotificationReceiver")
+  sentNotifications     Notification[]        @relation("NotificationSender")
+  posts                 Post[]
+  repostedPosts         Repost[]              @relation("UserReposts")
+  repliedPosts          Post[]                @relation("UserReplies")
 }
 
 model Post {
-  id        String   @id @default(uuid())
-  user      User     @relation(fields: [userId], references: [id])
-  userId    String
-  content   String
-  createdAt DateTime @default(now())
-  favorites Int      @default(0)
-  reposts   Int      @default(0)
-  parentId  String?  // 返信元の投稿
-  parent    Post?    @relation("Replies", fields: [parentId], references: [id])
-  replies   Post[]   @relation("Replies")
-
-  // ユーザーのアクション履歴との関連
-  repliedBy    User[]    @relation("UserReplies")    // 返信したユーザー
-  favoritedBy  Favorite[]                            // お気に入りしたユーザー
-  repostedBy   Repost[]                             // 拡散したユーザー
-
-  // 関連する通知
+  id            String         @id @default(uuid())
+  userId        String
+  content       String
+  createdAt     DateTime       @default(now())
+  favorites     Int            @default(0)
+  reposts       Int            @default(0)
+  parentId      String?
+  favoritedBy   Favorite[]
   notifications Notification[]
+  parent        Post?          @relation("Replies", fields: [parentId], references: [id])
+  replies       Post[]         @relation("Replies")
+  user          User           @relation(fields: [userId], references: [id])
+  repostedBy    Repost[]
+  repliedBy     User[]         @relation("UserReplies")
 
   @@index([userId])
   @@index([parentId])
@@ -98,51 +62,46 @@ model Post {
 
 model Follow {
   id         String   @id @default(uuid())
-  follower   User     @relation("Following", fields: [followerId], references: [id])
   followerId String
-  followed   User     @relation("Followers", fields: [followedId], references: [id])
   followedId String
   createdAt  DateTime @default(now())
+  followed   User     @relation("Followers", fields: [followedId], references: [id])
+  follower   User     @relation("Following", fields: [followerId], references: [id])
 
   @@unique([followerId, followedId])
 }
 
 model ChatRoom {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt  // 最終メッセージ時刻を追跡するために追加
-  
-  // 参加者（2人）
-  participants ChatRoomParticipant[]
-  // チャットメッセージ
+  id           String                @id @default(cuid())
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
   messages     Chat[]
+  participants ChatRoomParticipant[]
 }
 
 model ChatRoomParticipant {
   userId     String
   chatRoomId String
-  user       User     @relation(fields: [userId], references: [id])
   chatRoom   ChatRoom @relation(fields: [chatRoomId], references: [id])
+  user       User     @relation(fields: [userId], references: [id])
 
   @@id([userId, chatRoomId])
 }
 
 model Chat {
-  id            String         @id @default(cuid()) // ユニークなメッセージ ID
-  senderId      String         @db.VarChar(16) // 送信者のユーザー ID
-  receiverId    String         @db.VarChar(16) // 受信者のユーザー ID
-  message       String // メッセージ内容（テキストのみ）
-  createdAt     DateTime       @default(now()) // 送信日時
-  isDeleted     Boolean        @default(false) // 削除フラグ（admin のみ変更可）
+  id            String         @id @default(cuid())
+  senderId      String         @db.VarChar(16)
+  receiverId    String         @db.VarChar(16)
+  message       String
+  createdAt     DateTime       @default(now())
+  isDeleted     Boolean        @default(false)
+  chatRoomId    String
+  chatRoom      ChatRoom       @relation(fields: [chatRoomId], references: [id])
+  receiver      User           @relation("ChatReceiver", fields: [receiverId], references: [id])
+  sender        User           @relation("ChatSender", fields: [senderId], references: [id])
   notifications Notification[]
 
-  sender   User @relation("ChatSender", fields: [senderId], references: [id])
-  receiver User @relation("ChatReceiver", fields: [receiverId], references: [id])
-
-  chatRoomId String
-  chatRoom   ChatRoom @relation(fields: [chatRoomId], references: [id])
- 
-  @@index([chatRoomId])  // チャットメッセージの取得を最適化
+  @@index([chatRoomId])
   @@index([senderId])
   @@index([receiverId])
 }
@@ -151,72 +110,97 @@ model Notification {
   id            String   @id @default(cuid())
   receiverId    String   @db.VarChar(16)
   senderId      String?  @db.VarChar(16)
-  type          String   @db.VarChar(8) // さらに短く制限
+  type          String   @db.VarChar(8)
   relatedPostId String?
   createdAt     DateTime @default(now())
+  chatId        String?
+  Chat          Chat?    @relation(fields: [chatId], references: [id])
+  receiver      User     @relation("NotificationReceiver", fields: [receiverId], references: [id])
   post          Post?    @relation(fields: [relatedPostId], references: [id])
-
-  receiver User    @relation("NotificationReceiver", fields: [receiverId], references: [id])
-  sender   User?   @relation("NotificationSender", fields: [senderId], references: [id])
-  Chat     Chat?   @relation(fields: [chatId], references: [id])
-  chatId   String?
+  sender        User?    @relation("NotificationSender", fields: [senderId], references: [id])
 
   @@index([receiverId])
   @@index([senderId])
 }
 
-// お気に入りの中間テーブル
 model Favorite {
   id        String   @id @default(uuid())
-  post      Post     @relation(fields: [postId], references: [id])
   postId    String
-  user      User     @relation("UserFavorites", fields: [userId], references: [id])
   userId    String
   createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id])
+  user      User     @relation("UserFavorites", fields: [userId], references: [id])
 
   @@unique([postId, userId])
   @@index([postId])
   @@index([userId])
 }
 
-// 拡散の中間テーブル
 model Repost {
   id        String   @id @default(uuid())
-  post      Post     @relation(fields: [postId], references: [id])
   postId    String
-  user      User     @relation("UserReposts", fields: [userId], references: [id])
   userId    String
   createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id])
+  user      User     @relation("UserReposts", fields: [userId], references: [id])
 
   @@unique([postId, userId])
   @@index([postId])
   @@index([userId])
 }
 
-// ブロックの中間テーブル
 model Block {
   id        String   @id @default(uuid())
-  blocker   User     @relation("Blocking", fields: [blockerId], references: [id])
   blockerId String
-  blocked   User     @relation("BlockedBy", fields: [blockedId], references: [id])
   blockedId String
   createdAt DateTime @default(now())
+  blocked   User     @relation("BlockedBy", fields: [blockedId], references: [id])
+  blocker   User     @relation("Blocking", fields: [blockerId], references: [id])
 
   @@unique([blockerId, blockedId])
   @@index([blockerId])
   @@index([blockedId])
 }
 
-// ミュートの中間テーブル
 model Mute {
   id        String   @id @default(uuid())
-  muter     User     @relation("Muting", fields: [muterId], references: [id])
   muterId   String
-  muted     User     @relation("MutedBy", fields: [mutedId], references: [id])
   mutedId   String
   createdAt DateTime @default(now())
+  muted     User     @relation("MutedBy", fields: [mutedId], references: [id])
+  muter     User     @relation("Muting", fields: [muterId], references: [id])
 
   @@unique([muterId, mutedId])
   @@index([muterId])
   @@index([mutedId])
+}
+
+model GroupChat {
+  id        String            @id @default(dbgenerated("gen_random_uuid()"))
+  name      String
+  createdAt DateTime?         @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime?         @default(now()) @db.Timestamptz(6)
+  members   GroupChatMember[]
+  messages  GroupMessage[]
+}
+
+model GroupChatMember {
+  id          String    @id @default(dbgenerated("gen_random_uuid()"))
+  groupChatId String
+  userId      String
+  joinedAt    DateTime? @default(now()) @db.Timestamptz(6)
+  groupChat   GroupChat @relation(fields: [groupChatId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([groupChatId, userId])
+}
+
+model GroupMessage {
+  id          String    @id @default(dbgenerated("gen_random_uuid()"))
+  content     String
+  createdAt   DateTime? @default(now()) @db.Timestamptz(6)
+  groupChatId String
+  senderId    String
+  groupChat   GroupChat @relation(fields: [groupChatId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  sender      User      @relation(fields: [senderId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }

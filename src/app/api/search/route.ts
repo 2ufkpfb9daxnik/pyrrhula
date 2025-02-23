@@ -13,6 +13,33 @@ export async function GET(req: Request) {
     const headersList = headers();
     const { searchParams } = new URL(req.url);
 
+    // 検索タイプを取得（デフォルトは投稿検索）
+    const type = searchParams.get("type") || "posts";
+
+    // ユーザー検索の場合
+    if (type === "users") {
+      const searchQuery = searchParams.get("q");
+      if (!searchQuery) {
+        return NextResponse.json({ users: [] });
+      }
+
+      const users = await prisma.user.findMany({
+        where: {
+          OR: [
+            { username: { contains: searchQuery, mode: "insensitive" } },
+            { id: { contains: searchQuery, mode: "insensitive" } },
+          ],
+        },
+        select: {
+          id: true,
+          username: true,
+          icon: true,
+        },
+        take: 10,
+      });
+
+      return NextResponse.json({ users });
+    }
     // 基本的なパラメータを取得
     const query: SearchQuery = {
       q: searchParams.get("q") || undefined,
