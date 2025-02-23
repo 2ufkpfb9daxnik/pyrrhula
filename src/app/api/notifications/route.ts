@@ -93,3 +93,49 @@ export async function GET(req: Request) {
     );
   }
 }
+
+export async function POST(req: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { type, postId, username } = await req.json();
+
+    // メンション先のユーザーを検索
+    const mentionedUser = await prisma.user.findUnique({
+      where: { username },
+    });
+
+    if (!mentionedUser) {
+      return NextResponse.json(
+        { error: "Mentioned user not found" },
+        { status: 404 }
+      );
+    }
+
+    // 自分自身へのメンションは通知しない
+    if (mentionedUser.id === session.user.id) {
+      return NextResponse.json({ success: false });
+    }
+
+    // 通知を作成
+    const notification = await prisma.notification.create({
+      data: {
+        type: "mention",
+        senderId: session.user.id,
+        receiverId: mentionedUser.id,
+        relatedPostId: postId,
+      },
+    });
+
+    return NextResponse.json(notification);
+  } catch (error) {
+    console.error("[Notification API Error]:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}

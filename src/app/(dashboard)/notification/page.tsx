@@ -12,7 +12,7 @@ import { Share2 } from "lucide-react";
 
 interface Notification {
   id: string;
-  type: "fol" | "fav" | "msg" | "rep"; // repを追加
+  type: "fol" | "fav" | "msg" | "rep" | "mention"; // repを追加
   createdAt: string;
   sender?: {
     id: string;
@@ -77,13 +77,17 @@ export default function NotificationPage() {
         return `${senderName}さんからメッセージが届きました`;
       case "rep":
         return `${senderName}さんが投稿を拡散しました`;
+      case "mention":
+        return `${senderName}さんが以下の投稿であなたをメンションしました`;
       default:
         console.log("Unknown notification type:", notification.type); // デバッグ用
         return "新しい通知があります";
     }
   };
 
-  const getNotificationIcon = (type: "fol" | "fav" | "msg" | "rep") => {
+  const getNotificationIcon = (
+    type: "fol" | "fav" | "msg" | "rep" | "mention"
+  ) => {
     switch (type) {
       case "fol":
         return <UserPlus className="size-4 text-blue-400" />;
@@ -93,6 +97,8 @@ export default function NotificationPage() {
         return <MessageCircle className="size-4 text-green-400" />;
       case "rep":
         return <Share2 className="size-4 text-purple-400" />; // 紫色で拡散アイコンを表示
+      case "mention":
+        return <MessageCircle className="size-4 text-amber-400" />; // メンション用のアイコン
     }
   };
   if (isLoading) {

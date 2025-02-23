@@ -3,6 +3,10 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+
+// メンションを抽出する正規表現
+const MENTION_PATTERN = /@[\w]+/g;
 
 interface MakePostProps {
   onPostCreated: () => void;
@@ -17,6 +21,39 @@ interface MakePostProps {
 export function MakePost({ onPostCreated, replyTo, inputRef }: MakePostProps) {
   const [content, setContent] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  // メンションされたユーザーの通知を作成
+  const createMentionNotifications = async (
+    postId: string,
+    content: string
+  ) => {
+    const mentions = content.match(MENTION_PATTERN);
+    if (!mentions) return;
+
+    // 重複を削除
+    const uniqueMentions = [...new Set(mentions)];
+
+    for (const mention of uniqueMentions) {
+      const username = mention.slice(1); // @を除去
+      try {
+        const response = await fetch("/api/notifications", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "mention",
+            postId,
+            username,
+          }),
+        });
+
+        if (!response.ok) {
+          console.error(`Failed to create notification for ${username}`);
+        }
+      } catch (error) {
+        console.error("Error creating mention notification:", error);
+      }
+    }
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Ctrl + Enter で投稿
@@ -45,11 +82,15 @@ export function MakePost({ onPostCreated, replyTo, inputRef }: MakePostProps) {
       });
 
       if (response.ok) {
+        const post = await response.json();
+        // メンション通知を作成
+        await createMentionNotifications(post.id, content);
         setContent("");
         onPostCreated();
       }
     } catch (error) {
       console.error("Error creating post:", error);
+      toast.error("投稿に失敗しました");
     } finally {
       setIsLoading(false);
     }
