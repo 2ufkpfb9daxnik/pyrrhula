@@ -196,7 +196,6 @@ graph TB
 - **Radix UI**: アクセシブルなヘッドレスUIコンポーネント
 - **Vis.js**: フォローグラフの可視化
 - **Recharts**: データの可視化
-- **Sonner**: トースト通知
 - **React Flow**: フローチャートとグラフ
 - **date-fns**: 日付操作
 
