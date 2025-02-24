@@ -21,6 +21,7 @@ export interface ChatMessage {
   message: string;
   createdAt: Date;
   isOwnMessage: boolean;
+  senderId: string;
 }
 
 export interface ChatPostRequest {

@@ -21,6 +21,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   const { data: session } = useSession();
   const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const optimisticMessageId = useRef<string | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -41,7 +42,6 @@ export default function ChatPage({ params }: { params: { id: string } }) {
       if (!response.ok) {
         if (response.status === 404) {
           toast.error("ユーザーが見つかりません");
-
           return;
         }
         throw new Error("Failed to fetch messages");
@@ -67,6 +67,21 @@ export default function ChatPage({ params }: { params: { id: string } }) {
     if (!newMessage.trim() || isSending) return;
 
     setIsSending(true);
+    const tempId = `temp-${Date.now()}`;
+    optimisticMessageId.current = tempId;
+
+    // 楽観的更新
+    const optimisticMessage: ChatMessage = {
+      id: tempId,
+      message: newMessage,
+      createdAt: new Date(),
+      isOwnMessage: true,
+      senderId: session?.user?.id || "",
+    };
+
+    setMessages((prev) => [optimisticMessage, ...prev]);
+    setNewMessage("");
+
     try {
       const response = await fetch(`/api/chat/${params.id}`, {
         method: "POST",
@@ -77,28 +92,34 @@ export default function ChatPage({ params }: { params: { id: string } }) {
       if (!response.ok) {
         if (response.status === 404) {
           toast.error("ユーザーが見つかりません");
+          // 楽観的更新を元に戻す
+          setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
           return;
         }
         throw new Error("Failed to send message");
       }
 
       const data: ChatMessage = await response.json();
-      setMessages((prev) => [
-        {
-          ...data,
-          createdAt: new Date(data.createdAt),
-        },
-        ...prev,
-      ]);
-      setNewMessage("");
-      toast.success("メッセージを送信しました");
+      // 一時的なメッセージを実際のメッセージに置き換え
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === tempId
+            ? { ...data, createdAt: new Date(data.createdAt) }
+            : msg
+        )
+      );
     } catch (error) {
       console.error("Error sending message:", error);
       toast.error("メッセージの送信に失敗しました");
+      // エラー時は楽観的更新を元に戻す
+      setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
+      setNewMessage(optimisticMessage.message); // 入力内容を復元
     } finally {
       setIsSending(false);
+      optimisticMessageId.current = null;
     }
   };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && e.ctrlKey) {
       e.preventDefault();
@@ -161,7 +182,9 @@ export default function ChatPage({ params }: { params: { id: string } }) {
               <div
                 className={`rounded-lg p-3 ${
                   message.isOwnMessage
-                    ? "bg-blue-600 text-white"
+                    ? message.id === optimisticMessageId.current
+                      ? "bg-blue-600/50 text-white" // 送信中のメッセージは半透明
+                      : "bg-blue-600 text-white"
                     : "bg-gray-800 text-white"
                 }`}
               >

@@ -48,6 +48,7 @@ export default function GroupChatPage({ params }: { params: { id: string } }) {
   const { data: session } = useSession();
   const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const optimisticMessageId = useRef<string | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -90,9 +91,33 @@ export default function GroupChatPage({ params }: { params: { id: string } }) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || isSending) return;
+    if (!newMessage.trim() || isSending || !session?.user) return;
 
     setIsSending(true);
+    const tempId = `temp-${Date.now()}`;
+    optimisticMessageId.current = tempId;
+
+    // 楽観的更新
+    const optimisticMessage: GroupMessage = {
+      id: tempId,
+      content: newMessage,
+      createdAt: new Date(),
+      senderId: session.user.id,
+      sender: {
+        username: session.user.name || "Unknown",
+        icon: session.user.image || null,
+      },
+    };
+
+    setGroupChat((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        messages: [optimisticMessage, ...prev.messages],
+      };
+    });
+    setNewMessage("");
+
     try {
       const response = await fetch(`/api/chat/group/${params.id}`, {
         method: "POST",
@@ -103,32 +128,47 @@ export default function GroupChatPage({ params }: { params: { id: string } }) {
       if (!response.ok) {
         if (response.status === 404) {
           toast.error("グループが見つかりません");
+          // 楽観的更新を元に戻す
+          setGroupChat((prev) => {
+            if (!prev) return null;
+            return {
+              ...prev,
+              messages: prev.messages.filter((msg) => msg.id !== tempId),
+            };
+          });
           return;
         }
         throw new Error("Failed to send message");
       }
 
       const message = await response.json();
+      // 一時的なメッセージを実際のメッセージに置き換え
       setGroupChat((prev) => {
         if (!prev) return null;
         return {
           ...prev,
-          messages: [
-            {
-              ...message,
-              createdAt: new Date(message.createdAt),
-            },
-            ...prev.messages,
-          ],
+          messages: prev.messages.map((msg) =>
+            msg.id === tempId
+              ? { ...message, createdAt: new Date(message.createdAt) }
+              : msg
+          ),
         };
       });
-      setNewMessage("");
-      toast.success("メッセージを送信しました");
     } catch (error) {
       console.error("Error sending message:", error);
       toast.error("メッセージの送信に失敗しました");
+      // エラー時は楽観的更新を元に戻す
+      setGroupChat((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          messages: prev.messages.filter((msg) => msg.id !== tempId),
+        };
+      });
+      setNewMessage(newMessage); // 入力内容を復元
     } finally {
       setIsSending(false);
+      optimisticMessageId.current = null;
     }
   };
 
@@ -213,27 +253,29 @@ export default function GroupChatPage({ params }: { params: { id: string } }) {
             <div
               key={message.id}
               className={`flex items-start space-x-2 ${
-                message.senderId === session.user.id
+                message.senderId === session?.user?.id
                   ? "flex-row-reverse space-x-reverse"
                   : ""
               }`}
             >
-              {message.senderId !== session.user.id && (
+              {message.senderId !== session?.user?.id && (
                 <Avatar className="size-8">
                   <AvatarImage src={message.sender.icon ?? undefined} />
                   <AvatarFallback>{message.sender.username[0]}</AvatarFallback>
                 </Avatar>
               )}
               <div>
-                {message.senderId !== session.user.id && (
+                {message.senderId !== session?.user?.id && (
                   <p className="mb-1 text-sm text-gray-400">
                     {message.sender.username}
                   </p>
                 )}
                 <div
                   className={`rounded-lg p-3 ${
-                    message.senderId === session.user.id
-                      ? "bg-blue-600 text-white"
+                    message.senderId === session?.user?.id
+                      ? message.id === optimisticMessageId.current
+                        ? "bg-blue-600/50 text-white" // 送信中のメッセージは半透明
+                        : "bg-blue-600 text-white"
                       : "bg-gray-800 text-white"
                   }`}
                 >

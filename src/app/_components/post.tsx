@@ -13,11 +13,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import { SessionProvider } from "next-auth/react";
-import { Toaster } from "sonner";
 import { linkify } from "@/lib/linkify";
 import { useRating } from "@/app/_hooks/useRating";
 import { ImageModal } from "@/app/_components/image-modal";
+import { useOptimisticUpdate } from "@/app/_hooks/useOptimisticUpdate";
 
 interface Post {
   id: string;
@@ -57,86 +56,80 @@ interface PostProps {
 export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
   const router = useRouter();
   const { data: session } = useSession();
-  const [favorites, setFavorites] = useState(post.favorites);
-  const [reposts, setReposts] = useState(post.reposts);
-  const [isFavorited, setIsFavorited] = useState(post.isFavorited);
-  const [isReposted, setIsReposted] = useState(post.isReposted);
-  const [isLoading, setIsLoading] = useState(false);
   const { rating } = useRating(post.user.id);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
+  // 楽観的更新のためのフック
+  const {
+    count: favorites,
+    isActive: isFavorited,
+    isLoading: isFavoriteLoading,
+    execute: executeFavorite,
+  } = useOptimisticUpdate({
+    initialCount: post.favorites,
+    initialState: post.isFavorited || false,
+    successMessage: {
+      add: "お気に入りに追加しました",
+      remove: "お気に入りを解除しました",
+    },
+    errorMessage: "お気に入りの処理に失敗しました",
+  });
+
+  const {
+    count: reposts,
+    isActive: isReposted,
+    isLoading: isRepostLoading,
+    execute: executeRepost,
+  } = useOptimisticUpdate({
+    initialCount: post.reposts,
+    initialState: post.isReposted || false,
+    successMessage: {
+      add: "投稿を拡散しました",
+      remove: "拡散を取り消しました",
+    },
+    errorMessage: "拡散の処理に失敗しました",
+  });
+
+  // イベントハンドラー
   const handleUserClick = () => {
     router.push(`/user/${post.user.id}`);
   };
+
   const handleFavorite = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!session || isLoading) return;
-
-    try {
-      setIsLoading(true);
-
-      const response = await fetch(`/api/posts/${post.id}/favorite`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        console.error("お気に入りエラーレスポンス:", error);
-        throw new Error(error.message || "お気に入りに失敗しました");
-      }
-
-      const data = await response.json();
-      console.log("お気に入り成功:", data);
-
-      // ローカルの状態を更新
-      setIsFavorited((prev) => !prev);
-      setFavorites((prev) => (isFavorited ? prev - 1 : prev + 1));
-
-      if (onFavoriteSuccess) {
-        onFavoriteSuccess();
-      }
-
-      toast.success(
-        isFavorited ? "お気に入りを解除しました" : "お気に入りに追加しました"
-      );
-    } catch (error) {
-      console.error("お気に入り処理エラー:", error);
-      toast.error("お気に入りの処理に失敗しました");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  const handleRepost = async () => {
     if (!session) {
       toast.error("ログインが必要です");
       return;
     }
 
-    setIsLoading(true);
-    try {
-      const response = await fetch(`/api/posts/${post.id}/repost`, {
-        method: isReposted ? "DELETE" : "POST",
-      });
-
-      if (!response.ok) throw new Error("Failed to repost");
-
-      setReposts((prev) => (isReposted ? prev - 1 : prev + 1));
-      setIsReposted((prev) => !prev);
-
-      if (onRepostSuccess) {
-        await onRepostSuccess();
-      }
-    } catch (error) {
-      toast.error("操作に失敗しました");
-    } finally {
-      setIsLoading(false);
-    }
+    executeFavorite(
+      () =>
+        fetch(`/api/posts/${post.id}/favorite`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        }),
+      onFavoriteSuccess
+    );
   };
 
-  const handleReply = () => {
+  const handleRepost = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!session) {
+      toast.error("ログインが必要です");
+      return;
+    }
+
+    executeRepost(
+      () =>
+        fetch(`/api/posts/${post.id}/repost`, {
+          method: isReposted ? "DELETE" : "POST",
+        }),
+      onRepostSuccess
+    );
+  };
+
+  const handleReply = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!session) {
       toast.error("ログインが必要です");
       return;
@@ -145,7 +138,6 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
   };
 
   const handlePostClick = (e: React.MouseEvent) => {
-    // ボタンやアバター以外の領域がクリックされた場合
     const target = e.target as HTMLElement;
     if (!target.closest("button") && !target.closest('[role="button"]')) {
       router.push(`/post/${post.id}`);
@@ -157,16 +149,16 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
       className="cursor-pointer border-b border-gray-700 p-4 transition-colors hover:bg-gray-900/50"
       onClick={handlePostClick}
     >
+      {/* 親投稿への返信表示 */}
       {post.parent && post.parent.user && (
         <div className="mb-2 text-sm text-gray-500">
           返信先: @{post.parent.user.username}
         </div>
       )}
+
       <div className="flex flex-col space-y-3">
-        {" "}
+        {/* ユーザー情報 */}
         <div className="flex items-start space-x-3">
-          {" "}
-          {/* items-center から items-start に変更 */}
           <Button
             variant="ghost"
             className="p-0 hover:bg-transparent"
@@ -183,21 +175,22 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
               <AvatarFallback>{post.user.username[0]}</AvatarFallback>
             </Avatar>
           </Button>
+
           <div className="flex flex-col">
-            {" "}
-            {/* flex-col クラスのみを保持 */}
             <Button
               variant="ghost"
               className={`h-auto w-full justify-start p-0 text-base font-bold hover:underline ${
                 rating?.color ?? "text-gray-300"
               }`}
-              {
-                /* justify-start と w-full を追加 */ ...AvatarFallback
-              }
-              onClick={handleUserClick}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleUserClick();
+              }}
             >
               {post.user.username}
             </Button>
+
+            {/* 投稿メタ情報 */}
             <div className="flex items-center space-x-2 text-sm">
               <span className="text-gray-500">@{post.user.id}</span>
               <span className="text-gray-500">·</span>
@@ -224,11 +217,13 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
             </div>
           </div>
         </div>
+
         {/* 投稿本文 */}
-        <p className="mt-2 whitespace-pre-wrap break-words">
+        <p className="whitespace-pre-wrap break-words">
           {linkify(post.content)}
         </p>
-        {/* 画像 */}
+
+        {/* 画像表示 */}
         {post.images && post.images.length > 0 && (
           <div
             className={`mt-2 grid gap-2 ${
@@ -268,24 +263,25 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
             ))}
           </div>
         )}
+
+        {/* 画像モーダル */}
         <ImageModal
           isOpen={!!selectedImage}
           onClose={() => setSelectedImage(null)}
           src={selectedImage || ""}
           alt="拡大画像"
         />
+
+        {/* アクションボタン */}
         <div className="mt-3 flex items-center space-x-6">
-          {/* リプライボタン */}
+          {/* 返信ボタン */}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleReply();
-                }}
-                disabled={isLoading || !session}
+                onClick={handleReply}
+                disabled={!session}
               >
                 <MessageCircle className="mr-1 size-4" />
                 <span>{post._count?.replies ?? 0}</span>
@@ -296,25 +292,23 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
             </TooltipContent>
           </Tooltip>
 
-          {/* リポストボタン */}
+          {/* 拡散ボタン */}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleRepost}
-                disabled={isLoading || !session}
+                disabled={isRepostLoading || !session}
               >
                 <RefreshCw
-                  className={`mr-1 size-4 ${
-                    isReposted ? "text-green-500" : ""
-                  }`}
+                  className={`mr-1 size-4 ${isReposted ? "text-green-500" : ""}`}
                 />
                 <span>{reposts}</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              {session ? "リポスト" : "ログインが必要です"}
+              {session ? "拡散" : "ログインが必要です"}
             </TooltipContent>
           </Tooltip>
 
@@ -325,7 +319,7 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
                 variant="ghost"
                 size="sm"
                 onClick={handleFavorite}
-                disabled={isLoading || !session}
+                disabled={isFavoriteLoading || !session}
               >
                 <Star
                   className={`mr-1 size-4 ${
