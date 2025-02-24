@@ -1,4 +1,3 @@
-// posts/[id]              GET                 投稿詳細を見る
 import { getServerSession } from "next-auth/next";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
@@ -12,7 +11,6 @@ export async function GET(
   try {
     const session = await getServerSession(authOptions);
 
-    // 投稿の詳細を取得
     const post = await prisma.post.findUnique({
       where: {
         id: params.id,
@@ -29,6 +27,8 @@ export async function GET(
           select: {
             id: true,
             content: true,
+            createdAt: true,
+            images: true,
             user: {
               select: {
                 id: true,
@@ -45,6 +45,7 @@ export async function GET(
             createdAt: true,
             favorites: true,
             reposts: true,
+            images: true,
             user: {
               select: {
                 id: true,
@@ -88,24 +89,24 @@ export async function GET(
     const response: PostDetailResponse = {
       ...post,
       _count: {
-        replies: post.replies?.length || 0, // 返信数をカウント
+        replies: post.replies?.length || 0,
       },
       parent: post.parent
         ? {
             ...post.parent,
-            createdAt: new Date(), // または適切な日付
-            images: [], // または実際の画像配列
+            createdAt: post.parent.createdAt,
+            images: post.parent.images || [],
           }
         : null,
       replies: post.replies.map((reply) => ({
         ...reply,
-        images: [], // または実際の画像配列
+        images: reply.images || [],
       })),
-      ...(session?.user && {
-        isFavorited: post.favoritedBy?.length > 0,
-        isReposted: post.repostedBy?.length > 0,
-      }),
+      isFavorited: session?.user ? post.favoritedBy?.length > 0 : false,
+      isReposted: session?.user ? post.repostedBy?.length > 0 : false,
     };
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error("[Post Detail Error]:", error);
     return NextResponse.json(
