@@ -17,6 +17,7 @@ import { SessionProvider } from "next-auth/react";
 import { Toaster } from "sonner";
 import { linkify } from "@/lib/linkify";
 import { useRating } from "@/app/_hooks/useRating";
+import { ImageModal } from "@/app/_components/image-modal";
 
 interface Post {
   id: string;
@@ -62,6 +63,7 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
   const [isReposted, setIsReposted] = useState(post.isReposted);
   const [isLoading, setIsLoading] = useState(false);
   const { rating } = useRating(post.user.id);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const handleUserClick = () => {
     router.push(`/user/${post.user.id}`);
@@ -226,7 +228,7 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
         <p className="mt-2 whitespace-pre-wrap break-words">
           {linkify(post.content)}
         </p>
-        {/* 画像グリッド */}
+        {/* 画像 */}
         {post.images && post.images.length > 0 && (
           <div
             className={`mt-2 grid gap-2 ${
@@ -256,16 +258,22 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
                   }}
                   onClick={(e) => {
                     e.stopPropagation();
-                    // ここで画像の拡大表示などを実装可能
+                    setSelectedImage(url);
                   }}
                   onError={(e) => {
-                    e.currentTarget.src = "/placeholder-image.png"; // プレースホルダー画像
+                    e.currentTarget.src = "/placeholder-image.png";
                   }}
                 />
               </div>
             ))}
           </div>
         )}
+        <ImageModal
+          isOpen={!!selectedImage}
+          onClose={() => setSelectedImage(null)}
+          src={selectedImage || ""}
+          alt="拡大画像"
+        />
         <div className="mt-3 flex items-center space-x-6">
           {/* リプライボタン */}
           <Tooltip>

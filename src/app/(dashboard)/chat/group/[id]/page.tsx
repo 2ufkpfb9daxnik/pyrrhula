@@ -162,7 +162,7 @@ export default function GroupChatPage({ params }: { params: { id: string } }) {
   return (
     <div className="mx-auto flex h-screen max-w-4xl flex-col">
       {/* ヘッダー */}
-      <div className="border-b border-gray-800 p-4">
+      <div className="sticky top-0 z-10 border-b border-gray-800 bg-black p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <Avatar className="size-12">
@@ -207,7 +207,7 @@ export default function GroupChatPage({ params }: { params: { id: string } }) {
       </div>
 
       {/* メッセージ一覧 */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto p-4 pb-[120px]">
         <div className="flex flex-col-reverse space-y-4 space-y-reverse">
           {groupChat.messages.map((message) => (
             <div
@@ -247,8 +247,11 @@ export default function GroupChatPage({ params }: { params: { id: string } }) {
       </div>
 
       {/* 入力フォーム */}
-      <form onSubmit={handleSubmit} className="border-t border-gray-800 p-4">
-        <div className="flex space-x-2">
+      <form
+        onSubmit={handleSubmit}
+        className="fixed inset-x-0 bottom-16 border-t border-gray-800 bg-black p-4"
+      >
+        <div className="mx-auto flex max-w-4xl space-x-2">
           <Textarea
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
