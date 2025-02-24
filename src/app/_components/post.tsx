@@ -110,6 +110,10 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
           headers: { "Content-Type": "application/json" },
         }),
       onFavoriteSuccess
+        ? async () => {
+            onFavoriteSuccess(favorites + (isFavorited ? -1 : 1), !isFavorited);
+          }
+        : undefined
     );
   };
 
@@ -126,6 +130,10 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
           method: isReposted ? "DELETE" : "POST",
         }),
       onRepostSuccess
+        ? async () => {
+            onRepostSuccess(reposts + (isReposted ? -1 : 1), !isReposted);
+          }
+        : undefined
     );
   };
 
