@@ -54,6 +54,7 @@ export default function UserProfilePage({
   const [isFollowLoading, setIsFollowLoading] = useState(false);
   const { data: session } = useSession();
   const router = useRouter();
+  const [isContentLoading, setIsContentLoading] = useState(false);
 
   useEffect(() => {
     fetchUserDetails();
@@ -73,11 +74,13 @@ export default function UserProfilePage({
       setIsLoading(false);
     }
   };
+
   const fetchUserContent = async (
     type: "posts" | "reposts" | "favorites" | "replies"
   ) => {
     try {
       setPosts([]); // コンテンツ取得前に投稿をクリア
+      setIsContentLoading(true);
       let formattedPosts;
 
       // タイプに応じたエンドポイントを選択
@@ -186,6 +189,8 @@ export default function UserProfilePage({
         }の取得に失敗しました`
       );
       setPosts([]);
+    } finally {
+      setIsContentLoading(false); // ローディング終了
     }
   };
 
@@ -407,7 +412,11 @@ export default function UserProfilePage({
 
           {/* 投稿一覧 */}
           <div className="space-y-4">
-            {posts.length === 0 ? (
+            {isContentLoading ? (
+              <div className="flex justify-center p-8">
+                <LoaderCircle className="size-8 animate-spin text-gray-500" />
+              </div>
+            ) : posts.length === 0 ? (
               <div className="rounded-lg border border-gray-800 p-8 text-center text-gray-500">
                 {activeTab === "posts" && "投稿がありません"}
                 {activeTab === "reposts" && "拡散した投稿がありません"}
