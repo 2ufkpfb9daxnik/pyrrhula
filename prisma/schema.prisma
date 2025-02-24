@@ -48,6 +48,7 @@ model Post {
   favorites     Int            @default(0)
   reposts       Int            @default(0)
   parentId      String?
+  images        String[]       @default([]) @db.VarChar
   favoritedBy   Favorite[]
   notifications Notification[]
   parent        Post?          @relation("Replies", fields: [parentId], references: [id])

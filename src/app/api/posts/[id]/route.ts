@@ -87,17 +87,29 @@ export async function GET(
     // レスポンスデータの整形
     const response: PostDetailResponse = {
       ...post,
+      _count: {
+        replies: post.replies?.length || 0, // 返信数をカウント
+      },
+      parent: post.parent
+        ? {
+            ...post.parent,
+            createdAt: new Date(), // または適切な日付
+            images: [], // または実際の画像配列
+          }
+        : null,
+      replies: post.replies.map((reply) => ({
+        ...reply,
+        images: [], // または実際の画像配列
+      })),
       ...(session?.user && {
         isFavorited: post.favoritedBy?.length > 0,
         isReposted: post.repostedBy?.length > 0,
       }),
     };
-
-    return NextResponse.json(response);
   } catch (error) {
     console.error("[Post Detail Error]:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Internal Server Error" },
       { status: 500 }
     );
   }

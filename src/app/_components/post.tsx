@@ -24,6 +24,7 @@ interface Post {
   createdAt: Date;
   favorites: number;
   reposts: number;
+  images: string[];
   user: {
     id: string;
     username: string;
@@ -42,6 +43,8 @@ interface Post {
   };
   isFavorited?: boolean;
   isReposted?: boolean;
+  repostedAt?: string;
+  favoritedAt?: string;
 }
 
 interface PostProps {
@@ -199,6 +202,23 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
               <span className="text-gray-500">
                 {formatDistanceToNow(new Date(post.createdAt))}
               </span>
+              {post.repostedAt && (
+                <>
+                  <span className="text-gray-500">·</span>
+                  <span className="text-gray-500">
+                    {formatDistanceToNow(new Date(post.repostedAt))}に拡散
+                  </span>
+                </>
+              )}
+              {post.favoritedAt && (
+                <>
+                  <span className="text-gray-500">·</span>
+                  <span className="text-gray-500">
+                    {formatDistanceToNow(new Date(post.favoritedAt))}
+                    にお気に入り
+                  </span>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -206,6 +226,46 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
         <p className="mt-2 whitespace-pre-wrap break-words">
           {linkify(post.content)}
         </p>
+        {/* 画像グリッド */}
+        {post.images && post.images.length > 0 && (
+          <div
+            className={`mt-2 grid gap-2 ${
+              post.images.length === 1
+                ? "grid-cols-1"
+                : post.images.length === 2
+                  ? "grid-cols-2"
+                  : post.images.length === 3
+                    ? "grid-cols-2"
+                    : "grid-cols-2"
+            }`}
+          >
+            {post.images.map((url, index) => (
+              <div
+                key={index}
+                className={`relative ${
+                  post.images.length === 3 && index === 0 ? "col-span-2" : ""
+                }`}
+              >
+                <img
+                  src={url}
+                  alt={`添付画像 ${index + 1}`}
+                  className="w-full rounded-lg object-cover"
+                  style={{
+                    aspectRatio: post.images.length === 1 ? "16/9" : "1/1",
+                    maxHeight: post.images.length === 1 ? "400px" : "300px",
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // ここで画像の拡大表示などを実装可能
+                  }}
+                  onError={(e) => {
+                    e.currentTarget.src = "/placeholder-image.png"; // プレースホルダー画像
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        )}
         <div className="mt-3 flex items-center space-x-6">
           {/* リプライボタン */}
           <Tooltip>

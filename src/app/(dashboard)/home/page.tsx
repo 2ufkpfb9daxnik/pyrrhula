@@ -160,6 +160,9 @@ export default function HomePage() {
           data.posts.map((post: any) => ({
             ...post,
             createdAt: new Date(post.createdAt),
+            // Date型をstring型として保持
+            repostedAt: post.repostedAt || undefined,
+            favoritedAt: post.favoritedAt || undefined,
           }))
         );
       }

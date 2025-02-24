@@ -3,7 +3,11 @@
 import { useState, useEffect, Suspense } from "react";
 import { Post as PostComponent } from "@/app/_components/post";
 import type { Post } from "@/app/_types/post";
+import type { User } from "@/app/_types/user";
 import { Search } from "@/app/_components/search";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import {
   Accordion,
   AccordionContent,
@@ -11,10 +15,10 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
-// クライアントコンポーネントでは generateStaticParams は不要なので削除
 export const dynamic = "force-dynamic";
 
 // 検索オプションのコンポーネント
@@ -91,8 +95,8 @@ function SearchOptions() {
   );
 }
 
-// 検索結果のコンポーネント
-function SearchResults({
+// 投稿検索結果コンポーネント
+function PostSearchResults({
   posts,
   isLoading,
   currentQuery,
@@ -102,13 +106,13 @@ function SearchResults({
   posts: Post[];
   isLoading: boolean;
   currentQuery: string;
-  onRepostSuccess: () => Promise<void>; // Promiseを返すように修正
-  onFavoriteSuccess: () => Promise<void>; // Promiseを返すように修正
+  onRepostSuccess: () => Promise<void>;
+  onFavoriteSuccess: () => Promise<void>;
 }) {
   if (isLoading) {
     return (
       <div className="mt-8 text-center text-muted-foreground">
-        <Loader2 className="mx-auto h-6 w-6 animate-spin" />
+        <Loader2 className="mx-auto size-6 animate-spin" />
         <p className="mt-2">検索中...</p>
       </div>
     );
@@ -122,28 +126,79 @@ function SearchResults({
     );
   }
 
-  if (posts.length > 0) {
+  return posts.length > 0 ? (
+    <div className="mt-8 space-y-4">
+      {posts.map((post) => (
+        <PostComponent
+          key={post.id}
+          post={post}
+          onRepostSuccess={onRepostSuccess}
+          onFavoriteSuccess={onFavoriteSuccess}
+        />
+      ))}
+    </div>
+  ) : null;
+}
+
+// ユーザー検索結果コンポーネント
+function UserSearchResults({
+  users,
+  isLoading,
+  currentQuery,
+}: {
+  users: User[];
+  isLoading: boolean;
+  currentQuery: string;
+}) {
+  const router = useRouter();
+
+  if (isLoading) {
     return (
-      <div className="mt-8 space-y-4">
-        {posts.map((post) => (
-          <PostComponent
-            key={post.id}
-            post={post}
-            onRepostSuccess={onRepostSuccess}
-            onFavoriteSuccess={onFavoriteSuccess}
-          />
-        ))}
+      <div className="mt-8 text-center text-muted-foreground">
+        <Loader2 className="mx-auto size-6 animate-spin" />
+        <p className="mt-2">検索中...</p>
       </div>
     );
   }
 
-  return null;
+  if (users.length === 0 && currentQuery) {
+    return (
+      <div className="mt-8 text-center text-muted-foreground">
+        ユーザーが見つかりませんでした
+      </div>
+    );
+  }
+
+  return users.length > 0 ? (
+    <div className="mt-8 space-y-4">
+      {users.map((user) => (
+        <div
+          key={user.id}
+          className="cursor-pointer rounded-lg border border-gray-800 p-4 transition-colors hover:bg-gray-900/50"
+          onClick={() => router.push(`/user/${user.id}`)}
+        >
+          <div className="flex items-center space-x-4">
+            <Avatar className="size-12">
+              <AvatarImage src={user.icon ?? undefined} alt={user.username} />
+              <AvatarFallback>{user.username[0]}</AvatarFallback>
+            </Avatar>
+            <div>
+              <div className="font-semibold">{user.username}</div>
+              <div className="text-sm text-gray-500">@{user.id}</div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  ) : null;
 }
 
 // メインの検索コンテンツコンポーネント
 function SearchContent() {
   const searchParams = useSearchParams();
+  const [searchType, setSearchType] = useState<"posts" | "users">("posts");
   const [posts, setPosts] = useState<Post[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [currentQuery, setCurrentQuery] = useState("");
 
@@ -152,34 +207,50 @@ function SearchContent() {
     setIsLoading(true);
     try {
       const response = await fetch(
-        `/api/search?q=${encodeURIComponent(query)}`
+        `/api/search?q=${encodeURIComponent(query)}&type=${searchType}`
       );
       if (!response.ok) {
         throw new Error("検索に失敗しました");
       }
       const data = await response.json();
-      setPosts(
-        data.posts.map((post: any) => ({
-          ...post,
-          createdAt: new Date(post.createdAt),
-        }))
-      );
 
-      if (data.posts.length === 0) {
-        toast.info(
-          query.startsWith("#")
-            ? `ハッシュタグ ${query} の投稿は見つかりませんでした`
-            : "検索結果が見つかりませんでした"
+      if (searchType === "posts") {
+        setPosts(
+          data.posts.map((post: any) => ({
+            ...post,
+            createdAt: new Date(post.createdAt),
+            images: post.images || [],
+          }))
         );
+        if (data.posts.length === 0) {
+          toast.info(
+            query.startsWith("#")
+              ? `ハッシュタグ ${query} の投稿は見つかりませんでした`
+              : "投稿が見つかりませんでした"
+          );
+        }
+      } else {
+        setUsers(data.users);
+        if (data.users.length === 0) {
+          toast.info("ユーザーが見つかりませんでした");
+        }
       }
     } catch (error) {
-      console.error("Error searching posts:", error);
+      console.error("Error searching:", error);
       toast.error("検索中にエラーが発生しました");
     } finally {
       setIsLoading(false);
     }
   };
 
+  // 検索タイプが変更されたときに再検索
+  useEffect(() => {
+    if (currentQuery) {
+      handleSearch(currentQuery);
+    }
+  }, [searchType]);
+
+  // URLのクエリパラメータから初期検索
   useEffect(() => {
     const query = searchParams.get("q");
     if (query) {
@@ -206,15 +277,33 @@ function SearchContent() {
         initialQuery={searchParams.get("q") || ""}
       />
 
-      <SearchResults
-        posts={posts}
-        isLoading={isLoading}
-        currentQuery={currentQuery}
-        onRepostSuccess={() => handleSearch(currentQuery)}
-        onFavoriteSuccess={() => handleSearch(currentQuery)}
-      />
-
-      <SearchOptions />
+      <Tabs
+        value={searchType}
+        onValueChange={(v) => setSearchType(v as "posts" | "users")}
+        className="mt-6"
+      >
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="posts">投稿</TabsTrigger>
+          <TabsTrigger value="users">ユーザー</TabsTrigger>
+        </TabsList>
+        <TabsContent value="posts">
+          <PostSearchResults
+            posts={posts}
+            isLoading={isLoading}
+            currentQuery={currentQuery}
+            onRepostSuccess={() => handleSearch(currentQuery)}
+            onFavoriteSuccess={() => handleSearch(currentQuery)}
+          />
+          <SearchOptions />
+        </TabsContent>
+        <TabsContent value="users">
+          <UserSearchResults
+            users={users}
+            isLoading={isLoading}
+            currentQuery={currentQuery}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
@@ -225,7 +314,7 @@ export default function SearchPage() {
     <Suspense
       fallback={
         <div className="flex min-h-screen items-center justify-center">
-          <Loader2 className="h-6 w-6 animate-spin" />
+          <Loader2 className="size-6 animate-spin" />
         </div>
       }
     >

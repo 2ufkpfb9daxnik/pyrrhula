@@ -78,10 +78,28 @@ export default function UserProfilePage({
   ) => {
     try {
       setPosts([]); // コンテンツ取得前に投稿をクリア
-      const response = await fetch(`/api/users/${params.id}?type=${type}`);
+      let formattedPosts;
+
+      // タイプに応じたエンドポイントを選択
+      let endpoint = `/api/users/${params.id}`;
+      switch (type) {
+        case "posts":
+          endpoint = `/api/users/${params.id}?type=posts`;
+          break;
+        case "reposts":
+          endpoint = `/api/users/${params.id}/repost`;
+          break;
+        case "favorites":
+          endpoint = `/api/users/${params.id}/favorite`;
+          break;
+        case "replies":
+          endpoint = `/api/users/${params.id}/reply`;
+          break;
+      }
+
+      const response = await fetch(endpoint);
 
       if (response.status === 404) {
-        // 404の場合は空の配列を設定（存在しないことを示す）
         setPosts([]);
         return;
       }
@@ -92,20 +110,81 @@ export default function UserProfilePage({
 
       const data = await response.json();
 
-      if (!data.posts || !Array.isArray(data.posts)) {
-        setPosts([]);
-        return;
+      // レスポンスの形式に応じてデータを整形
+      switch (type) {
+        case "reposts":
+          if (!data.reposts) {
+            formattedPosts = [];
+            break;
+          }
+          formattedPosts = data.reposts.map((post: any) => ({
+            ...post,
+            createdAt: new Date(post.createdAt),
+            repostedAt: new Date(post.repostedAt),
+            user: post.user || post.post?.user,
+            content: post.content || post.post?.content,
+            parent: post.parent
+              ? {
+                  id: post.parent.id,
+                  content: post.parent.content,
+                  user: post.parent.user,
+                }
+              : undefined, // null の代わりに undefined を使用
+            _count: {
+              replies: post._count?.replies || 0,
+            },
+            images: post.images || [],
+          }));
+          break;
+
+        case "favorites":
+          if (!data.posts) {
+            // ここを修正: data.favorites から data.posts に変更
+            formattedPosts = [];
+            break;
+          }
+          formattedPosts = data.posts.map((post: any) => ({
+            ...post,
+            createdAt: new Date(post.createdAt),
+            favoritedAt: new Date(post.favoritedAt),
+            user: post.user,
+            content: post.content,
+          }));
+          break;
+
+        case "replies":
+          if (!data.replies) {
+            formattedPosts = [];
+            break;
+          }
+          formattedPosts = data.replies.map((post: any) => ({
+            ...post,
+            createdAt: new Date(post.createdAt),
+          }));
+          break;
+
+        default: // posts
+          formattedPosts = (data.posts || []).map((post: any) => ({
+            ...post,
+            createdAt: new Date(post.createdAt),
+          }));
+          break;
       }
 
-      setPosts(
-        data.posts.map((post: any) => ({
-          ...post,
-          createdAt: new Date(post.createdAt),
-        }))
-      );
+      setPosts(formattedPosts);
     } catch (error) {
       console.error(`Error fetching user ${type}:`, error);
-      toast.error(`${type}の取得に失敗しました`);
+      toast.error(
+        `${
+          type === "posts"
+            ? "投稿"
+            : type === "reposts"
+              ? "拡散した投稿"
+              : type === "favorites"
+                ? "お気に入りの投稿"
+                : "返信"
+        }の取得に失敗しました`
+      );
       setPosts([]);
     }
   };

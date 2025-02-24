@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { X } from "lucide-react";
 
 // メンションを抽出する正規表現
 const MENTION_PATTERN = /@[\w]+/g;
@@ -21,6 +23,32 @@ interface MakePostProps {
 export function MakePost({ onPostCreated, replyTo, inputRef }: MakePostProps) {
   const [content, setContent] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const [newImageUrl, setNewImageUrl] = useState("");
+
+  const handleAddImage = () => {
+    if (!newImageUrl.trim()) return;
+
+    // 画像URLの簡易バリデーション
+    try {
+      new URL(newImageUrl);
+    } catch {
+      toast.error("有効なURLを入力してください");
+      return;
+    }
+
+    if (imageUrls.length >= 4) {
+      toast.error("画像は4枚までしか追加できません");
+      return;
+    }
+
+    setImageUrls([...imageUrls, newImageUrl.trim()]);
+    setNewImageUrl("");
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setImageUrls(imageUrls.filter((_, i) => i !== index));
+  };
 
   // メンションされたユーザーの通知を作成
   const createMentionNotifications = async (
@@ -78,6 +106,7 @@ export function MakePost({ onPostCreated, replyTo, inputRef }: MakePostProps) {
         body: JSON.stringify({
           content: content.trim(),
           parentId: replyTo?.id,
+          images: imageUrls,
         }),
       });
 
@@ -86,6 +115,7 @@ export function MakePost({ onPostCreated, replyTo, inputRef }: MakePostProps) {
         // メンション通知を作成
         await createMentionNotifications(post.id, content);
         setContent("");
+        setImageUrls([]);
         onPostCreated();
       }
     } catch (error) {
@@ -106,7 +136,7 @@ export function MakePost({ onPostCreated, replyTo, inputRef }: MakePostProps) {
       )}
       <Textarea
         ref={inputRef}
-        placeholder={replyTo ? "返信を入力..." : "今何してる？"}
+        placeholder={replyTo ? "返信内容を入力" : "投稿内容を入力"}
         value={content}
         onChange={(e) => setContent(e.target.value)}
         onKeyDown={handleKeyDown}
@@ -116,6 +146,55 @@ export function MakePost({ onPostCreated, replyTo, inputRef }: MakePostProps) {
         <span className="text-sm text-gray-500">
           残り {500 - content.length} 文字
         </span>
+
+        {/* 画像URL入力部分 */}
+        <div className="space-y-2">
+          <div className="flex space-x-2">
+            <Input
+              value={newImageUrl}
+              onChange={(e) => setNewImageUrl(e.target.value)}
+              placeholder="画像URL4枚まで"
+              className="flex-1"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleAddImage}
+              disabled={imageUrls.length >= 4}
+            >
+              追加
+            </Button>
+          </div>
+
+          {/* 追加された画像URLのプレビュー */}
+          {imageUrls.length > 0 && (
+            <div className="grid grid-cols-2 gap-2">
+              {imageUrls.map((url, index) => (
+                <div key={index} className="group relative">
+                  <img
+                    src={url}
+                    alt={`Preview ${index + 1}`}
+                    className="h-40 w-full rounded-lg object-cover"
+                    onError={(e) => {
+                      e.currentTarget.src = "/placeholder-image.png";
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute right-2 top-2 opacity-0 transition-opacity group-hover:opacity-100"
+                    onClick={() => handleRemoveImage(index)}
+                  >
+                    <X className="size-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* 投稿ボタン */}
         <Button
           type="submit"
           disabled={content.trim().length === 0 || isLoading}

@@ -1,12 +1,10 @@
-// posts/                  GET/POST            投稿する/見る(supabase/next.js(vercel)/reactでリアルタイムに画面更新)
 import { getServerSession } from "next-auth/next";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import type { TimelineResponse, CreatePostRequest } from "@/app/_types/post";
-import { updateUserStats } from "@/lib/user-stats";
 
-const limit = 100;
+const limit = 50;
 
 // 投稿一覧を取得
 export async function GET(req: Request) {
@@ -19,7 +17,6 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const cursor = searchParams.get("cursor");
     const since = searchParams.get("since");
-    const limit = 50;
 
     const followings = await prisma.follow.findMany({
       where: {
@@ -47,7 +44,13 @@ export async function GET(req: Request) {
       orderBy: {
         createdAt: "desc",
       },
-      include: {
+      select: {
+        id: true,
+        content: true,
+        createdAt: true,
+        favorites: true,
+        reposts: true,
+        images: true,
         user: {
           select: {
             id: true,
@@ -55,7 +58,13 @@ export async function GET(req: Request) {
             icon: true,
           },
         },
-        parent: true,
+        parent: {
+          select: {
+            id: true,
+            content: true,
+            userId: true,
+          },
+        },
         _count: {
           select: {
             replies: true,
@@ -86,6 +95,7 @@ export async function GET(req: Request) {
       createdAt: post.createdAt,
       favorites: post.favorites,
       reposts: post.reposts,
+      images: post.images,
       user: post.user,
       parent: post.parent
         ? {
@@ -93,7 +103,7 @@ export async function GET(req: Request) {
             content: post.parent.content,
             user: {
               id: post.parent.userId,
-              username: "", // Need to fetch this from the parent post's user
+              username: "", // 親投稿のユーザー名は別途取得が必要
             },
           }
         : null,
@@ -104,14 +114,8 @@ export async function GET(req: Request) {
       }),
     }));
 
-    const response: TimelineResponse = {
-      posts: formattedPosts,
-      hasMore,
-      ...(nextCursor && { nextCursor }),
-    };
-
     return NextResponse.json({
-      posts: postList,
+      posts: formattedPosts,
       hasMore,
       ...(nextCursor && { nextCursor }),
     });
@@ -148,6 +152,7 @@ export async function POST(req: Request) {
         data: {
           content: body.content.trim(),
           userId: session.user.id,
+          images: body.images || [],
           ...(body.parentId && { parentId: body.parentId }),
         },
         include: {

@@ -62,30 +62,13 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
   // Post型に変換する関数
   const convertToPost = (postDetail: PostDetailResponse) => ({
     ...postDetail,
+    images: postDetail.images || [],
     parent: postDetail.parent || undefined,
     _count: {
       replies: postDetail.replies?.length || 0,
     },
   });
 
-  {
-    /* 返信投稿フォーム */
-  }
-  {
-    session && (
-      <div className="mb-8">
-        <Separator className="mb-4" />
-        <MakePost
-          onPostCreated={handlePostCreated}
-          replyTo={{
-            id: post.id,
-            content: post.content,
-            username: post.user.username,
-          }}
-        />
-      </div>
-    );
-  }
   return (
     <div className="mx-auto max-w-2xl p-4">
       {/* 親投稿 */}
@@ -99,6 +82,11 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
               favorites: 0,
               reposts: 0,
               parent: null,
+              images: post.parent.images || [],
+              _count: {
+                // _countを追加
+                replies: 0,
+              },
             })}
           />
           <Separator className="my-4" />
@@ -157,6 +145,11 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
                 ...reply,
                 parent: null,
                 replies: [],
+                images: reply.images || [],
+                _count: {
+                  // _countを追加
+                  replies: 0,
+                },
               })}
             />
           ))

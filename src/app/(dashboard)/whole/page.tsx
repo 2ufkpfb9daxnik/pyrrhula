@@ -17,6 +17,7 @@ interface Post {
   createdAt: Date;
   favorites: number;
   reposts: number;
+  images: string[]; // 追加
   user: {
     id: string;
     username: string;
@@ -90,6 +91,7 @@ export default function HomePage() {
           ...data.posts.map((post: any) => ({
             ...post,
             createdAt: new Date(post.createdAt),
+            images: post.images || [], // 画像配列がない場合は空配列をデフォルト値として設定
           })),
         ]);
       } else {
@@ -98,6 +100,7 @@ export default function HomePage() {
           data.posts.map((post: any) => ({
             ...post,
             createdAt: new Date(post.createdAt),
+            images: post.images || [], // 画像配列がない場合は空配列をデフォルト値として設定
           }))
         );
       }
@@ -110,7 +113,6 @@ export default function HomePage() {
       setIsLoading(false);
     }
   };
-
   const handleSearch = async (query: string) => {
     try {
       const response = await fetch(
@@ -124,6 +126,7 @@ export default function HomePage() {
         data.posts.map((post: any) => ({
           ...post,
           createdAt: new Date(post.createdAt),
+          images: post.images || [], // 画像配列がない場合は空配列をデフォルト値として設定
         }))
       );
       setHasMore(false);
@@ -132,7 +135,6 @@ export default function HomePage() {
       console.error("Error searching posts:", error);
     }
   };
-
   return (
     <TooltipProvider>
       <>

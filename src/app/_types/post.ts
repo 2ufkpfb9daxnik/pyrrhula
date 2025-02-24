@@ -4,19 +4,29 @@ export interface Post {
   createdAt: Date;
   favorites: number;
   reposts: number;
-  isRepost?: boolean;
-  repostedBy?: {
-    id: string;
-    username: string;
-  };
+  images: string[];
   user: {
     id: string;
     username: string;
     icon: string | null;
   };
+  parent?:
+    | {
+        id: string;
+        content: string;
+        user?: {
+          id: string;
+          username: string;
+        };
+      }
+    | undefined; // null も許容するように変更
   _count: {
     replies: number;
   };
+  repostedAt?: string;
+  favoritedAt?: string;
+  isFavorited?: boolean;
+  isReposted?: boolean;
 }
 
 export type PostProps = {
@@ -61,22 +71,16 @@ export type TimelineResponse = {
 export interface CreatePostRequest {
   content: string;
   parentId?: string;
+  images?: string[];
 }
 
-export interface PostDetailResponse {
-  id: string;
-  content: string;
-  createdAt: Date;
-  favorites: number;
-  reposts: number;
-  user: {
-    id: string;
-    username: string;
-    icon: string | null;
-  };
+// PostDetailResponseを修正
+export interface PostDetailResponse extends Omit<Post, "parent"> {
   parent: {
     id: string;
     content: string;
+    createdAt: Date;
+    images: string[];
     user: {
       id: string;
       username: string;
@@ -89,14 +93,13 @@ export interface PostDetailResponse {
     createdAt: Date;
     favorites: number;
     reposts: number;
+    images: string[];
     user: {
       id: string;
       username: string;
       icon: string | null;
     };
   }[];
-  isFavorited?: boolean;
-  isReposted?: boolean;
 }
 
 export type UserRepliesResponse = {
@@ -140,4 +143,31 @@ export interface UserRepostsResponse {
   }[];
   hasMore: boolean;
   nextCursor?: string;
+}
+
+export interface SearchPost {
+  id: string;
+  content: string;
+  createdAt: Date;
+  favorites: number;
+  reposts: number;
+  images: string[];
+  user: {
+    id: string;
+    username: string;
+    icon: string | null;
+  };
+  parent?:
+    | {
+        id: string;
+        content: string;
+        user: {
+          id: string;
+          username: string;
+        };
+      }
+    | undefined;
+  _count: {
+    replies: number;
+  };
 }

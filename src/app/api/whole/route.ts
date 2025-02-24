@@ -4,24 +4,33 @@ import { authOptions } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import type { TimelineResponse, CreatePostRequest } from "@/app/_types/post";
 
+const limit = 50;
+
 export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     const cursor = searchParams.get("cursor");
-    const limit = 50;
+    const since = searchParams.get("since");
 
     const posts = await prisma.post.findMany({
-      where: {
-        parentId: null,
-      },
       take: limit + 1,
       skip: cursor ? 1 : 0,
       cursor: cursor ? { id: cursor } : undefined,
       orderBy: {
         createdAt: "desc",
       },
-      include: {
+      select: {
+        id: true,
+        content: true,
+        createdAt: true,
+        favorites: true,
+        reposts: true,
+        images: true, // imagesフィールドを追加
         user: {
           select: {
             id: true,
@@ -33,39 +42,24 @@ export async function GET(req: Request) {
           select: {
             id: true,
             content: true,
-            user: {
-              select: {
-                id: true,
-                username: true,
-              },
-            },
+            userId: true,
           },
         },
         _count: {
           select: {
             replies: true,
+            favoritedBy: true,
+            repostedBy: true,
           },
         },
-        favoritedBy: session?.user
-          ? {
-              where: {
-                userId: session.user.id,
-              },
-              select: {
-                userId: true,
-              },
-            }
-          : false,
-        repostedBy: session?.user
-          ? {
-              where: {
-                userId: session.user.id,
-              },
-              select: {
-                userId: true,
-              },
-            }
-          : false,
+        favoritedBy: {
+          where: { userId: session.user.id },
+          select: { userId: true },
+        },
+        repostedBy: {
+          where: { userId: session.user.id },
+          select: { userId: true },
+        },
       },
     });
 
@@ -79,8 +73,18 @@ export async function GET(req: Request) {
       createdAt: post.createdAt,
       favorites: post.favorites,
       reposts: post.reposts,
+      images: post.images, // imagesフィールドを追加
       user: post.user,
-      parent: post.parent,
+      parent: post.parent
+        ? {
+            id: post.parent.id,
+            content: post.parent.content,
+            user: {
+              id: post.parent.userId,
+              username: "", // 親投稿のユーザー名は別途取得が必要
+            },
+          }
+        : null,
       _count: post._count,
       ...(session?.user && {
         isFavorited: post.favoritedBy.length > 0,
@@ -88,13 +92,11 @@ export async function GET(req: Request) {
       }),
     }));
 
-    const response: TimelineResponse = {
+    return NextResponse.json({
       posts: formattedPosts,
       hasMore,
       ...(nextCursor && { nextCursor }),
-    };
-
-    return NextResponse.json(response);
+    });
   } catch (error) {
     console.error("[Timeline Error]:", error);
     return NextResponse.json(
@@ -103,8 +105,6 @@ export async function GET(req: Request) {
     );
   }
 }
-
-// ...existing POST function...
 
 // 新規投稿を作成
 export async function POST(req: Request) {

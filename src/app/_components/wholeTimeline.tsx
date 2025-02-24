@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { Post } from "./post";
-import { Search } from "./search";
 
 interface Post {
   id: string;
@@ -10,6 +9,7 @@ interface Post {
   createdAt: Date;
   favorites: number;
   reposts: number;
+  images: string[]; // 追加
   user: {
     id: string;
     username: string;
@@ -66,11 +66,6 @@ export function WholeTimeline() {
   };
   return (
     <div className="h-full overflow-y-auto">
-      {/* 検索バー */}
-      {/* <div className="sticky top-0 border-b border-gray-800 bg-background p-4">
-        <Search onSearch={handleSearch} />
-      </div> */}
-
       {/* タイムライン */}
       <div className="p-4">
         <div className="space-y-4">
