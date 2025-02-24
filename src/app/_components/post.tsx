@@ -17,6 +17,7 @@ import { linkify } from "@/lib/linkify";
 import { useRating } from "@/app/_hooks/useRating";
 import { ImageModal } from "@/app/_components/image-modal";
 import { useOptimisticUpdate } from "@/app/_hooks/useOptimisticUpdate";
+import type { Post as PostType } from "@/app/_types/post";
 
 interface Post {
   id: string;
@@ -48,9 +49,9 @@ interface Post {
 }
 
 interface PostProps {
-  post: Post;
-  onRepostSuccess?: () => Promise<void>;
-  onFavoriteSuccess?: () => Promise<void>;
+  post: PostType;
+  onRepostSuccess?: (newCount: number, isReposted: boolean) => void;
+  onFavoriteSuccess?: (newCount: number, isFavorited: boolean) => void;
 }
 
 export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {

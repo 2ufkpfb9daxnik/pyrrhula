@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import type { PostProps } from "@/app/_types/post";
 import type { Post } from "@/app/_types/post";
 import { Post as PostComponent } from "@/app/_components/post"; // PostコンポーネントをPostComponentとしてインポート
 import { MakePost } from "@/app/_components/makepost";
@@ -55,14 +54,25 @@ export default function HomePage() {
 
       const data = await response.json();
       if (data.posts.length > 0) {
-        // 新しい投稿がある場合のみ、状態を更新
-        setPosts((prevPosts) => [
-          ...data.posts.map((post: any) => ({
-            ...post,
-            createdAt: new Date(post.createdAt),
-          })),
-          ...prevPosts,
-        ]);
+        setPosts((prevPosts) => {
+          // 一時的な投稿と重複を除去
+          const uniquePosts = data.posts
+            .map((post: any) => ({
+              ...post,
+              createdAt: new Date(post.createdAt),
+            }))
+            .filter(
+              (newPost: Post) =>
+                // 一時的な投稿を除外
+                !newPost.id.startsWith("temp-") &&
+                // 既存の投稿との重複を除外
+                !prevPosts.some(
+                  (existingPost) => existingPost.id === newPost.id
+                )
+            );
+
+          return [...uniquePosts, ...prevPosts];
+        });
         setLastUpdateTime(new Date());
       }
     } catch (error) {
@@ -196,9 +206,50 @@ export default function HomePage() {
     }
   };
 
-  const handlePostCreated = () => {
-    // 新しい投稿が作成されたら、タイムラインを更新
-    fetchPosts();
+  const handlePostCreated = (newPost: Post) => {
+    setPosts((prev) => {
+      // 一時的な投稿（temp-で始まるID）を削除
+      const filtered = prev.filter((p) => !p.id.startsWith("temp-"));
+      return [newPost, ...filtered];
+    });
+  };
+
+  const handleFavoriteSuccess = (
+    postId: string,
+    newCount: number,
+    isFavorited: boolean
+  ) => {
+    setPosts((prev) =>
+      prev.map((post) =>
+        post.id === postId
+          ? {
+              ...post,
+              favorites: newCount,
+              isFavorited,
+              favoritedAt: isFavorited ? new Date().toISOString() : undefined,
+            }
+          : post
+      )
+    );
+  };
+
+  const handleRepostSuccess = (
+    postId: string,
+    newCount: number,
+    isReposted: boolean
+  ) => {
+    setPosts((prev) =>
+      prev.map((post) =>
+        post.id === postId
+          ? {
+              ...post,
+              reposts: newCount,
+              isReposted,
+              repostedAt: isReposted ? new Date().toISOString() : undefined,
+            }
+          : post
+      )
+    );
   };
 
   if (!session) {
@@ -254,7 +305,7 @@ export default function HomePage() {
                   content: parentPost.content,
                   username: parentPost.user.username,
                 }
-              : null
+              : undefined
           }
           inputRef={postInputRef}
         />
@@ -297,8 +348,12 @@ export default function HomePage() {
                 <PostComponent
                   key={post.id}
                   post={post}
-                  onRepostSuccess={fetchPosts}
-                  onFavoriteSuccess={fetchPosts}
+                  onRepostSuccess={(newCount, isReposted) =>
+                    handleRepostSuccess(post.id, newCount, isReposted)
+                  }
+                  onFavoriteSuccess={(newCount, isFavorited) =>
+                    handleFavoriteSuccess(post.id, newCount, isFavorited)
+                  }
                 />
               ))
             )}
@@ -339,8 +394,20 @@ export default function HomePage() {
         <DialogContent className="w-[calc(100%-32px)] max-w-[425px]">
           <div className="pt-6">
             <MakePost
-              onPostCreated={handlePostCreated}
-              inputRef={postInputRef} // モバイル用にも参照を渡す
+              onPostCreated={(post) => {
+                handlePostCreated(post);
+                setIsDialogOpen(false);
+              }}
+              inputRef={postInputRef}
+              replyTo={
+                parentPost
+                  ? {
+                      id: parentPost.id,
+                      content: parentPost.content,
+                      username: parentPost.user.username,
+                    }
+                  : undefined
+              }
             />
           </div>
         </DialogContent>

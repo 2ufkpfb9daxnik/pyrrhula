@@ -7,29 +7,12 @@ import { Search } from "@/app/_components/search";
 import { Navigation } from "@/app/_components/navigation";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { LoaderCircle, Plus } from "lucide-react";
-
-interface Post {
-  id: string;
-  content: string;
-  createdAt: Date;
-  favorites: number;
-  reposts: number;
-  images: string[]; // 追加
-  user: {
-    id: string;
-    username: string;
-    icon: string | null;
-  };
-  _count: {
-    replies: number;
-  };
-}
+import type { Post as PostType } from "@/app/_types/post";
 
 export default function HomePage() {
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [posts, setPosts] = useState<PostType[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | undefined>();
   const [isLoading, setIsLoading] = useState(false);
@@ -40,7 +23,7 @@ export default function HomePage() {
     fetchPosts();
   }, []);
 
-  // キーボードショートカットのイベントリスナーを追加
+  // キーボードショートカットのイベントリスナー
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (
@@ -51,15 +34,12 @@ export default function HomePage() {
         document.activeElement?.tagName !== "INPUT"
       ) {
         e.preventDefault();
-        // モバイル表示の場合はダイアログを開く
         if (window.innerWidth < 768) {
           setIsDialogOpen(true);
-          // ダイアログが開いた後にフォーカスを設定するため、少し遅延させる
           setTimeout(() => {
             postInputRef.current?.focus();
           }, 100);
         } else {
-          // デスクトップ表示の場合は直接フォーカス
           postInputRef.current?.focus();
         }
       }
@@ -84,25 +64,16 @@ export default function HomePage() {
 
       const data = await response.json();
 
+      const formattedPosts = data.posts.map((post: any) => ({
+        ...post,
+        createdAt: new Date(post.createdAt),
+        images: post.images || [],
+      }));
+
       if (cursor) {
-        // 追加読み込みの場合は既存の投稿に追加
-        setPosts((prev) => [
-          ...prev,
-          ...data.posts.map((post: any) => ({
-            ...post,
-            createdAt: new Date(post.createdAt),
-            images: post.images || [], // 画像配列がない場合は空配列をデフォルト値として設定
-          })),
-        ]);
+        setPosts((prev) => [...prev, ...formattedPosts]);
       } else {
-        // 初回読み込みの場合は置き換え
-        setPosts(
-          data.posts.map((post: any) => ({
-            ...post,
-            createdAt: new Date(post.createdAt),
-            images: post.images || [], // 画像配列がない場合は空配列をデフォルト値として設定
-          }))
-        );
+        setPosts(formattedPosts);
       }
 
       setHasMore(data.hasMore);
@@ -113,6 +84,17 @@ export default function HomePage() {
       setIsLoading(false);
     }
   };
+
+  const handlePostCreated = (newPost: PostType) => {
+    setPosts((prev) => {
+      // 一時的な投稿（temp-で始まるID）を削除
+      const filtered = prev.filter((p) => !p.id.startsWith("temp-"));
+
+      // 新しい投稿を先頭に追加
+      return [newPost, ...filtered];
+    });
+  };
+
   const handleSearch = async (query: string) => {
     try {
       const response = await fetch(
@@ -126,7 +108,7 @@ export default function HomePage() {
         data.posts.map((post: any) => ({
           ...post,
           createdAt: new Date(post.createdAt),
-          images: post.images || [], // 画像配列がない場合は空配列をデフォルト値として設定
+          images: post.images || [],
         }))
       );
       setHasMore(false);
@@ -135,25 +117,44 @@ export default function HomePage() {
       console.error("Error searching posts:", error);
     }
   };
+
   return (
     <TooltipProvider>
       <>
         <Navigation />
-        {/* 左サイドバー - モバイルでは非表示 */}
+        {/* 左サイドバー */}
         <div className="fixed left-16 top-0 hidden h-full w-80 flex-col gap-4 border-r border-gray-800 p-4 md:flex">
-          <MakePost
-            onPostCreated={() => fetchPosts()}
-            inputRef={postInputRef}
-          />
+          <MakePost onPostCreated={handlePostCreated} inputRef={postInputRef} />
           <Search onSearch={handleSearch} />
         </div>
 
-        {/* メインコンテンツ - モバイルではフル幅 */}
+        {/* メインコンテンツ */}
         <main className="flex-1">
           <div className="mx-auto max-w-2xl p-4 md:ml-[calc(50%-21rem)]">
             <div className="space-y-4">
               {posts.map((post) => (
-                <Post key={post.id} post={post} />
+                <Post
+                  key={post.id}
+                  post={post}
+                  onRepostSuccess={(newCount, isReposted) => {
+                    setPosts((prev) =>
+                      prev.map((p) =>
+                        p.id === post.id
+                          ? { ...p, reposts: newCount, isReposted }
+                          : p
+                      )
+                    );
+                  }}
+                  onFavoriteSuccess={(newCount, isFavorited) => {
+                    setPosts((prev) =>
+                      prev.map((p) =>
+                        p.id === post.id
+                          ? { ...p, favorites: newCount, isFavorited }
+                          : p
+                      )
+                    );
+                  }}
+                />
               ))}
 
               {/* モバイル用投稿ボタン */}
@@ -169,8 +170,8 @@ export default function HomePage() {
                 <DialogContent className="w-[calc(100%-32px)] max-w-[425px]">
                   <div className="pt-6">
                     <MakePost
-                      onPostCreated={() => {
-                        fetchPosts();
+                      onPostCreated={(post) => {
+                        handlePostCreated(post);
                         setIsDialogOpen(false);
                       }}
                       inputRef={postInputRef}
@@ -190,7 +191,7 @@ export default function HomePage() {
                   >
                     {isLoading ? (
                       <div className="flex items-center gap-2">
-                        <LoaderCircle className="animate-spin"></LoaderCircle>
+                        <LoaderCircle className="animate-spin" />
                       </div>
                     ) : (
                       "もっと読み込む"

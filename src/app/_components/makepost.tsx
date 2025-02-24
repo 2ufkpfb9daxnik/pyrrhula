@@ -6,17 +6,20 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { X } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { Post, ReplyToPost } from "@/app/_types/post";
 
-// メンションを抽出する正規表現
 const MENTION_PATTERN = /@[\w]+/g;
 
+interface CreatePostRequest {
+  content: string;
+  parentId?: string;
+  images: string[];
+}
+
 interface MakePostProps {
-  onPostCreated: () => void;
-  replyTo?: {
-    id: string;
-    content: string;
-    username: string;
-  } | null;
+  onPostCreated: (post: Post) => void;
+  replyTo?: ReplyToPost | undefined;
   inputRef?: React.RefObject<HTMLTextAreaElement>;
 }
 
@@ -25,6 +28,7 @@ export function MakePost({ onPostCreated, replyTo, inputRef }: MakePostProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [newImageUrl, setNewImageUrl] = useState("");
+  const { data: session } = useSession();
 
   const handleAddImage = () => {
     if (!newImageUrl.trim()) return;
@@ -95,32 +99,70 @@ export function MakePost({ onPostCreated, replyTo, inputRef }: MakePostProps) {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (content.trim().length === 0) return;
+    if (content.trim().length === 0 || isLoading || !session?.user) return;
 
     setIsLoading(true);
 
+    const optimisticPost: Post = {
+      id: `temp-${Date.now()}`,
+      content: content.trim(),
+      createdAt: new Date(),
+      user: {
+        id: session.user.id,
+        username: session.user.name || "Unknown",
+        icon: session.user.image || null,
+      },
+      images: imageUrls,
+      parent: replyTo, // 型が合うように修正
+      favorites: 0,
+      reposts: 0,
+      _count: {
+        replies: 0,
+      },
+      isFavorited: false,
+      isReposted: false,
+    };
+
+    // 楽観的に投稿を表示
+    onPostCreated(optimisticPost);
+
+    // UIをリセット
+    setContent("");
+    setImageUrls([]);
+
     try {
+      const postData: CreatePostRequest = {
+        content: optimisticPost.content,
+        parentId: replyTo?.id,
+        images: optimisticPost.images,
+      };
+
       const response = await fetch("/api/posts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          content: content.trim(),
-          parentId: replyTo?.id,
-          images: imageUrls,
-        }),
+        body: JSON.stringify(postData),
       });
 
-      if (response.ok) {
-        const post = await response.json();
-        // メンション通知を作成
-        await createMentionNotifications(post.id, content);
-        setContent("");
-        setImageUrls([]);
-        onPostCreated();
+      if (!response.ok) {
+        throw new Error("投稿に失敗しました");
       }
+
+      const actualPost = await response.json();
+
+      // メンション通知を作成
+      await createMentionNotifications(actualPost.id, content);
+
+      // 実際の投稿で楽観的投稿を置き換え
+      onPostCreated({
+        ...actualPost,
+        createdAt: new Date(actualPost.createdAt),
+      });
     } catch (error) {
       console.error("Error creating post:", error);
       toast.error("投稿に失敗しました");
+      // エラー時は入力内容を復元
+      setContent(optimisticPost.content);
+      setImageUrls(optimisticPost.images);
     } finally {
       setIsLoading(false);
     }
@@ -130,7 +172,8 @@ export function MakePost({ onPostCreated, replyTo, inputRef }: MakePostProps) {
     <form onSubmit={handleSubmit} className="mb-8">
       {replyTo && (
         <div className="mb-2 text-sm text-gray-500">
-          返信: @{replyTo.username} {replyTo.content.substring(0, 30)}
+          返信: @{replyTo.user?.username ?? replyTo.username}{" "}
+          {replyTo.content.substring(0, 30)}
           {replyTo.content.length > 30 && "..."}
         </div>
       )}

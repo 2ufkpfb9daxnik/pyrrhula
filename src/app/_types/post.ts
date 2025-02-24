@@ -29,11 +29,16 @@ export interface Post {
   isReposted?: boolean;
 }
 
-export type PostProps = {
-  post: Post;
-  onRepostSuccess?: () => Promise<void>;
-  onFavoriteSuccess?: () => Promise<void>;
-};
+// MakePostで使用する親投稿の型
+export interface ReplyToPost {
+  id: string;
+  content: string;
+  user?: {
+    id: string;
+    username: string;
+  };
+  username?: string;
+}
 
 interface PostResponse {
   id: string;
