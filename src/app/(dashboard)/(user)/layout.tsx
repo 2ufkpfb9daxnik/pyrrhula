@@ -72,7 +72,7 @@ export default function UserLayout({ children }: { children: ReactNode }) {
                 <User className="mr-2 size-4" />
                 プロフィール
                 {activeTab === "profile" && (
-                  <span className="absolute inset-x-0 bottom-0 h-1 bg-blue-500" />
+                  <span className="absolute inset-x-0 bottom-0 h-1 bg-gray-500" />
                 )}
               </button>
               <button
@@ -86,7 +86,7 @@ export default function UserLayout({ children }: { children: ReactNode }) {
                 <Users className="mr-2 size-4" />
                 ユーザー一覧
                 {activeTab === "list" && (
-                  <span className="absolute inset-x-0 bottom-0 h-1 bg-blue-500" />
+                  <span className="absolute inset-x-0 bottom-0 h-1 bg-gray-500" />
                 )}
               </button>
             </div>
