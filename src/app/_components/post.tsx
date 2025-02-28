@@ -18,38 +18,19 @@ import { useRating } from "@/app/_hooks/useRating";
 import { ImageModal } from "@/app/_components/image-modal";
 import { useOptimisticUpdate } from "@/app/_hooks/useOptimisticUpdate";
 import type { Post as PostType } from "@/app/_types/post";
-
-interface Post {
-  id: string;
-  content: string;
-  createdAt: Date;
-  favorites: number;
-  reposts: number;
-  images: string[];
-  user: {
-    id: string;
-    username: string;
-    icon: string | null;
-  };
-  parent?: {
-    id: string;
-    content: string;
-    user?: {
-      id: string;
-      username: string;
-    };
-  };
-  _count?: {
-    replies: number;
-  };
-  isFavorited?: boolean;
-  isReposted?: boolean;
-  repostedAt?: string;
-  favoritedAt?: string;
-}
+import Link from "next/link";
 
 interface PostProps {
-  post: PostType;
+  post: PostType & {
+    // 追加プロパティがある可能性に対応
+    repostedBy?: {
+      id: string;
+      username: string;
+      icon: string | null;
+    };
+    repostedAt?: string | Date;
+    favoritedAt?: string | Date;
+  };
   onRepostSuccess?: (newCount: number, isReposted: boolean) => void;
   onFavoriteSuccess?: (newCount: number, isFavorited: boolean) => void;
 }
@@ -59,6 +40,18 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
   const { data: session } = useSession();
   const { rating } = useRating(post.user.id);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+  // 日付をフォーマットするヘルパー関数
+  const formatDate = (dateValue: string | Date | undefined): Date => {
+    if (!dateValue) return new Date();
+
+    if (typeof dateValue === "string") {
+      return new Date(dateValue);
+    } else if (dateValue instanceof Date) {
+      return dateValue;
+    }
+    return new Date();
+  };
 
   // 楽観的更新のためのフック
   const {
@@ -158,6 +151,20 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
       className="cursor-pointer border-b border-gray-700 p-4 transition-colors hover:bg-gray-900/50"
       onClick={handlePostClick}
     >
+      {/* 拡散表示 */}
+      {post.repostedBy && (
+        <div className="mb-2 flex items-center text-sm text-gray-500">
+          <RefreshCw className="mr-2 size-3.5" />
+          <Link
+            href={`/user/${post.repostedBy.id}`}
+            className="hover:underline"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {post.repostedBy.username}さんが拡散しました
+          </Link>
+        </div>
+      )}
+
       {/* 親投稿への返信表示 */}
       {post.parent && post.parent.user && (
         <div className="mb-2 text-sm text-gray-500">
@@ -206,11 +213,12 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
               <span className="text-gray-500">
                 {formatDistanceToNow(new Date(post.createdAt))}
               </span>
-              {post.repostedAt && (
+              {post.repostedAt && !post.repostedBy && (
                 <>
                   <span className="text-gray-500">·</span>
                   <span className="text-gray-500">
-                    {formatDistanceToNow(new Date(post.repostedAt))}に拡散
+                    {formatDistanceToNow(formatDate(post.repostedAt))}
+                    に拡散
                   </span>
                 </>
               )}
@@ -218,7 +226,7 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
                 <>
                   <span className="text-gray-500">·</span>
                   <span className="text-gray-500">
-                    {formatDistanceToNow(new Date(post.favoritedAt))}
+                    {formatDistanceToNow(formatDate(post.favoritedAt))}
                     にお気に入り
                   </span>
                 </>

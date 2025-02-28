@@ -3,13 +3,14 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import type { Post } from "@/app/_types/post";
 import { Post as PostComponent } from "@/app/_components/post";
 import { MakePost } from "@/app/_components/makepost";
 import { Search } from "@/app/_components/search";
 import { useInterval } from "@/app/_hooks/useInterval";
-import { Link, Plus } from "lucide-react";
+import { Plus, RefreshCw } from "lucide-react";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { LoaderCircle } from "lucide-react";
@@ -44,7 +45,7 @@ export default function HomePage() {
   const fetchLatestPosts = async () => {
     try {
       const response = await fetch(
-        `/api/posts?since=${lastUpdateTime.toISOString()}`,
+        `/api/posts?since=${lastUpdateTime.toISOString()}&includeReposts=true`,
         { next: { revalidate: 60 } }
       );
       if (!response.ok) {
@@ -56,10 +57,7 @@ export default function HomePage() {
         setPosts((prevPosts) => {
           // 一時的な投稿と重複を除去
           const uniquePosts = data.posts
-            .map((post: any) => ({
-              ...post,
-              createdAt: new Date(post.createdAt),
-            }))
+            .map((post: any) => formatPost(post))
             .filter(
               (newPost: Post) =>
                 !newPost.id.startsWith("temp-") &&
@@ -137,6 +135,34 @@ export default function HomePage() {
     }
   };
 
+  // APIレスポンスの投稿データをフォーマットするヘルパー関数
+  const formatPost = (post: any): Post => {
+    return {
+      ...post,
+      createdAt: new Date(post.createdAt),
+      repostedAt: post.repostedAt ? new Date(post.repostedAt) : undefined,
+      favoritedAt: post.favoritedAt ? new Date(post.favoritedAt) : undefined,
+      // 拡散された投稿であれば、repostedByを設定
+      repostedBy: post.repostedBy
+        ? {
+            id: post.repostedBy.id,
+            username: post.repostedBy.username,
+            icon: post.repostedBy.icon || null,
+          }
+        : undefined,
+      // 元の投稿がある場合はoriginalPostを設定
+      originalPost: post.originalPost
+        ? {
+            ...post.originalPost,
+            createdAt: new Date(post.originalPost.createdAt),
+            user: post.originalPost.user,
+          }
+        : undefined,
+      // 画像配列の確保
+      images: post.images || [],
+    };
+  };
+
   const fetchPosts = async (cursor?: string) => {
     try {
       setIsLoading(true);
@@ -144,34 +170,28 @@ export default function HomePage() {
       if (cursor) {
         params.append("cursor", cursor);
       }
+      // 拡散も含めるパラメータを追加
+      params.append("includeReposts", "true");
 
       const response = await fetch(`/api/posts?${params}`, {
         next: { revalidate: 60 }, // 60秒間キャッシュ
       });
+
       if (!response.ok) {
         throw new Error("Failed to fetch timeline");
       }
+
       const data = await response.json();
 
       if (cursor) {
         // 追加読み込みの場合は既存の投稿に追加
         setPosts((prev) => [
           ...prev,
-          ...data.posts.map((post: any) => ({
-            ...post,
-            createdAt: new Date(post.createdAt),
-          })),
+          ...data.posts.map((post: any) => formatPost(post)),
         ]);
       } else {
         // 初回読み込みの場合は置き換え
-        setPosts(
-          data.posts.map((post: any) => ({
-            ...post,
-            createdAt: new Date(post.createdAt),
-            repostedAt: post.repostedAt || undefined,
-            favoritedAt: post.favoritedAt || undefined,
-          }))
-        );
+        setPosts(data.posts.map((post: any) => formatPost(post)));
       }
 
       setHasMore(data.hasMore);
@@ -186,19 +206,14 @@ export default function HomePage() {
   const handleSearch = async (query: string) => {
     try {
       const response = await fetch(
-        `/api/posts/search?q=${encodeURIComponent(query)}&timeline=true`,
+        `/api/posts/search?q=${encodeURIComponent(query)}&timeline=true&includeReposts=true`,
         { next: { revalidate: 60 } }
       );
       if (!response.ok) {
         throw new Error("検索に失敗しました");
       }
       const data = await response.json();
-      setPosts(
-        data.posts.map((post: any) => ({
-          ...post,
-          createdAt: new Date(post.createdAt),
-        }))
-      );
+      setPosts(data.posts.map((post: any) => formatPost(post)));
     } catch (error) {
       console.error("Error searching posts:", error);
     }
@@ -270,7 +285,7 @@ export default function HomePage() {
     );
   }
 
-  if (isLoading) {
+  if (isLoading && posts.length === 0) {
     return (
       <div className="flex items-center justify-center py-12">
         <LoaderCircle className="size-20 animate-spin text-gray-500" />
@@ -349,7 +364,7 @@ export default function HomePage() {
             ) : (
               posts.map((post) => (
                 <PostComponent
-                  key={post.id}
+                  key={post.id + (post.repostedAt?.toString() || "")}
                   post={post}
                   onRepostSuccess={(newCount, isReposted) =>
                     handleRepostSuccess(post.id, newCount, isReposted)
@@ -373,9 +388,13 @@ export default function HomePage() {
                   {isLoading ? (
                     <div className="flex items-center gap-2">
                       <LoaderCircle className="size-4 animate-spin" />
+                      読み込み中...
                     </div>
                   ) : (
-                    "もっと読み込む"
+                    <div className="flex items-center gap-2">
+                      <RefreshCw className="size-4" />
+                      もっと読み込む
+                    </div>
                   )}
                 </Button>
               </div>

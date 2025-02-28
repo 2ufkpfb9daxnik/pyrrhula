@@ -6,7 +6,7 @@ import { MakePost } from "@/app/_components/makepost";
 import { Search } from "@/app/_components/search";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { LoaderCircle, Plus } from "lucide-react";
+import { LoaderCircle, Plus, RefreshCw } from "lucide-react";
 import type { Post as PostType } from "@/app/_types/post";
 
 export default function WholePage() {
@@ -47,6 +47,34 @@ export default function WholePage() {
     return () => window.removeEventListener("keydown", handleKeyPress);
   }, []);
 
+  // APIレスポンスの投稿データをフォーマットするヘルパー関数
+  const formatPost = (post: any): PostType => {
+    return {
+      ...post,
+      createdAt: new Date(post.createdAt),
+      repostedAt: post.repostedAt ? new Date(post.repostedAt) : undefined,
+      favoritedAt: post.favoritedAt ? new Date(post.favoritedAt) : undefined,
+      // 拡散された投稿であれば、repostedByを設定
+      repostedBy: post.repostedBy
+        ? {
+            id: post.repostedBy.id,
+            username: post.repostedBy.username,
+            icon: post.repostedBy.icon || null,
+          }
+        : undefined,
+      // 元の投稿がある場合はoriginalPostを設定
+      originalPost: post.originalPost
+        ? {
+            ...post.originalPost,
+            createdAt: new Date(post.originalPost.createdAt),
+            user: post.originalPost.user,
+          }
+        : undefined,
+      // 画像配列を確保
+      images: post.images || [],
+    };
+  };
+
   const fetchPosts = async (cursor?: string) => {
     try {
       setIsLoading(true);
@@ -54,6 +82,8 @@ export default function WholePage() {
       if (cursor) {
         params.append("cursor", cursor);
       }
+      // 拡散も含めるパラメータを追加
+      params.append("includeReposts", "true");
 
       const response = await fetch(`/api/whole?${params}`, {
         next: { revalidate: 60 }, // 60秒間キャッシュ
@@ -64,16 +94,15 @@ export default function WholePage() {
 
       const data = await response.json();
 
-      const formattedPosts = data.posts.map((post: any) => ({
-        ...post,
-        createdAt: new Date(post.createdAt),
-        images: post.images || [],
-      }));
-
       if (cursor) {
-        setPosts((prev) => [...prev, ...formattedPosts]);
+        // 追加読み込みの場合は既存の投稿に追加
+        setPosts((prev) => [
+          ...prev,
+          ...data.posts.map((post: any) => formatPost(post)),
+        ]);
       } else {
-        setPosts(formattedPosts);
+        // 初回読み込みの場合は置き換え
+        setPosts(data.posts.map((post: any) => formatPost(post)));
       }
 
       setHasMore(data.hasMore);
@@ -98,20 +127,14 @@ export default function WholePage() {
   const handleSearch = async (query: string) => {
     try {
       const response = await fetch(
-        `/api/posts/search?q=${encodeURIComponent(query)}`,
+        `/api/posts/search?q=${encodeURIComponent(query)}&includeReposts=true`,
         { next: { revalidate: 60 } }
       );
       if (!response.ok) {
         throw new Error("検索に失敗しました");
       }
       const data = await response.json();
-      setPosts(
-        data.posts.map((post: any) => ({
-          ...post,
-          createdAt: new Date(post.createdAt),
-          images: post.images || [],
-        }))
-      );
+      setPosts(data.posts.map((post: any) => formatPost(post)));
       setHasMore(false);
       setNextCursor(undefined);
     } catch (error) {
@@ -155,7 +178,7 @@ export default function WholePage() {
             ) : (
               posts.map((post) => (
                 <Post
-                  key={post.id}
+                  key={post.id + (post.repostedAt?.toString() || "")}
                   post={post}
                   onRepostSuccess={(newCount, isReposted) => {
                     setPosts((prev) =>
@@ -191,9 +214,13 @@ export default function WholePage() {
                   {isLoading ? (
                     <div className="flex items-center gap-2">
                       <LoaderCircle className="size-4 animate-spin" />
+                      読み込み中...
                     </div>
                   ) : (
-                    "もっと読み込む"
+                    <div className="flex items-center gap-2">
+                      <RefreshCw className="size-4" />
+                      もっと読み込む
+                    </div>
                   )}
                 </Button>
               </div>
