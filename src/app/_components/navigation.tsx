@@ -11,7 +11,6 @@ import {
   User,
   Share2,
   Globe,
-  Users,
   LogOut,
   LogIn,
 } from "lucide-react";
@@ -107,35 +106,24 @@ export function Navigation() {
         <MessageCircle className="size-6" />
       </Button>
 
-      {/* ユーザー一覧ボタン - モバイルでも表示 */}
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => router.push("/user")}
-        title="ユーザー一覧"
-        className="md:w-full"
-      >
-        <Users className="size-6" />
-      </Button>
-
-      {/* プロフィールボタン */}
+      {/* プロフィールボタン - ユーザー関連ページへのアクセスポイント */}
       <Button
         variant="ghost"
         size="icon"
         onClick={handleProfileClick}
-        title="プロフィール"
+        title="プロフィール/ユーザー"
         className="md:w-full"
       >
         <User className="size-6" />
       </Button>
 
-      {/* 全体タイムラインボタン - hidden クラスを削除 */}
+      {/* 全体タイムラインボタン */}
       <Button
         variant="ghost"
         size="icon"
         onClick={() => router.push("/whole")}
         title="全体タイムライン"
-        className="md:w-full" // hidden md:flex を削除
+        className="md:w-full"
       >
         <Globe className="size-6" />
       </Button>

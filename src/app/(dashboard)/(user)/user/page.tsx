@@ -5,11 +5,9 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { formatDistanceToNow } from "@/lib/formatDistanceToNow";
 import { Star, Calendar, Trophy, LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
-import { Share2 } from "lucide-react";
 
 type RatingColor = string;
 
@@ -56,7 +54,6 @@ const PowerPagination: React.FC<{
     }
 
     // 次のページ（2のべき乗分）
-    power = 1;
     while (currentPage + power <= totalPages) {
       pages.add(currentPage + power);
       power *= 2;
@@ -77,7 +74,9 @@ const PowerPagination: React.FC<{
       {powerPages.map((page, index) => (
         <>
           {index > 0 && powerPages[index] - powerPages[index - 1] > 1 && (
-            <span className="flex items-center px-2">...</span>
+            <span key={`ellipsis-${index}`} className="flex items-center px-2">
+              ...
+            </span>
           )}
           <Button
             key={page}
@@ -104,15 +103,14 @@ export default function UsersPage() {
 
   // コンポーネントがマウントされたとき、または他のページから戻ってきたときに再取得
   useEffect(() => {
-    if (session) {
-      fetchUsers(pagination?.currentPage || 1);
-    }
+    fetchUsers(pagination?.currentPage || 1);
   }, [session]);
 
   // ソート順が変更されたときは1ページ目から表示
   useEffect(() => {
     fetchUsers(1);
   }, [sortBy]);
+
   // APIルートの最適化
   const fetchUsers = async (page: number) => {
     try {
@@ -129,7 +127,7 @@ export default function UsersPage() {
 
       const response = await fetch(`/api/users?${params}`, {
         signal: controller.signal,
-        next: { revalidate: 60 },
+        next: { revalidate: 60 }, // キャッシュを60秒間有効にする
       });
 
       clearTimeout(timeoutId);
@@ -157,7 +155,7 @@ export default function UsersPage() {
         createdAt: user.createdAt,
         isFollowing: user.isFollowing || false,
         isFollower: user.isFollower || false,
-        ratingColor: user.ratingColor,
+        ratingColor: user.ratingColor || "",
       }));
 
       setUsers(formattedUsers);
@@ -166,7 +164,7 @@ export default function UsersPage() {
         total: data.total || 0,
         pages: Math.ceil(data.total / 5),
         currentPage: page,
-        hasMore: data.hasMore,
+        hasMore: data.hasMore || false,
       });
     } catch (error) {
       console.error("Error fetching users:", error);
@@ -208,18 +206,16 @@ export default function UsersPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex items-center justify-center py-12">
         <LoaderCircle className="size-12 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-2xl p-4">
+    <>
       <div className="mb-6 flex items-center justify-between border-b border-gray-800 pb-4">
-        <h1 className="text-2xl font-bold">
-          ユーザー<br></br>一覧
-        </h1>
+        <h1 className="text-2xl font-bold">ユーザー一覧</h1>
         <div className="flex space-x-2">
           <Button
             variant={sortBy === "rate" ? "default" : "outline"}
@@ -250,12 +246,8 @@ export default function UsersPage() {
             <div className="flex items-center justify-between">
               {/* ユーザー情報部分 */}
               <div className="min-w-0 flex-1">
-                {" "}
-                {/* min-w-0を追加してフレックスアイテムが収縮できるようにする */}
                 <div className="flex items-center space-x-3">
                   <Avatar className="size-12 shrink-0">
-                    {" "}
-                    {/* flex-shrink-0を追加してアバターのサイズを固定 */}
                     <AvatarImage
                       src={user.icon ?? undefined}
                       alt={user.username}
@@ -263,8 +255,6 @@ export default function UsersPage() {
                     <AvatarFallback>{user.username[0]}</AvatarFallback>
                   </Avatar>
                   <div className="min-w-0 flex-1">
-                    {" "}
-                    {/* min-w-0を追加して長いテキストを省略できるようにする */}
                     <div className="flex items-center space-x-2">
                       <span
                         className={`text-base font-semibold ${user.ratingColor} truncate`}
@@ -294,8 +284,6 @@ export default function UsersPage() {
 
               {/* ボタン部分 */}
               <div className="ml-4 flex shrink-0 flex-col items-end space-y-2">
-                {" "}
-                {/* flex-shrink-0とml-4を追加 */}
                 {session?.user?.id !== user.id && (
                   <Button
                     variant="outline"
@@ -323,8 +311,6 @@ export default function UsersPage() {
                   }}
                 >
                   フォローグラフ
-                  <br />
-                  (壊れています)
                 </Button>
               </div>
             </div>
@@ -333,13 +319,13 @@ export default function UsersPage() {
       </div>
 
       {/* ページネーション */}
-      {pagination && (
+      {pagination && pagination.pages > 1 && (
         <PowerPagination
           currentPage={pagination.currentPage}
           totalPages={pagination.pages}
           onPageChange={fetchUsers}
         />
       )}
-    </div>
+    </>
   );
 }
