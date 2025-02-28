@@ -9,7 +9,7 @@ import { Post as PostComponent } from "@/app/_components/post";
 import { MakePost } from "@/app/_components/makepost";
 import { Search } from "@/app/_components/search";
 import { useInterval } from "@/app/_hooks/useInterval";
-import { Plus } from "lucide-react";
+import { Link, Plus } from "lucide-react";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { LoaderCircle } from "lucide-react";
@@ -255,7 +255,11 @@ export default function HomePage() {
       <div className="flex h-screen items-center justify-center p-4">
         <div className="rounded-lg border border-gray-800 p-8 text-center">
           <p className="text-gray-500">
-            タイムラインを表示するにはログインが必要です
+            タイムラインを表示するには
+            <Link href="/login" className="text-primary">
+              ログイン
+            </Link>
+            が必要です
           </p>
           <br />
           <p>

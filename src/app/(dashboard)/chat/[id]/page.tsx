@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import type { ChatMessage, ChatHistoryResponse } from "@/app/_types/chat";
-import { LoaderCircle } from "lucide-react";
+import { Link, LoaderCircle } from "lucide-react";
 
 export default function ChatPage({ params }: { params: { id: string } }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -133,7 +133,11 @@ export default function ChatPage({ params }: { params: { id: string } }) {
     return (
       <div className="flex h-screen items-center justify-center">
         <p className="text-gray-500">
-          チャットを表示するにはログインが必要です
+          チャットを表示するには
+          <Link href="/login" className="text-primary">
+            ログイン
+          </Link>
+          が必要です
         </p>
       </div>
     );

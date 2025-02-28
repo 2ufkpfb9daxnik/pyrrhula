@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/card";
 import { CreateGroupChatModal } from "@/app/_components/groupchat";
 import { LoaderCircle } from "lucide-react";
+import Link from "next/link";
 
 interface Chat {
   id: string;
@@ -141,7 +142,11 @@ export default function ChatPage() {
   if (!session) {
     return (
       <div className="flex h-screen items-center justify-center text-gray-500">
-        チャットを使うにはログインしてください
+        チャットを使うには
+        <Link href="/login" className="text-primary">
+          ログイン
+        </Link>
+        してください
       </div>
     );
   }

@@ -14,7 +14,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { LoaderCircle, Users } from "lucide-react";
+import { Link, LoaderCircle, Users } from "lucide-react";
 
 interface GroupMessage {
   id: string;
@@ -185,7 +185,11 @@ export default function GroupChatPage({ params }: { params: { id: string } }) {
     return (
       <div className="flex h-screen items-center justify-center">
         <p className="text-gray-500">
-          グループチャットを表示するにはログインが必要です
+          グループチャットを表示するには
+          <Link href="/login" className="text-primary">
+            ログイン
+          </Link>
+          が必要です
         </p>
       </div>
     );
