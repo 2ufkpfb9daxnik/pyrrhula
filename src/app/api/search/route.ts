@@ -61,7 +61,7 @@ export async function GET(req: Request) {
       };
     }
 
-    // リポスト数の条件
+    // 拡散数の条件
     const repGt = searchParams.get("rep_gt");
     const repLt = searchParams.get("rep_lt");
     if (repGt || repLt) {
@@ -119,7 +119,7 @@ export async function GET(req: Request) {
             ]
           : []),
 
-        // リポスト数による絞り込み
+        // 拡散数による絞り込み
         ...(query.reposts
           ? [
               {

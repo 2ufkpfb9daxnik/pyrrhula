@@ -29,7 +29,7 @@ export async function DELETE(
       prisma.favorite.deleteMany({
         where: { postId: params.id },
       }),
-      // リポストを削除
+      // 拡散を削除
       prisma.repost.deleteMany({
         where: { postId: params.id },
       }),

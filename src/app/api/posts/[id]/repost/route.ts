@@ -24,7 +24,7 @@ export async function GET(
       return NextResponse.json({ error: "Post not found" }, { status: 404 });
     }
 
-    // リポストしたユーザー一覧を取得
+    // 拡散したユーザー一覧を取得
     const reposts = await prisma.repost.findMany({
       where: {
         postId: params.id,
@@ -93,9 +93,9 @@ export async function POST(
       return NextResponse.json({ error: "Post not found" }, { status: 404 });
     }
 
-    // トランザクションでリポストと通知を作成し、カウントを更新
+    // トランザクションで拡散と通知を作成し、カウントを更新
     const [repost, _, updatedPost] = await prisma.$transaction([
-      // リポストを作成
+      // 拡散を作成
       prisma.repost.create({
         data: {
           postId: params.id,
@@ -111,7 +111,7 @@ export async function POST(
           relatedPostId: params.id,
         },
       }),
-      // リポスト数を増やす
+      // 拡散数を増やす
       prisma.post.update({
         where: { id: params.id },
         data: {
@@ -124,7 +124,7 @@ export async function POST(
 
     return NextResponse.json(repost, { status: 201 });
   } catch (error) {
-    // ユニーク制約違反（既にリポスト済み）
+    // ユニーク制約違反（既に拡散済み）
     if (
       error instanceof Error &&
       "code" in error &&

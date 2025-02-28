@@ -35,7 +35,7 @@ export async function DELETE(
         where: { userId: params.id },
       }),
 
-      // ユーザーのリポストを削除
+      // ユーザーの拡散を削除
       prisma.repost.deleteMany({
         where: { userId: params.id },
       }),

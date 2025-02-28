@@ -23,7 +23,7 @@ export async function GET(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // リポストした投稿を取得
+    // 拡散した投稿を取得
     const repostRelations = await prisma.repost.findMany({
       where: {
         userId: params.id,

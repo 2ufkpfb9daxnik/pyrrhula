@@ -62,7 +62,7 @@ function SearchOptions() {
             </div>
 
             <div className="space-y-2">
-              <h3 className="font-medium">リポスト数での絞り込み</h3>
+              <h3 className="font-medium">拡散数での絞り込み</h3>
               <p>rep_gt:数字 rep_lt:数字</p>
               <code className="block rounded bg-muted p-2">
                 rep_gt:5 rep_lt:50

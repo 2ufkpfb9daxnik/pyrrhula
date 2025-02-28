@@ -3,7 +3,7 @@ export interface RepostListResponse {
     id: string;
     username: string;
     icon: string | null;
-    createdAt: Date; // リポスト日時
+    createdAt: Date; // 拡散日時
   }[];
   hasMore: boolean;
   nextCursor?: string;
