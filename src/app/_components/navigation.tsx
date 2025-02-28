@@ -9,13 +9,11 @@ import {
   Bell,
   MessageCircle,
   User,
-  Share2,
-  Globe,
   LogOut,
   LogIn,
 } from "lucide-react";
 import { useNotifications } from "@/app/_hooks/useNotifications";
-import type { Notification } from "@/app/_types/notification"; // この行を追加
+import type { Notification } from "@/app/_types/notification";
 
 export function Navigation() {
   const router = useRouter();
@@ -29,6 +27,11 @@ export function Navigation() {
       router.push("/login");
     }
   };
+
+  const handleHomeClick = () => {
+    router.push("/home");
+  };
+
   const handleNotificationClick = () => {
     markAsRead();
     router.push("/notification");
@@ -53,12 +56,12 @@ export function Navigation() {
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-50 flex h-16 items-center justify-around border-t border-gray-800 bg-background md:left-0 md:top-0 md:h-screen md:w-16 md:flex-col md:items-center md:justify-start md:space-y-4 md:border-r md:border-t-0 md:p-4">
-      {/* ホームボタン */}
+      {/* ホームボタン - フォロー中/全体タイムラインへのアクセスポイント */}
       <Button
         variant="ghost"
         size="icon"
-        onClick={() => router.push("/home")}
-        title="ホーム"
+        onClick={handleHomeClick}
+        title="タイムライン"
         className="md:w-full"
       >
         <Home className="size-6" />
@@ -115,17 +118,6 @@ export function Navigation() {
         className="md:w-full"
       >
         <User className="size-6" />
-      </Button>
-
-      {/* 全体タイムラインボタン */}
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => router.push("/whole")}
-        title="全体タイムライン"
-        className="md:w-full"
-      >
-        <Globe className="size-6" />
       </Button>
 
       {/* ログイン/ログアウトボタン */}

@@ -5,15 +5,13 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import type { Post } from "@/app/_types/post";
-import { Post as PostComponent } from "@/app/_components/post"; // PostコンポーネントをPostComponentとしてインポート
+import { Post as PostComponent } from "@/app/_components/post";
 import { MakePost } from "@/app/_components/makepost";
 import { Search } from "@/app/_components/search";
 import { useInterval } from "@/app/_hooks/useInterval";
-// 右下の投稿ボタン用コンポーネントを追加
 import { Plus } from "lucide-react";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import { LoaderCircle } from "lucide-react";
 
 interface UserInfo {
@@ -40,13 +38,14 @@ export default function HomePage() {
     if (session) {
       fetchLatestPosts();
     }
-  }, 6000); // 60秒 = 60000ミリ秒
+  }, 6000); // この値は例として6秒、実際には60000（60秒）が適切
 
   // 新しい投稿のみを取得する関数
   const fetchLatestPosts = async () => {
     try {
       const response = await fetch(
-        `/api/posts?since=${lastUpdateTime.toISOString()}`
+        `/api/posts?since=${lastUpdateTime.toISOString()}`,
+        { next: { revalidate: 60 } }
       );
       if (!response.ok) {
         throw new Error("Failed to fetch new posts");
@@ -63,9 +62,7 @@ export default function HomePage() {
             }))
             .filter(
               (newPost: Post) =>
-                // 一時的な投稿を除外
                 !newPost.id.startsWith("temp-") &&
-                // 既存の投稿との重複を除外
                 !prevPosts.some(
                   (existingPost) => existingPost.id === newPost.id
                 )
@@ -80,7 +77,7 @@ export default function HomePage() {
     }
   };
 
-  // 初回読み込み時の動作を修正
+  // 初回読み込み時の動作
   useEffect(() => {
     if (!session) return;
 
@@ -90,7 +87,7 @@ export default function HomePage() {
     });
   }, [session]);
 
-  // キーボードショートカットのイベントリスナーを追加
+  // キーボードショートカット
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (
@@ -101,15 +98,12 @@ export default function HomePage() {
         document.activeElement?.tagName !== "INPUT"
       ) {
         e.preventDefault();
-        // モバイル表示の場合はダイアログを開く
         if (window.innerWidth < 768) {
           setIsDialogOpen(true);
-          // ダイアログが開いた後にフォーカスを設定するため、少し遅延させる
           setTimeout(() => {
             postInputRef.current?.focus();
           }, 100);
         } else {
-          // デスクトップ表示の場合は直接フォーカス
           postInputRef.current?.focus();
         }
       }
@@ -129,7 +123,9 @@ export default function HomePage() {
     if (!session?.user?.id) return;
 
     try {
-      const response = await fetch(`/api/users/${session.user.id}`);
+      const response = await fetch(`/api/users/${session.user.id}`, {
+        next: { revalidate: 300 }, // 5分間キャッシュ
+      });
       if (!response.ok) {
         throw new Error("Failed to fetch user info");
       }
@@ -149,7 +145,9 @@ export default function HomePage() {
         params.append("cursor", cursor);
       }
 
-      const response = await fetch(`/api/posts?${params}`);
+      const response = await fetch(`/api/posts?${params}`, {
+        next: { revalidate: 60 }, // 60秒間キャッシュ
+      });
       if (!response.ok) {
         throw new Error("Failed to fetch timeline");
       }
@@ -170,7 +168,6 @@ export default function HomePage() {
           data.posts.map((post: any) => ({
             ...post,
             createdAt: new Date(post.createdAt),
-            // Date型をstring型として保持
             repostedAt: post.repostedAt || undefined,
             favoritedAt: post.favoritedAt || undefined,
           }))
@@ -189,7 +186,8 @@ export default function HomePage() {
   const handleSearch = async (query: string) => {
     try {
       const response = await fetch(
-        `/api/posts/search?q=${encodeURIComponent(query)}&timeline=true`
+        `/api/posts/search?q=${encodeURIComponent(query)}&timeline=true`,
+        { next: { revalidate: 60 } }
       );
       if (!response.ok) {
         throw new Error("検索に失敗しました");
@@ -254,28 +252,30 @@ export default function HomePage() {
 
   if (!session) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <p className="text-gray-500">
-          タイムラインを表示するにはログインが必要です
-        </p>
-        <br></br>
-        <p>
-          もしログインしているのにタイムラインが表示されないなら、しばらく待ってから再読み込みしてみてください。
-        </p>
+      <div className="flex h-screen items-center justify-center p-4">
+        <div className="rounded-lg border border-gray-800 p-8 text-center">
+          <p className="text-gray-500">
+            タイムラインを表示するにはログインが必要です
+          </p>
+          <br />
+          <p>
+            もしログインしているのにタイムラインが表示されないなら、しばらく待ってから再読み込みしてみてください。
+          </p>
+        </div>
       </div>
     );
   }
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex items-center justify-center py-12">
         <LoaderCircle className="size-20 animate-spin text-gray-500" />
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen">
+    <>
       {/* 左サイドバー - モバイルでは非表示 */}
       <div className="fixed hidden h-full w-80 flex-col gap-4 border-r border-gray-800 p-4 md:left-16 md:top-0 md:flex">
         <button
@@ -284,7 +284,7 @@ export default function HomePage() {
         >
           <div className="flex items-start space-x-3 border-gray-800 ">
             <Avatar className="size-12">
-              <AvatarImage src={session?.user?.image ?? undefined} />
+              <AvatarImage src={userInfo?.icon ?? undefined} />
               <AvatarFallback>{session?.user?.name?.[0]}</AvatarFallback>
             </Avatar>
             <div className="flex flex-col">
@@ -314,8 +314,7 @@ export default function HomePage() {
       </div>
 
       {/* メインコンテンツ */}
-      <main className="flex-1 pb-16 md:pb-0">
-        {/* pb-16を追加してナビゲーションバーのスペースを確保 */}
+      <div className="flex-1 pb-16 md:pb-0">
         <div className="mx-auto max-w-2xl p-4 md:ml-96">
           {/* モバイル用ヘッダー */}
           <div className="mb-4 flex items-center justify-between border-b border-gray-800 pb-4 md:hidden">
@@ -324,7 +323,7 @@ export default function HomePage() {
               className="flex items-center space-x-2"
             >
               <Avatar className="size-8">
-                <AvatarImage src={session?.user?.image ?? undefined} />
+                <AvatarImage src={userInfo?.icon ?? undefined} />
                 <AvatarFallback>{session?.user?.name?.[0]}</AvatarFallback>
               </Avatar>
               <span className="font-semibold">{session?.user?.name}</span>
@@ -340,7 +339,7 @@ export default function HomePage() {
                   <br />
                   フォローしているユーザーの投稿がここに表示されます。
                   <br />
-                  ユーザーを探すには、地球儀マークのアイコンから全体タイムラインを見るとか、人々のアイコンからユーザー一覧を覗いてみてください。
+                  ユーザーを探すには、「すべての投稿」タブを見るか、ユーザーページからユーザー一覧を確認してみてください。
                 </p>
               </div>
             ) : (
@@ -379,7 +378,7 @@ export default function HomePage() {
             )}
           </div>
         </div>
-      </main>
+      </div>
 
       {/* モバイル用投稿ボタン */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -412,6 +411,6 @@ export default function HomePage() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
