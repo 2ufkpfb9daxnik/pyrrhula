@@ -55,9 +55,14 @@ export default function UserProfilePage({
   const { data: session } = useSession();
   const router = useRouter();
   const [isContentLoading, setIsContentLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   useEffect(() => {
     fetchUserDetails();
+    // タブが変わったときはカーソルをリセット
+    setNextCursor(null);
     fetchUserContent(activeTab);
   }, [params.id, activeTab]);
 
@@ -76,34 +81,42 @@ export default function UserProfilePage({
   };
 
   const fetchUserContent = async (
-    type: "posts" | "reposts" | "favorites" | "replies"
+    type: "posts" | "reposts" | "favorites" | "replies",
+    cursor: string | null = null
   ) => {
     try {
-      setPosts([]); // コンテンツ取得前に投稿をクリア
-      setIsContentLoading(true);
+      // 初回読み込みの場合は投稿をクリア、追加読み込みの場合はクリアしない
+      if (!cursor) {
+        setPosts([]);
+      }
+
+      cursor ? setIsLoadingMore(true) : setIsContentLoading(true);
+
       let formattedPosts;
 
       // タイプに応じたエンドポイントを選択
       let endpoint = `/api/users/${params.id}`;
       switch (type) {
         case "posts":
-          endpoint = `/api/users/${params.id}?type=posts`;
+          endpoint = `/api/users/${params.id}?type=posts${cursor ? `&cursor=${cursor}` : ""}`;
           break;
         case "reposts":
-          endpoint = `/api/users/${params.id}/repost`;
+          endpoint = `/api/users/${params.id}/repost${cursor ? `?cursor=${cursor}` : ""}`;
           break;
         case "favorites":
-          endpoint = `/api/users/${params.id}/favorite`;
+          endpoint = `/api/users/${params.id}/favorite${cursor ? `?cursor=${cursor}` : ""}`;
           break;
         case "replies":
-          endpoint = `/api/users/${params.id}/reply`;
+          endpoint = `/api/users/${params.id}/reply${cursor ? `?cursor=${cursor}` : ""}`;
           break;
       }
 
       const response = await fetch(endpoint);
 
       if (response.status === 404) {
-        setPosts([]);
+        if (!cursor) setPosts([]);
+        setHasMore(false);
+        setNextCursor(null);
         return;
       }
 
@@ -113,7 +126,11 @@ export default function UserProfilePage({
 
       const data = await response.json();
 
-      // レスポンスの形式に応じてデータを整形
+      // hasMoreとnextCursorの状態を更新
+      setHasMore(data.hasMore || false);
+      setNextCursor(data.nextCursor || null);
+
+      // レスポンスの形式に応じてデータを整形（既存のコード）
       switch (type) {
         case "reposts":
           if (!data.reposts) {
@@ -132,7 +149,7 @@ export default function UserProfilePage({
                   content: post.parent.content,
                   user: post.parent.user,
                 }
-              : undefined, // null の代わりに undefined を使用
+              : undefined,
             _count: {
               replies: post._count?.replies || 0,
             },
@@ -142,7 +159,6 @@ export default function UserProfilePage({
 
         case "favorites":
           if (!data.posts) {
-            // ここを修正: data.favorites から data.posts に変更
             formattedPosts = [];
             break;
           }
@@ -174,7 +190,12 @@ export default function UserProfilePage({
           break;
       }
 
-      setPosts(formattedPosts);
+      // カーソルがある場合は既存の投稿と新しい投稿を結合
+      if (cursor) {
+        setPosts((prev) => [...prev, ...formattedPosts]);
+      } else {
+        setPosts(formattedPosts);
+      }
     } catch (error) {
       console.error(`Error fetching user ${type}:`, error);
       toast.error(
@@ -188,9 +209,18 @@ export default function UserProfilePage({
                 : "返信"
         }の取得に失敗しました`
       );
-      setPosts([]);
+      if (!cursor) setPosts([]);
+      setHasMore(false);
+      setNextCursor(null);
     } finally {
-      setIsContentLoading(false); // ローディング終了
+      cursor ? setIsLoadingMore(false) : setIsContentLoading(false);
+    }
+  };
+
+  // さらに読み込むボタンのハンドラ
+  const handleLoadMore = () => {
+    if (nextCursor && !isLoadingMore) {
+      fetchUserContent(activeTab, nextCursor);
     }
   };
 
@@ -424,14 +454,35 @@ export default function UserProfilePage({
                 {activeTab === "replies" && "返信した投稿がありません"}
               </div>
             ) : (
-              posts.map((post) => (
-                <PostComponent
-                  key={post.id}
-                  post={post}
-                  onRepostSuccess={() => fetchUserContent(activeTab)}
-                  onFavoriteSuccess={() => fetchUserContent(activeTab)}
-                />
-              ))
+              <>
+                {posts.map((post) => (
+                  <PostComponent
+                    key={post.id}
+                    post={post}
+                    onRepostSuccess={() => fetchUserContent(activeTab)}
+                    onFavoriteSuccess={() => fetchUserContent(activeTab)}
+                  />
+                ))}
+
+                {/* さらに読み込むボタン */}
+                {hasMore && (
+                  <div className="mt-6 flex justify-center">
+                    <Button
+                      variant="outline"
+                      onClick={handleLoadMore}
+                      disabled={isLoadingMore}
+                      className="w-full"
+                    >
+                      {isLoadingMore ? (
+                        <LoaderCircle className="mr-2 size-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="mr-2 size-4" />
+                      )}
+                      さらに読み込む
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
