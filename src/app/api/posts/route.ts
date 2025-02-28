@@ -3,11 +3,13 @@ import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import type { TimelineResponse, CreatePostRequest } from "@/app/_types/post";
+import { calculateRating } from "@/lib/rating";
 
 const limit = 50;
 
 // 投稿一覧を取得
 export async function GET(req: Request) {
+  // GET部分は既存のコードをそのまま使用（変更なし）
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) {
@@ -353,7 +355,7 @@ export async function GET(req: Request) {
   }
 }
 
-// 新規投稿を作成
+// 新規投稿を作成 - この部分を改修
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -391,30 +393,110 @@ export async function POST(req: Request) {
         },
       });
 
-      // 2. 投稿数とレートを更新
-      const [postCount, recentPosts] = await Promise.all([
+      // 2. 統計情報の取得と更新
+      const [
+        postCount, // 総投稿数
+        recentPosts, // 過去30日の投稿数
+        recentReposts, // 過去30日の拡散数
+        totalReposts, // 総拡散数
+        recentFavoritesReceived, // 過去30日に受け取ったお気に入り
+        favoritesReceived, // 受け取ったお気に入りの合計
+        followersCount, // フォロワー数
+      ] = await Promise.all([
+        // 総投稿数
         prisma.post.count({
           where: { userId: session.user.id },
         }),
+
+        // 過去30日の投稿数
         prisma.post.count({
           where: {
             userId: session.user.id,
             createdAt: {
-              gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+              gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 過去30日
             },
+          },
+        }),
+
+        // 過去30日の拡散数
+        prisma.repost.count({
+          where: {
+            userId: session.user.id,
+            createdAt: {
+              gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 過去30日
+            },
+          },
+        }),
+
+        // 総拡散数
+        prisma.repost.count({
+          where: {
+            userId: session.user.id,
+          },
+        }),
+
+        // 過去30日に受け取ったお気に入り
+        prisma.favorite.count({
+          where: {
+            post: {
+              userId: session.user.id,
+            },
+            createdAt: {
+              gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 過去30日
+            },
+          },
+        }),
+
+        // 受け取ったお気に入りの合計
+        prisma.favorite.count({
+          where: {
+            post: {
+              userId: session.user.id,
+            },
+          },
+        }),
+
+        // フォロワー数
+        prisma.follow.count({
+          where: {
+            followedId: session.user.id,
           },
         }),
       ]);
 
-      // レートを計算（例: 過去30日の投稿数 * 10 + 総投稿数）
-      const rate = recentPosts * 10 + postCount;
+      // 3. レート計算
+      // 既存のレーティングカラーを取得
+      const ratingColor = calculateRating(recentPosts, postCount);
 
-      // ユーザー情報を更新
+      // 基本スコア計算（既存ロジックとの互換性を保持）
+      const baseScore =
+        Math.min(recentPosts / 50, 1) * 70 + Math.min(postCount / 1000, 1) * 30;
+
+      // 拡散およびお気に入りによるボーナス
+      const repostsBonus =
+        Math.sqrt(totalReposts) * 2 + Math.sqrt(recentReposts) * 3;
+      const favoritesBonus =
+        Math.sqrt(favoritesReceived) * 2 +
+        Math.sqrt(recentFavoritesReceived) * 3;
+      const followersBonus = Math.sqrt(followersCount) * 5;
+
+      // 最終レート計算
+      const calculatedRate = Math.floor(
+        baseScore + repostsBonus + favoritesBonus + followersBonus
+      );
+
+      // ログを出力（トラブルシューティング用）
+      console.log(
+        `[Rating] ユーザー: ${session.user.id}, 基本スコア: ${baseScore}, 拡散ボーナス: ${repostsBonus}, お気に入りボーナス: ${favoritesBonus}, フォロワーボーナス: ${followersBonus}`
+      );
+      console.log(`[Rating] 総合レート: ${calculatedRate}`);
+
+      // 4. ユーザー情報を更新
       await prisma.user.update({
         where: { id: session.user.id },
         data: {
           postCount,
-          rate,
+          rate: calculatedRate, // 拡張スコアを保存
         },
       });
 

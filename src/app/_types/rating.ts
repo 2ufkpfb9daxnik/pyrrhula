@@ -17,4 +17,34 @@ export interface UserRating {
   recentPostCount: number;
   totalPostCount: number;
   score: number;
+  // 拡張情報（オプショナル）
+  stats?: {
+    posts: {
+      total: number;
+      recent: number;
+    };
+    reposts: {
+      given: {
+        total: number;
+        recent: number;
+      };
+      received: {
+        total: number;
+        recent: number;
+      };
+    };
+    favorites: {
+      given: {
+        total: number;
+        recent: number;
+      };
+      received: {
+        total: number;
+        recent: number;
+      };
+    };
+    followers: number;
+    following: number;
+    accountAgeDays: number;
+  };
 }

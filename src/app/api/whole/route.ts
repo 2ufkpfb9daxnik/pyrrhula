@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import type { TimelineResponse, CreatePostRequest } from "@/app/_types/post";
+import { calculateRating } from "@/lib/rating";
 
 const limit = 50;
 
@@ -379,30 +380,104 @@ export async function POST(req: Request) {
         },
       });
 
-      // 2. 投稿数とレートを更新
-      const [postCount, recentPosts] = await Promise.all([
+      // 2. 統計情報の取得と更新
+      const [
+        postCount, // 総投稿数
+        recentPosts, // 過去30日の投稿数
+        recentReposts, // 過去30日の拡散数
+        totalReposts, // 総拡散数
+        recentFavoritesReceived, // 過去30日に受け取ったお気に入り
+        favoritesReceived, // 受け取ったお気に入りの合計
+        followersCount, // フォロワー数
+      ] = await Promise.all([
+        // 総投稿数
         prisma.post.count({
           where: { userId: session.user.id },
         }),
+
+        // 過去30日の投稿数
         prisma.post.count({
           where: {
             userId: session.user.id,
             createdAt: {
-              gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+              gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 過去30日
             },
+          },
+        }),
+
+        // 過去30日の拡散数
+        prisma.repost.count({
+          where: {
+            userId: session.user.id,
+            createdAt: {
+              gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 過去30日
+            },
+          },
+        }),
+
+        // 総拡散数
+        prisma.repost.count({
+          where: {
+            userId: session.user.id,
+          },
+        }),
+
+        // 過去30日に受け取ったお気に入り
+        prisma.favorite.count({
+          where: {
+            post: {
+              userId: session.user.id,
+            },
+            createdAt: {
+              gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 過去30日
+            },
+          },
+        }),
+
+        // 受け取ったお気に入りの合計
+        prisma.favorite.count({
+          where: {
+            post: {
+              userId: session.user.id,
+            },
+          },
+        }),
+
+        // フォロワー数
+        prisma.follow.count({
+          where: {
+            followedId: session.user.id,
           },
         }),
       ]);
 
-      // レートを計算（例: 過去30日の投稿数 * 10 + 総投稿数）
-      const rate = recentPosts * 10 + postCount;
+      // 3. レーティングの計算
+      // 既存のレーティングカラー
+      const ratingColor = calculateRating(recentPosts, postCount);
 
-      // ユーザー情報を更新
+      // 拡張レーティングスコアの計算
+      const baseScore =
+        Math.min(recentPosts / 50, 1) * 70 + Math.min(postCount / 1000, 1) * 30;
+
+      // 拡散やお気に入りによるボーナス
+      const repostsBonus =
+        Math.sqrt(totalReposts) * 2 + Math.sqrt(recentReposts) * 3;
+      const favoritesBonus =
+        Math.sqrt(favoritesReceived) * 2 +
+        Math.sqrt(recentFavoritesReceived) * 3;
+      const followersBonus = Math.sqrt(followersCount) * 5;
+
+      // 計算されたレート値
+      const calculatedRate = Math.floor(
+        baseScore + repostsBonus + favoritesBonus + followersBonus
+      );
+
+      // 4. ユーザー情報を更新
       await prisma.user.update({
         where: { id: session.user.id },
         data: {
           postCount,
-          rate,
+          rate: calculatedRate,
         },
       });
 
