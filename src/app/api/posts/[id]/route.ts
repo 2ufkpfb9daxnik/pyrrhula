@@ -74,6 +74,7 @@ export async function GET(
                 },
                 select: {
                   userId: true,
+                  createdAt: true,
                 },
               },
             }
@@ -84,6 +85,28 @@ export async function GET(
     if (!post) {
       return NextResponse.json({ error: "Post not found" }, { status: 404 });
     }
+
+    // 拡散情報を取得（最新の拡散ユーザーを取得）
+    const repostInfo = session?.user
+      ? await prisma.repost.findFirst({
+          where: {
+            postId: params.id,
+          },
+          orderBy: {
+            createdAt: "desc",
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                icon: true,
+              },
+            },
+          },
+          take: 1,
+        })
+      : null;
 
     // レスポンスデータの整形
     const response: PostDetailResponse = {
@@ -104,6 +127,19 @@ export async function GET(
       })),
       isFavorited: session?.user ? post.favoritedBy?.length > 0 : false,
       isReposted: session?.user ? post.repostedBy?.length > 0 : false,
+      // 拡散情報を追加
+      repostedAt:
+        post.repostedBy && post.repostedBy.length > 0
+          ? post.repostedBy[0].createdAt
+          : undefined,
+      // 拡散者の情報を追加
+      repostedBy: repostInfo
+        ? {
+            id: repostInfo.user.id,
+            username: repostInfo.user.username,
+            icon: repostInfo.user.icon,
+          }
+        : undefined,
     };
 
     return NextResponse.json(response);

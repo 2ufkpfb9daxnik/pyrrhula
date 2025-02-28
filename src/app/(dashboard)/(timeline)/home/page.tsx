@@ -137,19 +137,35 @@ export default function HomePage() {
 
   // APIレスポンスの投稿データをフォーマットするヘルパー関数
   const formatPost = (post: any): Post => {
+    // repostedByUserIdが存在する場合、repostedByオブジェクトを構築
+    let repostedBy = undefined;
+
+    if (post.repostedBy) {
+      // すでにrepostedByオブジェクトが存在する場合はそのまま使用
+      repostedBy = post.repostedBy;
+    } else if (post.repostedByUserId && post.repostedByUser) {
+      // repostedByUserIdとrepostedByUserが存在する場合は構築
+      repostedBy = {
+        id: post.repostedByUser.id || post.repostedByUserId,
+        username: post.repostedByUser.username || "",
+        icon: post.repostedByUser.icon || null,
+      };
+    } else if (post.repostedByUserId) {
+      // repostedByUserIdのみ存在する場合は最低限の情報を設定
+      repostedBy = {
+        id: post.repostedByUserId,
+        username: "ユーザー", // プレースホルダー
+        icon: null,
+      };
+    }
+
     return {
       ...post,
       createdAt: new Date(post.createdAt),
       repostedAt: post.repostedAt ? new Date(post.repostedAt) : undefined,
       favoritedAt: post.favoritedAt ? new Date(post.favoritedAt) : undefined,
       // 拡散された投稿であれば、repostedByを設定
-      repostedBy: post.repostedBy
-        ? {
-            id: post.repostedBy.id,
-            username: post.repostedBy.username,
-            icon: post.repostedBy.icon || null,
-          }
-        : undefined,
+      repostedBy: repostedBy,
       // 元の投稿がある場合はoriginalPostを設定
       originalPost: post.originalPost
         ? {
@@ -172,6 +188,8 @@ export default function HomePage() {
       }
       // 拡散も含めるパラメータを追加
       params.append("includeReposts", "true");
+      // 拡散ユーザー情報も取得
+      params.append("includeRepostedByUser", "true");
 
       const response = await fetch(`/api/posts?${params}`, {
         next: { revalidate: 60 }, // 60秒間キャッシュ
@@ -182,6 +200,9 @@ export default function HomePage() {
       }
 
       const data = await response.json();
+
+      // デバッグ: APIレスポンスを確認
+      console.log("API Response:", data.posts.slice(0, 2));
 
       if (cursor) {
         // 追加読み込みの場合は既存の投稿に追加
@@ -194,6 +215,12 @@ export default function HomePage() {
         setPosts(data.posts.map((post: any) => formatPost(post)));
       }
 
+      // デバッグ: フォーマット後の投稿を確認
+      console.log(
+        "Formatted posts:",
+        data.posts.map((post: any) => formatPost(post)).slice(0, 2)
+      );
+
       setHasMore(data.hasMore);
       setNextCursor(data.nextCursor);
     } catch (error) {
@@ -202,7 +229,6 @@ export default function HomePage() {
       setIsLoading(false);
     }
   };
-
   const handleSearch = async (query: string) => {
     try {
       const response = await fetch(
@@ -362,18 +388,39 @@ export default function HomePage() {
                 </p>
               </div>
             ) : (
-              posts.map((post) => (
-                <PostComponent
-                  key={post.id + (post.repostedAt?.toString() || "")}
-                  post={post}
-                  onRepostSuccess={(newCount, isReposted) =>
-                    handleRepostSuccess(post.id, newCount, isReposted)
-                  }
-                  onFavoriteSuccess={(newCount, isFavorited) =>
-                    handleFavoriteSuccess(post.id, newCount, isFavorited)
-                  }
-                />
-              ))
+              <>
+                {/* デバッグ情報 (開発中のみ表示) */}
+                {process.env.NODE_ENV === "development" && (
+                  <div className="mb-4 rounded border border-yellow-500 bg-yellow-500/10 p-2 text-xs">
+                    <p>デバッグ情報: {posts.length}件の投稿</p>
+                    <p>
+                      拡散投稿: {posts.filter((p) => p.repostedBy).length}件
+                    </p>
+                    <details>
+                      <summary>詳細データ (一部)</summary>
+                      <pre>{JSON.stringify(posts.slice(0, 2), null, 2)}</pre>
+                    </details>
+                  </div>
+                )}
+
+                {posts.map((post) => (
+                  <PostComponent
+                    key={
+                      post.id +
+                      (post.repostedBy
+                        ? `-repost-${post.repostedBy.id}`
+                        : post.repostedAt?.toString() || "")
+                    }
+                    post={post}
+                    onRepostSuccess={(newCount, isReposted) =>
+                      handleRepostSuccess(post.id, newCount, isReposted)
+                    }
+                    onFavoriteSuccess={(newCount, isFavorited) =>
+                      handleFavoriteSuccess(post.id, newCount, isFavorited)
+                    }
+                  />
+                ))}
+              </>
             )}
 
             {/* もっと読み込むボタン */}

@@ -17,6 +17,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const cursor = searchParams.get("cursor");
     const since = searchParams.get("since");
+    const includeReposts = searchParams.get("includeReposts") === "true";
 
     const followings = await prisma.follow.findMany({
       where: {
@@ -28,17 +29,94 @@ export async function GET(req: Request) {
     });
 
     const followingIds = followings.map((f) => f.followedId);
+    followingIds.push(session.user.id); // 自分のIDも含める
 
-    const posts = await prisma.post.findMany({
+    // 型を明示的に定義して互換性を確保
+    type FormattedPost = {
+      id: string;
+      content: string;
+      createdAt: Date;
+      favorites: number;
+      reposts: number;
+      images: string[];
+      user: {
+        id: string;
+        username: string;
+        icon: string | null;
+      };
+      parent: {
+        id: string;
+        content: string;
+        user?: {
+          id: string;
+          username: string;
+        };
+      } | null;
+      _count: {
+        replies: number;
+        favoritedBy?: number;
+        repostedBy?: number;
+      };
+      favoritedBy: { userId: string }[];
+      // データベースから取得した拡散情報
+      userRepostedData: { userId: string; createdAt?: Date }[];
+      isReposted: boolean;
+      isFavorited: boolean;
+      repostedAt?: Date;
+      // 拡散者情報 (オブジェクト形式)
+      repostedByInfo?: {
+        id: string;
+        username: string;
+        icon: string | null;
+      };
+    };
+
+    // API応答用の型
+    type ApiResponsePost = {
+      id: string;
+      content: string;
+      createdAt: Date;
+      favorites: number;
+      reposts: number;
+      images: string[];
+      user: {
+        id: string;
+        username: string;
+        icon: string | null;
+      };
+      parent: {
+        id: string;
+        content: string;
+        user?: {
+          id: string;
+          username: string;
+        };
+      } | null;
+      _count: {
+        replies: number;
+      };
+      isFavorited: boolean;
+      isReposted: boolean;
+      repostedAt?: Date;
+      // API応答では repostedBy を使用
+      repostedBy?: {
+        id: string;
+        username: string;
+        icon: string | null;
+      };
+    };
+
+    // 1. 通常の投稿を取得
+    const regularPosts = await prisma.post.findMany({
       where: {
-        OR: [{ userId: session.user.id }, { userId: { in: followingIds } }],
+        userId: { in: followingIds },
         ...(since && {
           createdAt: {
             gt: new Date(since),
           },
         }),
       },
-      take: limit + 1,
+      take: includeReposts ? Math.floor(limit / 2) + 1 : limit + 1,
       skip: cursor ? 1 : 0,
       cursor: cursor ? { id: cursor } : undefined,
       orderBy: {
@@ -62,7 +140,12 @@ export async function GET(req: Request) {
           select: {
             id: true,
             content: true,
-            userId: true,
+            user: {
+              select: {
+                id: true,
+                username: true,
+              },
+            },
           },
         },
         _count: {
@@ -78,40 +161,182 @@ export async function GET(req: Request) {
         },
         repostedBy: {
           where: { userId: session.user.id },
-          select: { userId: true },
+          select: { userId: true, createdAt: true },
         },
       },
     });
 
+    let allPosts: FormattedPost[] = regularPosts.map((post) => ({
+      ...post,
+      isReposted: post.repostedBy.length > 0,
+      isFavorited: post.favoritedBy.length > 0,
+      repostedAt:
+        post.repostedBy.length > 0 ? post.repostedBy[0].createdAt : undefined,
+      parent: post.parent || null,
+      // プロパティ名を完全に分けて重複を避ける
+      userRepostedData: post.repostedBy,
+    }));
+
+    // 2. 拡散された投稿を取得
+    if (includeReposts) {
+      const repostCursor = searchParams.get("repostCursor");
+
+      const reposts = await prisma.repost.findMany({
+        where: {
+          userId: { in: followingIds },
+          ...(since && {
+            createdAt: {
+              gt: new Date(since),
+            },
+          }),
+        },
+        take: Math.floor(limit / 2) + 1,
+        skip: repostCursor ? 1 : 0,
+        cursor: repostCursor ? { id: repostCursor } : undefined,
+        orderBy: {
+          createdAt: "desc",
+        },
+        select: {
+          id: true,
+          createdAt: true,
+          user: {
+            select: {
+              id: true,
+              username: true,
+              icon: true,
+            },
+          },
+          post: {
+            select: {
+              id: true,
+              content: true,
+              createdAt: true,
+              favorites: true,
+              reposts: true,
+              images: true,
+              user: {
+                select: {
+                  id: true,
+                  username: true,
+                  icon: true,
+                },
+              },
+              parent: {
+                select: {
+                  id: true,
+                  content: true,
+                  user: {
+                    select: {
+                      id: true,
+                      username: true,
+                    },
+                  },
+                },
+              },
+              _count: {
+                select: {
+                  replies: true,
+                  favoritedBy: true,
+                  repostedBy: true,
+                },
+              },
+              favoritedBy: {
+                where: { userId: session.user.id },
+                select: { userId: true },
+              },
+              repostedBy: {
+                where: { userId: session.user.id },
+                select: { userId: true, createdAt: true },
+              },
+            },
+          },
+        },
+      });
+
+      // 拡散情報をフォーマット
+      const repostedPosts: FormattedPost[] = reposts.map((repost) => {
+        // 拡散者情報を設定
+        const repostingUserInfo = {
+          id: repost.user.id,
+          username: repost.user.username,
+          icon: repost.user.icon,
+        };
+
+        return {
+          ...repost.post,
+          id: repost.post.id,
+          content: repost.post.content,
+          createdAt: repost.post.createdAt,
+          favorites: repost.post.favorites,
+          reposts: repost.post.reposts,
+          images: repost.post.images || [],
+          user: repost.post.user,
+          parent: repost.post.parent || null,
+          _count: repost.post._count,
+          favoritedBy: repost.post.favoritedBy,
+          // DB データは userRepostedData として保存
+          userRepostedData: repost.post.repostedBy,
+          repostedAt: repost.createdAt,
+          isReposted: repost.post.repostedBy.length > 0,
+          isFavorited: repost.post.favoritedBy.length > 0,
+          // 拡散者情報を repostedByInfo として保存
+          repostedByInfo: repostingUserInfo,
+        };
+      });
+
+      // 通常の投稿と拡散を結合
+      allPosts = [...allPosts, ...repostedPosts];
+
+      // 重複を除去（同じ投稿が通常の投稿と拡散で2回表示されないようにする）部分を修正
+      const seenIds = new Set<string>();
+      allPosts = allPosts.filter((post) => {
+        // 自分の拡散も含めて全て表示する（フィルタリングをしない）
+        // 拡散されている投稿を特定するためのユニークキーを作成
+        const postKey = post.repostedByInfo
+          ? `${post.id}-repost-${post.repostedByInfo.id}`
+          : post.id;
+
+        // 完全に同じ投稿（同じIDかつ同じ拡散者）の場合のみ除外
+        if (seenIds.has(postKey)) {
+          console.log(`重複を検出: ${postKey}`);
+          return false;
+        }
+
+        seenIds.add(postKey);
+        return true;
+      });
+
+      // 日付でソート
+      allPosts.sort((a, b) => {
+        const dateA = a.repostedAt || a.createdAt;
+        const dateB = b.repostedAt || b.createdAt;
+        return new Date(dateB).getTime() - new Date(dateA).getTime();
+      });
+    }
+
     // 次ページの有無を確認
-    const hasMore = posts.length > limit;
-    const nextCursor = hasMore ? posts[limit - 1].id : undefined;
-    const postList = hasMore ? posts.slice(0, -1) : posts;
+    const hasMore = allPosts.length > limit;
+    const nextCursor = hasMore ? allPosts[limit - 1].id : undefined;
+    const postList = hasMore ? allPosts.slice(0, limit) : allPosts;
 
     // レスポンスデータの整形
-    const formattedPosts = postList.map((post) => ({
+    const formattedPosts: ApiResponsePost[] = postList.map((post) => ({
       id: post.id,
       content: post.content,
       createdAt: post.createdAt,
       favorites: post.favorites,
       reposts: post.reposts,
-      images: post.images,
+      images: post.images || [],
       user: post.user,
-      parent: post.parent
-        ? {
-            id: post.parent.id,
-            content: post.parent.content,
-            user: {
-              id: post.parent.userId,
-              username: "", // 親投稿のユーザー名は別途取得が必要
-            },
-          }
-        : null,
-      _count: post._count,
-      ...(session?.user && {
-        isFavorited: post.favoritedBy.length > 0,
-        isReposted: post.repostedBy.length > 0,
-      }),
+      parent: post.parent || null,
+      _count: {
+        replies: post._count.replies,
+      },
+      isFavorited: post.isFavorited,
+      isReposted: post.isReposted,
+      repostedAt: post.repostedAt,
+      // API応答では統一されたプロパティ名 repostedBy を使用
+      repostedBy: post.repostedByInfo,
     }));
 
     return NextResponse.json({

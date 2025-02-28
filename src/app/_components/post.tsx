@@ -22,7 +22,6 @@ import Link from "next/link";
 
 interface PostProps {
   post: PostType & {
-    // 追加プロパティがある可能性に対応
     repostedBy?: {
       id: string;
       username: string;

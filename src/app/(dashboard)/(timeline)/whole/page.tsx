@@ -16,6 +16,7 @@ export default function WholePage() {
   const [isLoading, setIsLoading] = useState(false);
   const postInputRef = useRef<HTMLTextAreaElement>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date());
 
   useEffect(() => {
     fetchPosts();
@@ -49,19 +50,35 @@ export default function WholePage() {
 
   // APIレスポンスの投稿データをフォーマットするヘルパー関数
   const formatPost = (post: any): PostType => {
+    // repostedByUserIdが存在する場合、repostedByオブジェクトを構築
+    let repostedBy = undefined;
+
+    if (post.repostedBy) {
+      // すでにrepostedByオブジェクトが存在する場合はそのまま使用
+      repostedBy = post.repostedBy;
+    } else if (post.repostedByUserId && post.repostedByUser) {
+      // repostedByUserIdとrepostedByUserが存在する場合は構築
+      repostedBy = {
+        id: post.repostedByUser.id || post.repostedByUserId,
+        username: post.repostedByUser.username || "",
+        icon: post.repostedByUser.icon || null,
+      };
+    } else if (post.repostedByUserId) {
+      // repostedByUserIdのみ存在する場合は最低限の情報を設定
+      repostedBy = {
+        id: post.repostedByUserId,
+        username: "ユーザー", // プレースホルダー
+        icon: null,
+      };
+    }
+
     return {
       ...post,
       createdAt: new Date(post.createdAt),
       repostedAt: post.repostedAt ? new Date(post.repostedAt) : undefined,
       favoritedAt: post.favoritedAt ? new Date(post.favoritedAt) : undefined,
       // 拡散された投稿であれば、repostedByを設定
-      repostedBy: post.repostedBy
-        ? {
-            id: post.repostedBy.id,
-            username: post.repostedBy.username,
-            icon: post.repostedBy.icon || null,
-          }
-        : undefined,
+      repostedBy: repostedBy,
       // 元の投稿がある場合はoriginalPostを設定
       originalPost: post.originalPost
         ? {
@@ -70,9 +87,51 @@ export default function WholePage() {
             user: post.originalPost.user,
           }
         : undefined,
-      // 画像配列を確保
+      // 画像配列の確保
       images: post.images || [],
     };
+  };
+
+  // 新しい投稿のみを取得する関数
+  const fetchLatestPosts = async () => {
+    try {
+      const response = await fetch(
+        `/api/whole?since=${lastUpdateTime.toISOString()}&includeReposts=true`,
+        { next: { revalidate: 60 } }
+      );
+      if (!response.ok) {
+        throw new Error("新規投稿の取得に失敗しました");
+      }
+
+      const data = await response.json();
+      if (data.posts.length > 0) {
+        setPosts((prevPosts) => {
+          // 一時的な投稿と重複を除去
+          const uniquePosts = data.posts
+            .map((post: any) => formatPost(post))
+            .filter(
+              (newPost: PostType) =>
+                !newPost.id.startsWith("temp-") &&
+                !prevPosts.some((existingPost) => {
+                  // 通常の投稿の場合はIDで重複チェック
+                  if (!newPost.repostedBy) {
+                    return existingPost.id === newPost.id;
+                  }
+                  // 拡散の場合は投稿ID + 拡散者IDで重複チェック
+                  return (
+                    existingPost.id === newPost.id &&
+                    existingPost.repostedBy?.id === newPost.repostedBy?.id
+                  );
+                })
+            );
+
+          return [...uniquePosts, ...prevPosts];
+        });
+        setLastUpdateTime(new Date());
+      }
+    } catch (error) {
+      console.error("Error fetching new posts:", error);
+    }
   };
 
   const fetchPosts = async (cursor?: string) => {
@@ -82,8 +141,11 @@ export default function WholePage() {
       if (cursor) {
         params.append("cursor", cursor);
       }
+
       // 拡散も含めるパラメータを追加
       params.append("includeReposts", "true");
+
+      console.log(`全体タイムライン: /api/whole?${params} をフェッチします`);
 
       const response = await fetch(`/api/whole?${params}`, {
         next: { revalidate: 60 }, // 60秒間キャッシュ
@@ -93,6 +155,23 @@ export default function WholePage() {
       }
 
       const data = await response.json();
+
+      // デバッグ: APIレスポンスを確認
+      console.log("API Response:", data.posts.slice(0, 2));
+      interface ApiPostResponse {
+        repostedBy?: {
+          id: string;
+          username: string;
+          icon: string | null;
+        };
+      }
+
+      console.log(
+        "拡散投稿が含まれているか:",
+        data.posts.some((p: ApiPostResponse) => p.repostedBy)
+          ? "はい"
+          : "いいえ"
+      );
 
       if (cursor) {
         // 追加読み込みの場合は既存の投稿に追加
@@ -105,23 +184,24 @@ export default function WholePage() {
         setPosts(data.posts.map((post: any) => formatPost(post)));
       }
 
+      // デバッグ: フォーマット後の投稿を確認
+      const formattedPosts = data.posts.map((post: any) => formatPost(post));
+      console.log("フォーマット後の投稿:", formattedPosts.slice(0, 2));
+      console.log(
+        "拡散投稿数:",
+        formattedPosts.filter((p: PostType) => p.repostedBy).length
+      );
+
       setHasMore(data.hasMore);
       setNextCursor(data.nextCursor);
+
+      // 最新の取得時間を更新
+      setLastUpdateTime(new Date());
     } catch (error) {
       console.error("Error fetching posts:", error);
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handlePostCreated = (newPost: PostType) => {
-    setPosts((prev) => {
-      // 一時的な投稿（temp-で始まるID）を削除
-      const filtered = prev.filter((p) => !p.id.startsWith("temp-"));
-
-      // 新しい投稿を先頭に追加
-      return [newPost, ...filtered];
-    });
   };
 
   const handleSearch = async (query: string) => {
@@ -135,11 +215,55 @@ export default function WholePage() {
       }
       const data = await response.json();
       setPosts(data.posts.map((post: any) => formatPost(post)));
-      setHasMore(false);
-      setNextCursor(undefined);
     } catch (error) {
       console.error("Error searching posts:", error);
     }
+  };
+
+  const handlePostCreated = (newPost: PostType) => {
+    setPosts((prev) => {
+      // 一時的な投稿（temp-で始まるID）を削除
+      const filtered = prev.filter((p) => !p.id.startsWith("temp-"));
+      return [newPost, ...filtered];
+    });
+  };
+
+  const handleFavoriteSuccess = (
+    postId: string,
+    newCount: number,
+    isFavorited: boolean
+  ) => {
+    setPosts((prev) =>
+      prev.map((post) =>
+        post.id === postId
+          ? {
+              ...post,
+              favorites: newCount,
+              isFavorited,
+              favoritedAt: isFavorited ? new Date() : undefined,
+            }
+          : post
+      )
+    );
+  };
+
+  const handleRepostSuccess = (
+    postId: string,
+    newCount: number,
+    isReposted: boolean
+  ) => {
+    setPosts((prev) =>
+      prev.map((post) =>
+        post.id === postId
+          ? {
+              ...post,
+              reposts: newCount,
+              isReposted,
+              repostedAt: isReposted ? new Date() : undefined,
+            }
+          : post
+      )
+    );
   };
 
   if (isLoading && posts.length === 0) {
@@ -152,21 +276,22 @@ export default function WholePage() {
 
   return (
     <>
-      {/* 左サイドバー */}
-      <div className="fixed left-16 top-0 hidden h-full w-80 flex-col gap-4 border-r border-gray-800 p-4 md:flex">
-        <MakePost onPostCreated={handlePostCreated} inputRef={postInputRef} />
-        <Search onSearch={handleSearch} />
-      </div>
-
-      {/* メインコンテンツ */}
+      <div className="hidden md:block md:w-80"></div>
       <div className="flex-1 pb-16 md:pb-0">
-        <div className="mx-auto max-w-2xl p-4 md:ml-96">
-          {/* モバイル用検索バー */}
-          <div className="mb-4 flex items-center justify-between border-b border-gray-800 pb-4 md:hidden">
-            <Search onSearch={handleSearch} />
-          </div>
-
+        <div className="mx-auto max-w-2xl p-4">
           <div className="space-y-4">
+            {/* デバッグ情報 (開発中のみ表示) */}
+            {process.env.NODE_ENV === "development" && (
+              <div className="mb-4 rounded border border-yellow-500 bg-yellow-500/10 p-2 text-xs">
+                <p>デバッグ情報: {posts.length}件の投稿</p>
+                <p>拡散投稿: {posts.filter((p) => p.repostedBy).length}件</p>
+                <details>
+                  <summary>詳細データ (一部)</summary>
+                  <pre>{JSON.stringify(posts.slice(0, 2), null, 2)}</pre>
+                </details>
+              </div>
+            )}
+
             {posts.length === 0 ? (
               <div className="rounded-lg border border-gray-800 p-8 text-center">
                 <p className="text-gray-500">
@@ -176,30 +301,25 @@ export default function WholePage() {
                 </p>
               </div>
             ) : (
-              posts.map((post) => (
-                <Post
-                  key={post.id + (post.repostedAt?.toString() || "")}
-                  post={post}
-                  onRepostSuccess={(newCount, isReposted) => {
-                    setPosts((prev) =>
-                      prev.map((p) =>
-                        p.id === post.id
-                          ? { ...p, reposts: newCount, isReposted }
-                          : p
-                      )
-                    );
-                  }}
-                  onFavoriteSuccess={(newCount, isFavorited) => {
-                    setPosts((prev) =>
-                      prev.map((p) =>
-                        p.id === post.id
-                          ? { ...p, favorites: newCount, isFavorited }
-                          : p
-                      )
-                    );
-                  }}
-                />
-              ))
+              <>
+                {posts.map((post) => (
+                  <Post
+                    key={
+                      post.id +
+                      (post.repostedBy
+                        ? `-repost-${post.repostedBy.id}`
+                        : post.repostedAt?.toString() || "")
+                    }
+                    post={post}
+                    onRepostSuccess={(newCount, isReposted) =>
+                      handleRepostSuccess(post.id, newCount, isReposted)
+                    }
+                    onFavoriteSuccess={(newCount, isFavorited) =>
+                      handleFavoriteSuccess(post.id, newCount, isFavorited)
+                    }
+                  />
+                ))}
+              </>
             )}
 
             {/* もっと読み込むボタン */}
