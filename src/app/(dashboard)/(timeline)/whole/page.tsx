@@ -158,9 +158,9 @@ export default function WholePage() {
   // 新しい投稿があるかチェック
   const checkForNewPosts = async (fetchImmediately = false) => {
     try {
-      // this_timeline 用のエンドポイントを使用
+      // APIエンドポイントを /api/posts から /api/whole に変更
       const response = await fetch(
-        `/api/posts?since=${lastUpdateTime.toISOString()}&includeReposts=true&countOnly=${!fetchImmediately}`,
+        `/api/whole?since=${lastUpdateTime.toISOString()}&includeReposts=true&countOnly=${!fetchImmediately}`,
         { next: { revalidate: 0 } }
       );
 
@@ -174,19 +174,21 @@ export default function WholePage() {
         // 即時読み込みモード
         setIsRefreshing(true);
 
-        const newPosts = data.posts.filter(
-          (newPost: any) =>
-            !posts.some((existingPost) => {
-              // リポスト情報も考慮して重複チェック
-              if (!newPost.repostedBy) {
-                return existingPost.id === newPost.id;
-              }
-              return (
-                existingPost.id === newPost.id &&
-                existingPost.repostedBy?.id === newPost.repostedBy?.id
-              );
-            })
-        );
+        const newPosts = data.posts
+          .filter(
+            (newPost: any) =>
+              !posts.some((existingPost) => {
+                // リポスト情報も考慮して重複チェック
+                if (!newPost.repostedBy) {
+                  return existingPost.id === newPost.id;
+                }
+                return (
+                  existingPost.id === newPost.id &&
+                  existingPost.repostedBy?.id === newPost.repostedBy?.id
+                );
+              })
+          )
+          .map((post: any) => formatPost(post)); // formatPostでデータを整形
 
         if (newPosts.length > 0) {
           // 新しい投稿を既存の投稿リストの先頭に追加
@@ -211,6 +213,7 @@ export default function WholePage() {
       console.error("Error checking for new posts:", error);
       if (fetchImmediately) {
         setIsRefreshing(false);
+        toast.error("更新に失敗しました");
       }
     }
   };
@@ -300,7 +303,7 @@ export default function WholePage() {
     };
   };
 
-  // 新しい投稿のみを取得する関数
+  // fetchLatestPosts関数も修正
   const fetchLatestPosts = async () => {
     try {
       const response = await fetch(
@@ -353,7 +356,8 @@ export default function WholePage() {
 
       params.append("includeReposts", "true");
 
-      const response = await fetch(`/api/posts?${params}`, {
+      // APIエンドポイントを /api/posts から /api/whole に変更
+      const response = await fetch(`/api/whole?${params}`, {
         next: { revalidate: 0 },
       });
       if (!response.ok) {
@@ -384,6 +388,7 @@ export default function WholePage() {
       setIsLoading(false);
     }
   };
+
   const handleSearch = async (query: string) => {
     try {
       const response = await fetch(

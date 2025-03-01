@@ -14,6 +14,7 @@ import { Plus, RefreshCw } from "lucide-react";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { LoaderCircle } from "lucide-react";
+import { toast } from "sonner";
 
 interface UserInfo {
   icon: string | null;
@@ -229,19 +230,41 @@ export default function HomePage() {
       setIsLoading(false);
     }
   };
+
   const handleSearch = async (query: string) => {
     try {
+      // エンドポイントを/api/posts/searchから/api/searchに変更
+      // typeパラメータを追加して投稿検索を指定
       const response = await fetch(
-        `/api/posts/search?q=${encodeURIComponent(query)}&timeline=true&includeReposts=true`,
-        { next: { revalidate: 60 } }
+        `/api/search?type=posts&q=${encodeURIComponent(query)}`,
+        { next: { revalidate: 0 } } // キャッシュを無効化
       );
+
       if (!response.ok) {
         throw new Error("検索に失敗しました");
       }
+
       const data = await response.json();
-      setPosts(data.posts.map((post: any) => formatPost(post)));
+
+      // 検索結果がある場合
+      if (data.posts && Array.isArray(data.posts)) {
+        // フォーマットして表示
+        setPosts(data.posts.map((post: any) => formatPost(post)));
+
+        // 検索結果の数を通知
+        if (data.posts.length === 0) {
+          toast.info("検索結果はありませんでした");
+        } else {
+          toast.success(`${data.posts.length}件の投稿が見つかりました`);
+        }
+      } else {
+        setPosts([]);
+        toast.error("検索結果の形式が不正です");
+      }
     } catch (error) {
       console.error("Error searching posts:", error);
+      toast.error("検索中にエラーが発生しました");
+      setPosts([]);
     }
   };
 
@@ -321,43 +344,6 @@ export default function HomePage() {
 
   return (
     <>
-      {/* 左サイドバー - モバイルでは非表示 */}
-      <div className="fixed hidden h-full w-80 flex-col gap-4 border-r border-gray-800 p-4 md:left-16 md:top-0 md:flex">
-        <button
-          onClick={handleUserClick}
-          className="flex w-full items-start space-x-3 border-b border-gray-800 pb-4 text-left transition-colors hover:bg-gray-800/50"
-        >
-          <div className="flex items-start space-x-3 border-gray-800 ">
-            <Avatar className="size-12">
-              <AvatarImage src={userInfo?.icon ?? undefined} />
-              <AvatarFallback>{session?.user?.name?.[0]}</AvatarFallback>
-            </Avatar>
-            <div className="flex flex-col">
-              <span className="font-semibold">{session?.user?.name}</span>
-              <span className="text-sm text-muted-foreground">
-                @{session?.user?.id}
-              </span>
-            </div>
-          </div>
-        </button>
-
-        <MakePost
-          onPostCreated={handlePostCreated}
-          replyTo={
-            parentPost
-              ? {
-                  id: parentPost.id,
-                  content: parentPost.content,
-                  username: parentPost.user.username,
-                }
-              : undefined
-          }
-          inputRef={postInputRef}
-        />
-
-        <Search onSearch={handleSearch} />
-      </div>
-
       {/* メインコンテンツ */}
       <div className="flex flex-1 justify-center pb-16 md:pb-0">
         <div className="w-full max-w-2xl p-4">
