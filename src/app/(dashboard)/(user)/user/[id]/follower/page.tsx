@@ -177,7 +177,7 @@ export default function FollowersPage({ params }: { params: { id: string } }) {
           {followers.map((follower) => (
             <div
               key={`${follower.id}-${follower.followedAt}`}
-              className="flex items-center justify-between rounded-lg border border-gray-800 p-4 transition-colors hover:bg-gray-900/50"
+              className="flex flex-wrap items-center justify-between rounded-lg border border-gray-800 p-4 transition-colors hover:bg-gray-900/50"
             >
               <div className="flex items-center space-x-4">
                 <Button
@@ -190,23 +190,32 @@ export default function FollowersPage({ params }: { params: { id: string } }) {
                     <AvatarFallback>{follower.username[0]}</AvatarFallback>
                   </Avatar>
                 </Button>
-                <div className="flex flex-col">
+                <div className="flex max-w-[calc(100%-3rem)] flex-col">
                   <Button
                     variant="ghost"
-                    className="h-auto p-0 text-left font-bold hover:underline"
+                    className="h-auto w-full truncate p-0 text-left font-bold hover:underline"
                     onClick={() => handleUserClick(follower.id)}
+                    title={follower.username} // ホバー時にフル名表示
                   >
-                    {follower.username}
+                    <span className="truncate">{follower.username}</span>
                   </Button>
-                  <p className="text-sm text-gray-500">@{follower.id}</p>
+                  <p
+                    className="truncate text-sm text-gray-500"
+                    title={`@${follower.id}`}
+                  >
+                    @{follower.id}
+                  </p>
                   {follower.profile && (
-                    <p className="mt-1 text-sm text-gray-400">
+                    <p
+                      className="mt-1 line-clamp-2 text-sm text-gray-400"
+                      title={follower.profile}
+                    >
                       {follower.profile}
                     </p>
                   )}
                 </div>
               </div>
-              <div className="flex items-center space-x-4">
+              <div className="mt-2 flex items-center space-x-4 sm:mt-0">
                 {session?.user?.id !== follower.id && (
                   <Button
                     variant={follower.isFollowing ? "secondary" : "default"}
@@ -228,7 +237,7 @@ export default function FollowersPage({ params }: { params: { id: string } }) {
                     )}
                   </Button>
                 )}
-                <span className="text-sm text-gray-500">
+                <span className="whitespace-nowrap text-sm text-gray-500">
                   {formatDistanceToNow(new Date(follower.followedAt))}
                 </span>
               </div>
