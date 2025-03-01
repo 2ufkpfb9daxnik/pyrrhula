@@ -15,7 +15,11 @@ import {
 import { useNotifications } from "@/app/_hooks/useNotifications";
 import type { Notification } from "@/app/_types/notification";
 
-export function Navigation() {
+type NavigationProps = {
+  isMobile?: boolean;
+};
+
+export function Navigation({ isMobile = false }: NavigationProps) {
   const router = useRouter();
   const { data: session } = useSession();
   const { hasUnread, markAsRead, lastNotification } = useNotifications();
@@ -54,8 +58,12 @@ export function Navigation() {
     }
   }
 
+  // ナビゲーション用のクラスを修正 - 常に固定表示するために fixed クラスを正しく適用
+  const navClasses =
+    "fixed z-50 bg-background flex items-center justify-around md:flex-col md:items-center md:justify-start md:space-y-4 md:p-4 md:w-16 md:h-screen md:left-0 md:top-0 md:border-r md:border-gray-800 inset-x-0 bottom-0 h-16 border-t border-gray-800";
+
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-50 flex h-16 items-center justify-around border-t border-gray-800 bg-background md:left-0 md:top-0 md:h-screen md:w-16 md:flex-col md:items-center md:justify-start md:space-y-4 md:border-r md:border-t-0 md:p-4">
+    <nav className={navClasses}>
       {/* ホームボタン - フォロー中/全体タイムラインへのアクセスポイント */}
       <Button
         variant="ghost"
@@ -120,16 +128,28 @@ export function Navigation() {
         <User className="size-6" />
       </Button>
 
-      {/* ログイン/ログアウトボタン */}
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => router.push(session ? "/logout" : "/login")}
-        title={session ? "ログアウト" : "ログイン"}
-        className="md:w-full"
-      >
-        {session ? <LogOut className="size-6" /> : <LogIn className="size-6" />}
-      </Button>
+      {/* ログイン/ログアウトボタン - 条件付きで表示 */}
+      {!session ? (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => router.push("/login")}
+          title="ログイン"
+          className="md:w-full"
+        >
+          <LogIn className="size-6" />
+        </Button>
+      ) : (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => router.push("/logout")}
+          title="ログアウト"
+          className="md:w-full"
+        >
+          <LogOut className="size-6" />
+        </Button>
+      )}
     </nav>
   );
 }

@@ -54,12 +54,21 @@ export default function UserLayout({ children }: { children: ReactNode }) {
   });
 
   return (
-    <div className="flex min-h-screen">
-      <Navigation />
+    <div className="flex min-h-screen flex-col sm:flex-row">
+      {/* モバイル向けの固定ナビゲーションバー（画面上部） */}
+      <div className="sticky top-0 z-30 border-b border-gray-800 bg-background sm:hidden">
+        <Navigation isMobile={true} />
+      </div>
+
+      {/* デスクトップ向けの左サイドナビゲーション */}
+      <div className="hidden sm:block">
+        <Navigation />
+      </div>
+
       <div className="flex-1">
         <div className="mx-auto max-w-2xl">
-          {/* タブナビゲーション - Twitterライクなスタイル */}
-          <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm">
+          {/* タブナビゲーション - 常に表示されるように sticky に */}
+          <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md">
             <div className="flex border-b border-gray-800">
               <button
                 className={`relative flex flex-1 items-center justify-center py-3 font-medium transition-colors ${

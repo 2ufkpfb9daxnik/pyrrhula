@@ -324,99 +324,96 @@ export default function UserProfilePage({
       {/* ユーザープロフィールカード */}
       <Card className="mb-6">
         <CardContent className="p-6">
-          <div className="flex items-start justify-between">
-            <div className="flex items-start space-x-4">
-              <Avatar className="size-20">
-                <AvatarImage src={user.icon ?? undefined} alt={user.username} />
-                <AvatarFallback>{user.username[0]}</AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h1 className="text-2xl font-bold">{user.username}</h1>
-                    <p className="text-sm text-gray-500">@{user.id}</p>
-                  </div>
-                  <div className="mb-4 flex items-center justify-between">
-                    {session?.user?.id === params.id && (
-                      <Button
-                        onClick={() => router.push(`/editprofile`)}
-                        variant="outline"
-                        className="ml-4"
-                      >
-                        プロフィールを編集
-                      </Button>
-                    )}
-                  </div>
-                  {session?.user?.id !== user.id && (
-                    <div className="mt-4 flex flex-col space-y-2">
-                      <Button
-                        onClick={handleFollow}
-                        disabled={isFollowLoading}
-                        variant={isFollowing ? "outline" : "default"}
-                      >
-                        {isFollowing ? (
-                          <>
-                            <UserMinus className="mr-2 size-4" />
-                            フォロー解除
-                          </>
-                        ) : (
-                          <>
-                            <UserPlus className="mr-2 size-4" />
-                            フォロー
-                          </>
-                        )}
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        onClick={() => router.push(`/chat/${user.id}`)}
-                      >
-                        <Send className="mr-2 size-4" />
-                        チャット
-                      </Button>
-                    </div>
-                  )}
-                </div>
-                {user.profile && (
-                  <p className="mt-2 text-gray-300">{user.profile}</p>
+          <div className="flex flex-col md:flex-row md:items-start md:space-x-4">
+            <Avatar className="mb-4 size-20 md:mb-0">
+              <AvatarImage src={user.icon ?? undefined} alt={user.username} />
+              <AvatarFallback>{user.username[0]}</AvatarFallback>
+            </Avatar>
+
+            <div className="flex-1">
+              <h1 className="text-2xl font-bold">{user.username}</h1>
+              <p className="text-sm text-gray-500">@{user.id}</p>
+
+              {/* プロフィール編集またはフォローボタン */}
+              <div className="mt-4 flex flex-wrap gap-2">
+                {session?.user?.id === params.id ? (
+                  <Button
+                    onClick={() => router.push(`/editprofile`)}
+                    variant="outline"
+                    className="w-full sm:w-auto"
+                  >
+                    プロフィールを編集
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      onClick={handleFollow}
+                      disabled={isFollowLoading}
+                      variant={isFollowing ? "outline" : "default"}
+                      className="w-full sm:w-auto"
+                    >
+                      {isFollowLoading ? (
+                        <LoaderCircle className="mr-2 size-4 animate-spin" />
+                      ) : isFollowing ? (
+                        <>
+                          <UserMinus className="mr-2 size-4" />
+                          フォロー解除
+                        </>
+                      ) : (
+                        <>
+                          <UserPlus className="mr-2 size-4" />
+                          フォロー
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={() => router.push(`/chat/${user.id}`)}
+                      className="w-full sm:w-auto"
+                    >
+                      <Send className="mr-2 size-4" />
+                      チャット
+                    </Button>
+                  </>
                 )}
-                <div className="mt-4 flex flex-wrap gap-4 text-sm text-gray-400">
-                  <div className="flex items-center">
-                    <MessageSquare className="mr-2 size-4" />
-                    投稿 {user.postCount}
-                  </div>
-                  <div className="flex items-center">
-                    <BarChart className="mr-2 size-4" />
-                    レート {user.rate}
-                  </div>
-                  <Button
-                    variant="link"
-                    className="h-auto p-0 text-gray-400 hover:text-white"
-                    onClick={() => router.push(`/user/${user.id}/following`)}
-                  >
-                    <Users className="mr-2 size-4" />
-                    フォロー中 {user.followingCount}
-                  </Button>
-                  <Button
-                    variant="link"
-                    className="h-auto p-0 text-gray-400 hover:text-white"
-                    onClick={() => router.push(`/user/${user.id}/follower`)}
-                  >
-                    <Users className="mr-2 size-4" />
-                    フォロワー {user.followersCount}
-                  </Button>
-                  <div className="flex items-center">
-                    <Calendar className="mr-2 size-4" />
-                    <div className="flex flex-col">
-                      <span>
-                        {formatDistanceToNow(new Date(user.createdAt))}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {format(
-                          new Date(user.createdAt),
-                          "yyyy年MM月dd日 HH:mm"
-                        )}
-                      </span>
-                    </div>
+              </div>
+
+              {user.profile && (
+                <p className="mt-4 text-gray-300">{user.profile}</p>
+              )}
+
+              <div className="mt-4 flex flex-wrap gap-4 text-sm text-gray-400">
+                <div className="flex items-center">
+                  <MessageSquare className="mr-2 size-4" />
+                  投稿 {user.postCount}
+                </div>
+                <div className="flex items-center">
+                  <BarChart className="mr-2 size-4" />
+                  レート {user.rate}
+                </div>
+                <Button
+                  variant="link"
+                  className="h-auto p-0 text-gray-400 hover:text-white"
+                  onClick={() => router.push(`/user/${user.id}/following`)}
+                >
+                  <Users className="mr-2 size-4" />
+                  フォロー中 {user.followingCount}
+                </Button>
+                <Button
+                  variant="link"
+                  className="h-auto p-0 text-gray-400 hover:text-white"
+                  onClick={() => router.push(`/user/${user.id}/follower`)}
+                >
+                  <Users className="mr-2 size-4" />
+                  フォロワー {user.followersCount}
+                </Button>
+                <div className="flex items-center">
+                  <Calendar className="mr-2 size-4" />
+                  <div className="flex flex-col">
+                    <span>{formatDistanceToNow(new Date(user.createdAt))}</span>
+                    <span className="text-xs text-gray-500">
+                      {format(new Date(user.createdAt), "yyyy年MM月dd日 HH:mm")}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -426,10 +423,11 @@ export default function UserProfilePage({
       </Card>
 
       {/* タブ */}
-      <div className="mb-6 flex space-x-4">
+      <div className="mb-6 flex flex-wrap gap-2">
         <Button
           variant={activeTab === "posts" ? "default" : "ghost"}
           onClick={() => setActiveTab("posts")}
+          className="grow sm:grow-0"
         >
           <MessageSquare className="mr-2 size-4" />
           投稿
@@ -437,6 +435,7 @@ export default function UserProfilePage({
         <Button
           variant={activeTab === "reposts" ? "default" : "ghost"}
           onClick={() => setActiveTab("reposts")}
+          className="grow sm:grow-0"
         >
           <RefreshCw className="mr-2 size-4" />
           拡散
@@ -444,6 +443,7 @@ export default function UserProfilePage({
         <Button
           variant={activeTab === "favorites" ? "default" : "ghost"}
           onClick={() => setActiveTab("favorites")}
+          className="grow sm:grow-0"
         >
           <Star className="mr-2 size-4" />
           お気に入り
@@ -451,6 +451,7 @@ export default function UserProfilePage({
         <Button
           variant={activeTab === "replies" ? "default" : "ghost"}
           onClick={() => setActiveTab("replies")}
+          className="grow sm:grow-0"
         >
           <MessageCircle className="mr-2 size-4" />
           返信
