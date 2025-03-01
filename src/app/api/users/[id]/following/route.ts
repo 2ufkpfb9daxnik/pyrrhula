@@ -1,4 +1,4 @@
-// users/[id]/follwing     GET                 そのユーザーのフォロイー取得
+// users/[id]/following     GET                 そのユーザーのフォロイー取得
 import { getServerSession } from "next-auth/next";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
@@ -12,8 +12,11 @@ export async function GET(
   try {
     const session = await getServerSession(authOptions);
     const { searchParams } = new URL(req.url);
-    const cursor = searchParams.get("cursor");
-    const limit = Number(searchParams.get("limit")) || 20;
+
+    // ページネーションパラメータを取得
+    const page = Number(searchParams.get("page")) || 1;
+    const limit = Number(searchParams.get("limit")) || 5; // デフォルト値を5に変更
+    const skip = (page - 1) * limit;
 
     // ユーザーの存在確認
     const user = await prisma.user.findUnique({
@@ -24,20 +27,25 @@ export async function GET(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    // 総フォロー数を取得
+    const totalCount = await prisma.follow.count({
+      where: {
+        followerId: params.id,
+      },
+    });
+
     // フォロー中のユーザー一覧を取得
     const following = await prisma.follow.findMany({
       where: {
-        followerId: params.id, // フォロワーの代わりにフォロー中を取得
+        followerId: params.id,
       },
-      take: limit + 1,
-      skip: cursor ? 1 : 0,
-      cursor: cursor ? { id: cursor } : undefined,
+      take: limit,
+      skip: skip,
       orderBy: {
         createdAt: "desc",
       },
       include: {
         followed: {
-          // followerの代わりにfollowedを取得
           select: {
             id: true,
             username: true,
@@ -58,28 +66,25 @@ export async function GET(
       },
     });
 
-    // 次ページの有無を確認
-    const hasMore = following.length > limit;
-    const nextCursor = hasMore ? following[limit - 1].id : undefined;
-    const followingList = hasMore ? following.slice(0, -1) : following;
-
     // レスポンスデータの整形
-    const response: UserFollowersResponse = {
-      followers: followingList.map((follow) => ({
-        id: follow.followed.id,
-        username: follow.followed.username,
-        icon: follow.followed.icon,
-        profile: follow.followed.profile,
-        followedAt: follow.createdAt,
-        ...(session?.user && {
-          isFollowing: follow.followed.followers.length > 0,
-        }),
-      })),
-      hasMore,
-      ...(nextCursor && { nextCursor }),
-    };
+    const formattedFollowing = following.map((follow) => ({
+      id: follow.followed.id,
+      username: follow.followed.username,
+      icon: follow.followed.icon,
+      profile: follow.followed.profile,
+      followedAt: follow.createdAt,
+      ...(session?.user && {
+        isFollowing: follow.followed.followers?.length > 0,
+      }),
+    }));
 
-    return NextResponse.json(response);
+    // 新しいレスポンスフォーマット
+    return NextResponse.json({
+      followers: formattedFollowing, // 互換性のためfollowersキーを使用
+      totalCount: totalCount,
+      currentPage: page,
+      totalPages: Math.ceil(totalCount / limit),
+    });
   } catch (error) {
     console.error("[User Following Error]:", error);
     return NextResponse.json(

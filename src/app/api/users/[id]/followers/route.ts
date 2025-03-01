@@ -12,8 +12,11 @@ export async function GET(
   try {
     const session = await getServerSession(authOptions);
     const { searchParams } = new URL(req.url);
-    const cursor = searchParams.get("cursor");
-    const limit = Number(searchParams.get("limit")) || 20;
+
+    // ページネーションパラメータを取得
+    const page = Number(searchParams.get("page")) || 1;
+    const limit = Number(searchParams.get("limit")) || 5; // デフォルト値を5に変更
+    const skip = (page - 1) * limit;
 
     // ユーザーの存在確認
     const user = await prisma.user.findUnique({
@@ -24,14 +27,20 @@ export async function GET(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    // 総フォロワー数を取得
+    const totalCount = await prisma.follow.count({
+      where: {
+        followedId: params.id,
+      },
+    });
+
     // フォロワー一覧を取得
     const followers = await prisma.follow.findMany({
       where: {
         followedId: params.id,
       },
-      take: limit + 1,
-      skip: cursor ? 1 : 0,
-      cursor: cursor ? { id: cursor } : undefined,
+      take: limit,
+      skip: skip,
       orderBy: {
         createdAt: "desc",
       },
@@ -57,14 +66,9 @@ export async function GET(
       },
     });
 
-    // 次ページの有無を確認
-    const hasMore = followers.length > limit;
-    const nextCursor = hasMore ? followers[limit - 1].id : undefined;
-    const followerList = hasMore ? followers.slice(0, -1) : followers;
-
     // レスポンスデータの整形
-    const response: UserFollowersResponse = {
-      followers: followerList.map((follow) => ({
+    const response: UserFollowersResponse & { totalCount: number } = {
+      followers: followers.map((follow) => ({
         id: follow.follower.id,
         username: follow.follower.username,
         icon: follow.follower.icon,
@@ -74,8 +78,8 @@ export async function GET(
           isFollowing: follow.follower.followers.length > 0,
         }),
       })),
-      hasMore,
-      ...(nextCursor && { nextCursor }),
+      hasMore: skip + limit < totalCount,
+      totalCount, // 総フォロワー数を追加
     };
 
     return NextResponse.json(response);

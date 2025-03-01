@@ -3,7 +3,6 @@
 import { useState, useEffect, ReactNode } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { Navigation } from "@/app/_components/navigation";
 import { UserCheck, Users, ArrowLeft } from "lucide-react";
 import { useSwipeable } from "react-swipeable";
 
@@ -84,7 +83,7 @@ export default function FollowLayout({ children }: { children: ReactNode }) {
     <div className="min-h-screen">
       <div className="mx-auto max-w-2xl">
         {/* タブナビゲーション - 一番上に配置 */}
-        <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-md">
+        <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-md">
           <div className="flex border-b border-gray-800">
             <button
               className={`relative flex flex-1 items-center justify-center py-3 font-medium transition-colors ${
@@ -113,6 +112,17 @@ export default function FollowLayout({ children }: { children: ReactNode }) {
               {activeTab === "follower" && (
                 <span className="absolute inset-x-0 bottom-0 h-1 bg-gray-500" />
               )}
+            </button>
+          </div>
+
+          {/* プロフィールへ戻るボタン */}
+          <div className="border-b border-gray-800 px-4 py-2">
+            <button
+              onClick={handleBackToProfile}
+              className="flex items-center text-gray-400 hover:text-white"
+            >
+              <ArrowLeft className="mr-1 size-4" />
+              プロフィールに戻る
             </button>
           </div>
         </div>
