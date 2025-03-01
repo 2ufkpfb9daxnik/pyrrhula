@@ -4,35 +4,32 @@ import { useState, useEffect, ReactNode } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Navigation } from "@/app/_components/navigation";
-import { User, Users } from "lucide-react";
+import { Users, Globe } from "lucide-react";
 import { useSwipeable } from "react-swipeable";
 
-export default function UserLayout({ children }: { children: ReactNode }) {
+export default function TimelineLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { data: session } = useSession();
-  const [activeTab, setActiveTab] = useState<"profile" | "list">("profile");
+  const [activeTab, setActiveTab] = useState<"following" | "global">(
+    "following"
+  );
 
   // パスに基づいてアクティブタブを設定
   useEffect(() => {
-    if (pathname === "/user") {
-      setActiveTab("list");
-    } else if (session?.user?.id && pathname === `/user/${session.user.id}`) {
-      setActiveTab("profile");
+    if (pathname === "/" || pathname === "/home") {
+      setActiveTab("following");
+    } else if (pathname === "/whole") {
+      setActiveTab("global");
     }
-  }, [pathname, session]);
+  }, [pathname]);
 
   // タブの変更を処理
-  const handleTabChange = (value: "profile" | "list") => {
-    if (value === "profile") {
-      if (session?.user?.id) {
-        router.push(`/user/${session.user.id}`);
-      } else {
-        router.push("/login");
-        return;
-      }
-    } else if (value === "list") {
-      router.push("/user");
+  const handleTabChange = (value: "following" | "global") => {
+    if (value === "following") {
+      router.push("/home");
+    } else if (value === "global") {
+      router.push("/whole");
     }
     setActiveTab(value);
   };
@@ -40,13 +37,13 @@ export default function UserLayout({ children }: { children: ReactNode }) {
   // スワイプハンドラーを設定
   const swipeHandlers = useSwipeable({
     onSwipedLeft: () => {
-      if (activeTab === "profile") {
-        handleTabChange("list");
+      if (activeTab === "following") {
+        handleTabChange("global");
       }
     },
     onSwipedRight: () => {
-      if (activeTab === "list") {
-        handleTabChange("profile");
+      if (activeTab === "global") {
+        handleTabChange("following");
       }
     },
     preventScrollOnSwipe: true,
@@ -72,29 +69,29 @@ export default function UserLayout({ children }: { children: ReactNode }) {
             <div className="flex border-b border-gray-800">
               <button
                 className={`relative flex flex-1 items-center justify-center py-3 font-medium transition-colors ${
-                  activeTab === "profile"
+                  activeTab === "following"
                     ? "text-primary"
                     : "text-gray-500 hover:text-gray-300"
                 }`}
-                onClick={() => handleTabChange("profile")}
+                onClick={() => handleTabChange("following")}
               >
-                <User className="mr-2 size-4" />
-                プロフィール
-                {activeTab === "profile" && (
+                <Users className="mr-2 size-4" />
+                フォロー中
+                {activeTab === "following" && (
                   <span className="absolute inset-x-0 bottom-0 h-1 bg-gray-500" />
                 )}
               </button>
               <button
                 className={`relative flex flex-1 items-center justify-center py-3 font-medium transition-colors ${
-                  activeTab === "list"
+                  activeTab === "global"
                     ? "text-primary"
                     : "text-gray-500 hover:text-gray-300"
                 }`}
-                onClick={() => handleTabChange("list")}
+                onClick={() => handleTabChange("global")}
               >
-                <Users className="mr-2 size-4" />
-                ユーザー一覧
-                {activeTab === "list" && (
+                <Globe className="mr-2 size-4" />
+                全体
+                {activeTab === "global" && (
                   <span className="absolute inset-x-0 bottom-0 h-1 bg-gray-500" />
                 )}
               </button>
