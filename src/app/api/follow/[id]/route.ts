@@ -5,7 +5,6 @@ import { NextResponse } from "next/server";
 import { updateUserStats } from "@/lib/user-stats";
 
 // フォローする
-// フォローする
 export async function POST(
   req: Request,
   { params }: { params: { id: string } }

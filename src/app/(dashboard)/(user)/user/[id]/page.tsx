@@ -234,37 +234,71 @@ export default function UserProfilePage({
 
     setIsFollowLoading(true);
     try {
+      // リクエストを送信する前に、現在のフォロー状態を確認
+      const currentlyFollowing = isFollowing;
+
+      // フォロー状態に応じて適切なメソッドを選択
       const response = await fetch(`/api/follow/${params.id}`, {
-        method: isFollowing ? "DELETE" : "POST",
+        method: currentlyFollowing ? "DELETE" : "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        ...(isFollowing
-          ? {
-              // DELETE リクエストの場合、URLにクエリパラメータを追加
-              url: `/api/follow/${params.id}?userId=${params.id}`,
-            }
-          : {
-              // POST リクエストの場合、bodyにユーザーIDを含める
-              body: JSON.stringify({ userId: params.id }),
-            }),
       });
 
-      if (!response.ok) throw new Error("Failed to update follow status");
+      // HTMLレスポンスが返ってくる場合のエラーハンドリング
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("text/html")) {
+        throw new Error(
+          "APIエンドポイントが見つかりません。URLを確認してください。"
+        );
+      }
 
-      setIsFollowing(!isFollowing);
+      // 409エラー（Conflict）の場合は特別な処理
+      if (response.status === 409) {
+        // すでにフォローしている場合は、UIを更新してエラーを無視
+        if (!currentlyFollowing) {
+          setIsFollowing(true);
+          setUser(
+            (prev) =>
+              prev && {
+                ...prev,
+                followersCount: prev.followersCount + 1,
+              }
+          );
+          toast.success("既にフォロー済みです");
+          return;
+        }
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "フォロー状態の更新に失敗しました");
+      }
+
+      // 成功時の処理
+      setIsFollowing(!currentlyFollowing);
       setUser(
         (prev) =>
           prev && {
             ...prev,
-            followersCount: prev.followersCount + (isFollowing ? -1 : 1),
+            followersCount: prev.followersCount + (currentlyFollowing ? -1 : 1),
           }
       );
 
-      toast.success(isFollowing ? "フォロー解除しました" : "フォローしました");
+      toast.success(
+        currentlyFollowing ? "フォロー解除しました" : "フォローしました"
+      );
     } catch (error) {
       console.error("Follow error:", error);
-      toast.error("操作に失敗しました");
+      // より具体的なエラーメッセージを表示
+      const errorMessage =
+        error instanceof Error ? error.message : "操作に失敗しました";
+      // Already following this user エラーの場合は友好的なメッセージに変更
+      const displayMessage =
+        errorMessage === "Already following this user"
+          ? "既にフォロー済みです"
+          : errorMessage;
+      toast.error(displayMessage);
     } finally {
       setIsFollowLoading(false);
     }

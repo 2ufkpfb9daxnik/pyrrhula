@@ -17,6 +17,9 @@ export default function FollowingPage({ params }: { params: { id: string } }) {
   const [isLoading, setIsLoading] = useState(true);
   const [hasMore, setHasMore] = useState(false);
   const [cursor, setCursor] = useState<string | undefined>();
+  const [processingFollowIds, setProcessingFollowIds] = useState<Set<string>>(
+    new Set()
+  );
   const router = useRouter();
   const { data: session } = useSession();
 
@@ -59,27 +62,61 @@ export default function FollowingPage({ params }: { params: { id: string } }) {
     router.push(`/user/${userId}`);
   };
 
-  const handleFollow = async (userId: string) => {
+  const handleFollowToggle = async (
+    userId: string,
+    isCurrentlyFollowing: boolean
+  ) => {
     if (!session) {
       toast.error("ログインが必要です");
       return;
     }
 
     try {
-      const response = await fetch(`/api/users/${userId}/follow`, {
-        method: "POST",
+      // 処理中のIDを追加
+      setProcessingFollowIds((prev) => new Set(prev).add(userId));
+
+      const method = isCurrentlyFollowing ? "DELETE" : "POST";
+      const actionText = isCurrentlyFollowing ? "フォロー解除" : "フォロー";
+
+      const response = await fetch(`/api/follow/${userId}/`, {
+        method: method,
       });
 
       if (!response.ok) {
-        throw new Error("フォロー操作に失敗しました");
+        throw new Error(`${actionText}操作に失敗しました`);
       }
 
-      // フォロー一覧を更新
-      fetchFollowing();
-      toast.success("フォロー状態を更新しました");
+      // UI を直接更新してレスポンスを早く見せる
+      setFollowing((prev) =>
+        prev.map((user) =>
+          user.id === userId
+            ? { ...user, isFollowing: !isCurrentlyFollowing }
+            : user
+        )
+      );
+
+      // 自分のプロフィールページを見ている場合はフォロー中一覧を更新
+      if (params.id === session.user.id && isCurrentlyFollowing) {
+        // フォロー解除したユーザーを一覧から削除
+        setFollowing((prev) => prev.filter((user) => user.id !== userId));
+      }
+
+      toast.success(`${actionText}しました`);
     } catch (error) {
-      console.error("Error following user:", error);
-      toast.error("フォロー操作に失敗しました");
+      console.error(
+        `Error ${isCurrentlyFollowing ? "unfollowing" : "following"} user:`,
+        error
+      );
+      toast.error(
+        `${isCurrentlyFollowing ? "フォロー解除" : "フォロー"}操作に失敗しました`
+      );
+    } finally {
+      // 処理中のIDを削除
+      setProcessingFollowIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(userId);
+        return newSet;
+      });
     }
   };
 
@@ -135,10 +172,19 @@ export default function FollowingPage({ params }: { params: { id: string } }) {
                 {session?.user?.id !== user.id && (
                   <Button
                     variant={user.isFollowing ? "secondary" : "default"}
-                    onClick={() => handleFollow(user.id)}
+                    onClick={() =>
+                      handleFollowToggle(user.id, user.isFollowing || false)
+                    }
                     size="sm"
+                    disabled={processingFollowIds.has(user.id)}
                   >
-                    {user.isFollowing ? "フォロー中" : "フォローする"}
+                    {processingFollowIds.has(user.id) ? (
+                      <LoaderCircle className="size-4 animate-spin" />
+                    ) : user.isFollowing ? (
+                      "フォロー解除"
+                    ) : (
+                      "フォローする"
+                    )}
                   </Button>
                 )}
                 <span className="text-sm text-gray-500">

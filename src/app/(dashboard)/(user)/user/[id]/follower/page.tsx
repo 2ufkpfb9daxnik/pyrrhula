@@ -17,6 +17,9 @@ export default function FollowersPage({ params }: { params: { id: string } }) {
   const [isLoading, setIsLoading] = useState(true);
   const [hasMore, setHasMore] = useState(false);
   const [cursor, setCursor] = useState<string | undefined>();
+  const [processingFollowIds, setProcessingFollowIds] = useState<Set<string>>(
+    new Set()
+  );
   const router = useRouter();
   const { data: session } = useSession();
 
@@ -59,27 +62,99 @@ export default function FollowersPage({ params }: { params: { id: string } }) {
     router.push(`/user/${userId}`);
   };
 
-  const handleFollow = async (userId: string) => {
+  const handleFollowToggle = async (
+    userId: string,
+    isCurrentlyFollowing: boolean
+  ) => {
     if (!session) {
       toast.error("ログインが必要です");
       return;
     }
 
+    // 既に処理中の場合は何もしない
+    if (processingFollowIds.has(userId)) return;
+
+    // 処理中フラグを設定
+    setProcessingFollowIds((prev) => new Set(prev).add(userId));
+
     try {
-      const response = await fetch(`/api/users/${userId}/follow`, {
-        method: "POST",
+      // フォロー状態に応じてメソッドを選択
+      const method = isCurrentlyFollowing ? "DELETE" : "POST";
+      const actionText = isCurrentlyFollowing ? "フォロー解除" : "フォロー";
+
+      // 新しいエンドポイントに変更
+      const response = await fetch(`/api/follow/${userId}`, {
+        method: method,
+        headers: {
+          "Content-Type": "application/json",
+        },
       });
 
-      if (!response.ok) {
-        throw new Error("フォロー操作に失敗しました");
+      // HTMLレスポンスが返ってくる場合のエラーハンドリング
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("text/html")) {
+        throw new Error(
+          "APIエンドポイントが見つかりません。URLを確認してください。"
+        );
       }
 
-      // フォロワー一覧を更新
-      fetchFollowers();
-      toast.success("フォロー状態を更新しました");
+      // 409エラー（Conflict）の場合は特別な処理
+      if (response.status === 409) {
+        // すでにフォローしている場合は、UIを更新してエラーを無視
+        if (!isCurrentlyFollowing) {
+          setFollowers((prev) =>
+            prev.map((follower) =>
+              follower.id === userId
+                ? { ...follower, isFollowing: true }
+                : follower
+            )
+          );
+          toast.success("既にフォロー済みです");
+          return;
+        }
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `${actionText}に失敗しました`);
+      }
+
+      // UIを直接更新（オプティミスティックUI更新）
+      setFollowers((prev) =>
+        prev.map((follower) =>
+          follower.id === userId
+            ? { ...follower, isFollowing: !isCurrentlyFollowing }
+            : follower
+        )
+      );
+
+      toast.success(`${actionText}しました`);
     } catch (error) {
-      console.error("Error following user:", error);
-      toast.error("フォロー操作に失敗しました");
+      console.error(
+        `Error ${isCurrentlyFollowing ? "unfollowing" : "following"} user:`,
+        error
+      );
+
+      // より具体的なエラーメッセージを表示
+      const errorMessage =
+        error instanceof Error ? error.message : "操作に失敗しました";
+
+      // 特定のエラーメッセージをユーザーフレンドリーな表現に変換
+      let displayMessage = errorMessage;
+      if (errorMessage === "Already following this user") {
+        displayMessage = "既にフォロー済みです";
+      } else if (errorMessage === "Not following this user") {
+        displayMessage = "フォローしていません";
+      }
+
+      toast.error(displayMessage);
+    } finally {
+      // 処理中フラグを解除
+      setProcessingFollowIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(userId);
+        return newSet;
+      });
     }
   };
 
@@ -135,10 +210,22 @@ export default function FollowersPage({ params }: { params: { id: string } }) {
                 {session?.user?.id !== follower.id && (
                   <Button
                     variant={follower.isFollowing ? "secondary" : "default"}
-                    onClick={() => handleFollow(follower.id)}
+                    onClick={() =>
+                      handleFollowToggle(
+                        follower.id,
+                        follower.isFollowing || false
+                      )
+                    }
                     size="sm"
+                    disabled={processingFollowIds.has(follower.id)}
                   >
-                    {follower.isFollowing ? "フォロー中" : "フォローする"}
+                    {processingFollowIds.has(follower.id) ? (
+                      <LoaderCircle className="size-4 animate-spin" />
+                    ) : follower.isFollowing ? (
+                      "フォロー解除"
+                    ) : (
+                      "フォローする"
+                    )}
                   </Button>
                 )}
                 <span className="text-sm text-gray-500">

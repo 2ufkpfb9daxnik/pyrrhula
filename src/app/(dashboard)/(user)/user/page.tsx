@@ -98,6 +98,9 @@ export default function UsersPage() {
   const [sortBy, setSortBy] = useState<"rate" | "createdAt">("rate");
   const [isLoading, setIsLoading] = useState(true);
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
+  const [processingUsers, setProcessingUsers] = useState<Set<string>>(
+    new Set()
+  );
   const router = useRouter();
   const { data: session } = useSession();
 
@@ -182,13 +185,49 @@ export default function UsersPage() {
       return;
     }
 
+    // 既に処理中の場合は何もしない
+    if (processingUsers.has(userId)) return;
+
+    // 処理中フラグを設定
+    setProcessingUsers((prev) => new Set(prev).add(userId));
+
     try {
+      // APIリクエスト
       const response = await fetch(`/api/follow/${userId}`, {
         method: isFollowing ? "DELETE" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
       });
 
-      if (!response.ok) throw new Error("Failed to update follow status");
+      // HTMLレスポンスが返ってくる場合のエラーハンドリング（404などの場合）
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("text/html")) {
+        throw new Error(
+          "APIエンドポイントが見つかりません。URLを確認してください。"
+        );
+      }
 
+      // 409エラー（Conflict）の場合は特別な処理
+      if (response.status === 409) {
+        // すでにフォローしている場合は、UIを更新してエラーを無視
+        if (!isFollowing) {
+          setUsers((prev) =>
+            prev.map((user) =>
+              user.id === userId ? { ...user, isFollowing: true } : user
+            )
+          );
+          toast.success("既にフォロー済みです");
+          return;
+        }
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "フォロー状態の更新に失敗しました");
+      }
+
+      // UIを更新
       setUsers((prev) =>
         prev.map((user) =>
           user.id === userId
@@ -200,7 +239,27 @@ export default function UsersPage() {
       toast.success(isFollowing ? "フォロー解除しました" : "フォローしました");
     } catch (error) {
       console.error("Follow error:", error);
-      toast.error("操作に失敗しました");
+
+      // より具体的なエラーメッセージを表示
+      const errorMessage =
+        error instanceof Error ? error.message : "操作に失敗しました";
+
+      // 特定のエラーメッセージをユーザーフレンドリーな表現に変換
+      let displayMessage = errorMessage;
+      if (errorMessage === "Already following this user") {
+        displayMessage = "既にフォロー済みです";
+      } else if (errorMessage === "Not following this user") {
+        displayMessage = "フォローしていません";
+      }
+
+      toast.error(displayMessage);
+    } finally {
+      // 処理中フラグを解除
+      setProcessingUsers((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(userId);
+        return newSet;
+      });
     }
   };
 
@@ -296,9 +355,15 @@ export default function UsersPage() {
                       e.stopPropagation();
                       handleFollow(user.id, user.isFollowing || false);
                     }}
-                    disabled={!session}
+                    disabled={!session || processingUsers.has(user.id)}
                   >
-                    {user.isFollowing ? "フォロー解除" : "フォローする"}
+                    {processingUsers.has(user.id) ? (
+                      <LoaderCircle className="size-4 animate-spin" />
+                    ) : user.isFollowing ? (
+                      "フォロー解除"
+                    ) : (
+                      "フォローする"
+                    )}
                   </Button>
                 )}
                 <Button
@@ -310,7 +375,8 @@ export default function UsersPage() {
                     router.push(`/followgraph/${user.id}`);
                   }}
                 >
-                  フォローグラフ
+                  フォローグラフ<br></br>
+                  壊れています
                 </Button>
               </div>
             </div>
