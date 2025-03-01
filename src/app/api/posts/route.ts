@@ -20,6 +20,7 @@ export async function GET(req: Request) {
     const cursor = searchParams.get("cursor");
     const since = searchParams.get("since");
     const includeReposts = searchParams.get("includeReposts") === "true";
+    const countOnly = searchParams.get("countOnly") === "true";
 
     const followings = await prisma.follow.findMany({
       where: {
@@ -32,6 +33,40 @@ export async function GET(req: Request) {
 
     const followingIds = followings.map((f) => f.followedId);
     followingIds.push(session.user.id); // 自分のIDも含める
+
+    // カウントのみが要求された場合（自動更新用）
+    if (countOnly && since) {
+      const sinceDate = new Date(since);
+
+      // 通常投稿のカウント
+      const postsCount = await prisma.post.count({
+        where: {
+          userId: { in: followingIds },
+          createdAt: {
+            gt: sinceDate,
+          },
+        },
+      });
+
+      // リポストのカウント（includeRepostsが有効な場合のみ）
+      let repostsCount = 0;
+      if (includeReposts) {
+        repostsCount = await prisma.repost.count({
+          where: {
+            userId: { in: followingIds },
+            createdAt: {
+              gt: sinceDate,
+            },
+          },
+        });
+      }
+
+      // 新しい投稿の合計数を返す
+      return NextResponse.json({
+        count: postsCount + repostsCount,
+        timestamp: new Date(),
+      });
+    }
 
     // 型を明示的に定義して互換性を確保
     type FormattedPost = {

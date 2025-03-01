@@ -6,23 +6,221 @@ import { MakePost } from "@/app/_components/makepost";
 import { Search } from "@/app/_components/search";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { LoaderCircle, Plus, RefreshCw } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { LoaderCircle, Plus, RefreshCw, Bell } from "lucide-react";
 import type { Post as PostType } from "@/app/_types/post";
+import { toast } from "sonner";
 
 export default function WholePage() {
   const [posts, setPosts] = useState<PostType[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | undefined>();
   const [isLoading, setIsLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const postInputRef = useRef<HTMLTextAreaElement>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date());
+  const [newPostsCount, setNewPostsCount] = useState(0);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // プルダウンリフレッシュ用の状態
+  const [isPulling, setIsPulling] = useState(false);
+  const [pullDistance, setPullDistance] = useState(0);
+  const touchStartRef = useRef(0);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // モバイル/デスクトップの判定
+  useEffect(() => {
+    const checkIfMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    checkIfMobile();
+    window.addEventListener("resize", checkIfMobile);
+
+    return () => {
+      window.removeEventListener("resize", checkIfMobile);
+    };
+  }, []);
+
+  // プルダウンリフレッシュの実装
+  useEffect(() => {
+    // モバイルでのみ有効化
+    if (!isMobile || !contentRef.current) return;
+
+    const content = contentRef.current;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      // スクロール位置がトップにある場合のみプルダウンを有効化
+      if (window.scrollY <= 0) {
+        touchStartRef.current = e.touches[0].clientY;
+        setIsPulling(true);
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isPulling) return;
+
+      const touchY = e.touches[0].clientY;
+      const distance = touchY - touchStartRef.current;
+
+      // 下方向へのスワイプ時のみ処理（上方向は無視）
+      if (distance > 0) {
+        // 引っ張る感覚を出すために減衰させる
+        const dampedDistance = Math.min(distance * 0.5, 100);
+        setPullDistance(dampedDistance);
+
+        // スクロールを防止
+        if (dampedDistance > 5) {
+          e.preventDefault();
+        }
+      }
+    };
+
+    const handleTouchEnd = () => {
+      if (!isPulling) return;
+
+      if (pullDistance > 50) {
+        // 十分な距離を引っ張られたら更新する
+        handleShowNewPosts();
+      }
+
+      // リセット
+      setPullDistance(0);
+      setIsPulling(false);
+    };
+
+    content.addEventListener("touchstart", handleTouchStart, { passive: true });
+    content.addEventListener("touchmove", handleTouchMove, { passive: false });
+    content.addEventListener("touchend", handleTouchEnd);
+
+    return () => {
+      content.removeEventListener("touchstart", handleTouchStart);
+      content.removeEventListener("touchmove", handleTouchMove);
+      content.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, [isPulling, isMobile]);
+
+  // 初回読み込み
   useEffect(() => {
     fetchPosts();
   }, []);
 
-  // キーボードショートカットのイベントリスナー
+  // 自動更新の設定
+  useEffect(() => {
+    // ユーザーがページを見ているかどうかの確認
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && autoRefresh) {
+        // ページが表示されたら直ちに更新
+        checkForNewPosts(true);
+        // インターバルを再開
+        startAutoRefresh();
+      } else {
+        // ページが非表示になったらインターバルを停止
+        if (refreshIntervalRef.current) {
+          clearInterval(refreshIntervalRef.current);
+          refreshIntervalRef.current = null;
+        }
+      }
+    };
+
+    const startAutoRefresh = () => {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+      }
+
+      // 30秒ごとに新しい投稿をチェック
+      refreshIntervalRef.current = setInterval(() => {
+        checkForNewPosts(false);
+      }, 30000);
+    };
+
+    // 自動更新が有効で、ページが表示されている場合のみインターバルを開始
+    if (autoRefresh && document.visibilityState === "visible") {
+      startAutoRefresh();
+    }
+
+    // イベントリスナーの登録
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    // クリーンアップ関数
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+        refreshIntervalRef.current = null;
+      }
+    };
+  }, [autoRefresh, lastUpdateTime]);
+
+  // 新しい投稿があるかチェック
+  const checkForNewPosts = async (fetchImmediately = false) => {
+    try {
+      // this_timeline 用のエンドポイントを使用
+      const response = await fetch(
+        `/api/posts?since=${lastUpdateTime.toISOString()}&includeReposts=true&countOnly=${!fetchImmediately}`,
+        { next: { revalidate: 0 } }
+      );
+
+      if (!response.ok) {
+        throw new Error("新規投稿の確認に失敗しました");
+      }
+
+      const data = await response.json();
+
+      if (fetchImmediately && data.posts && data.posts.length > 0) {
+        // 即時読み込みモード
+        setIsRefreshing(true);
+
+        const newPosts = data.posts.filter(
+          (newPost: any) =>
+            !posts.some((existingPost) => {
+              // リポスト情報も考慮して重複チェック
+              if (!newPost.repostedBy) {
+                return existingPost.id === newPost.id;
+              }
+              return (
+                existingPost.id === newPost.id &&
+                existingPost.repostedBy?.id === newPost.repostedBy?.id
+              );
+            })
+        );
+
+        if (newPosts.length > 0) {
+          // 新しい投稿を既存の投稿リストの先頭に追加
+          setPosts((prevPosts) => [...newPosts, ...prevPosts]);
+          setNewPostsCount(0);
+          setLastUpdateTime(new Date());
+
+          // 通知を表示
+          if (newPosts.length === 1) {
+            toast.success("新しい投稿を表示しました");
+          } else {
+            toast.success(`${newPosts.length}件の新しい投稿を表示しました`);
+          }
+        }
+
+        setIsRefreshing(false);
+      } else if (!fetchImmediately && data.count) {
+        // カウントのみモード - 新着投稿数を表示
+        setNewPostsCount(data.count);
+      }
+    } catch (error) {
+      console.error("Error checking for new posts:", error);
+      if (fetchImmediately) {
+        setIsRefreshing(false);
+      }
+    }
+  };
+
+  // 新着投稿を表示するボタンがクリックされたとき
+  const handleShowNewPosts = () => {
+    checkForNewPosts(true);
+  };
+
+  // キーボードショートカットの設定
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (
@@ -41,6 +239,16 @@ export default function WholePage() {
         } else {
           postInputRef.current?.focus();
         }
+      } else if (
+        e.key === "r" &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        document.activeElement?.tagName !== "TEXTAREA" &&
+        document.activeElement?.tagName !== "INPUT"
+      ) {
+        // rキーで最新の投稿を取得
+        e.preventDefault();
+        handleShowNewPosts();
       }
     };
 
@@ -134,6 +342,7 @@ export default function WholePage() {
     }
   };
 
+  // 投稿取得
   const fetchPosts = async (cursor?: string) => {
     try {
       setIsLoading(true);
@@ -142,13 +351,10 @@ export default function WholePage() {
         params.append("cursor", cursor);
       }
 
-      // 拡散も含めるパラメータを追加
       params.append("includeReposts", "true");
 
-      console.log(`全体タイムライン: /api/whole?${params} をフェッチします`);
-
-      const response = await fetch(`/api/whole?${params}`, {
-        next: { revalidate: 60 }, // 60秒間キャッシュ
+      const response = await fetch(`/api/posts?${params}`, {
+        next: { revalidate: 0 },
       });
       if (!response.ok) {
         throw new Error("投稿の取得に失敗しました");
@@ -156,54 +362,28 @@ export default function WholePage() {
 
       const data = await response.json();
 
-      // デバッグ: APIレスポンスを確認
-      console.log("API Response:", data.posts.slice(0, 2));
-      interface ApiPostResponse {
-        repostedBy?: {
-          id: string;
-          username: string;
-          icon: string | null;
-        };
-      }
-
-      console.log(
-        "拡散投稿が含まれているか:",
-        data.posts.some((p: ApiPostResponse) => p.repostedBy)
-          ? "はい"
-          : "いいえ"
-      );
-
       if (cursor) {
-        // 追加読み込みの場合は既存の投稿に追加
+        // 追加読み込み
         setPosts((prev) => [
           ...prev,
           ...data.posts.map((post: any) => formatPost(post)),
         ]);
       } else {
-        // 初回読み込みの場合は置き換え
+        // 初回読み込み
         setPosts(data.posts.map((post: any) => formatPost(post)));
       }
 
-      // デバッグ: フォーマット後の投稿を確認
-      const formattedPosts = data.posts.map((post: any) => formatPost(post));
-      console.log("フォーマット後の投稿:", formattedPosts.slice(0, 2));
-      console.log(
-        "拡散投稿数:",
-        formattedPosts.filter((p: PostType) => p.repostedBy).length
-      );
-
       setHasMore(data.hasMore);
       setNextCursor(data.nextCursor);
-
-      // 最新の取得時間を更新
       setLastUpdateTime(new Date());
+      setNewPostsCount(0);
     } catch (error) {
       console.error("Error fetching posts:", error);
+      toast.error("投稿の取得に失敗しました");
     } finally {
       setIsLoading(false);
     }
   };
-
   const handleSearch = async (query: string) => {
     try {
       const response = await fetch(
@@ -220,12 +400,14 @@ export default function WholePage() {
     }
   };
 
+  // 投稿作成成功時のハンドラ
   const handlePostCreated = (newPost: PostType) => {
     setPosts((prev) => {
-      // 一時的な投稿（temp-で始まるID）を削除
       const filtered = prev.filter((p) => !p.id.startsWith("temp-"));
       return [newPost, ...filtered];
     });
+    // 新しい投稿を作成したら、最終更新時刻も更新
+    setLastUpdateTime(new Date());
   };
 
   const handleFavoriteSuccess = (
@@ -274,12 +456,60 @@ export default function WholePage() {
     );
   }
 
+  // プルダウンインジケーターのスタイル
+  const pullRefreshStyle = {
+    height: `${pullDistance}px`,
+    opacity: pullDistance > 10 ? Math.min(pullDistance / 50, 1) : 0,
+    transition: isPulling ? "none" : "all 0.3s ease",
+  };
+
   return (
     <>
       <div className="hidden md:block md:w-80"></div>
       <div className="flex-1 pb-16 md:pb-0">
+        {/* プルダウン時のローディングインジケーター */}
+        {isMobile && (
+          <div
+            className="flex items-center justify-center overflow-hidden py-2"
+            style={pullRefreshStyle}
+          >
+            <LoaderCircle
+              className={`size-8 ${pullDistance > 50 ? "animate-spin" : ""} text-gray-400`}
+            />
+          </div>
+        )}
+
         <div className="mx-auto max-w-2xl p-4">
           <div className="space-y-4">
+            {/* 新しい投稿のお知らせボタン */}
+            {newPostsCount > 0 && (
+              <div className="sticky top-0 z-10 animate-pulse">
+                <Button
+                  onClick={handleShowNewPosts}
+                  variant="default"
+                  className="mx-auto flex w-full max-w-sm items-center justify-center gap-2 rounded-full py-2"
+                >
+                  <Bell className="size-4" />
+                  {newPostsCount}件の新しい投稿を表示
+                </Button>
+              </div>
+            )}
+
+            {/* 自動更新の切り替えスイッチ - デスクトップのみ表示 */}
+            {!isMobile && (
+              <div className="flex items-center justify-end">
+                <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-400">
+                  <span>自動更新</span>
+                  <input
+                    type="checkbox"
+                    checked={autoRefresh}
+                    onChange={() => setAutoRefresh(!autoRefresh)}
+                    className="size-4 rounded border-gray-600 bg-gray-800 accent-primary"
+                  />
+                </label>
+              </div>
+            )}
+
             {/* デバッグ情報 (開発中のみ表示) */}
             {process.env.NODE_ENV === "development" && (
               <div className="mb-4 rounded border border-yellow-500 bg-yellow-500/10 p-2 text-xs">

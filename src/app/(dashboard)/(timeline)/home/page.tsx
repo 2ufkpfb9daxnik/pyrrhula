@@ -39,7 +39,7 @@ export default function HomePage() {
     if (session) {
       fetchLatestPosts();
     }
-  }, 6000); // この値は例として6秒、実際には60000（60秒）が適切
+  }, 60000);
 
   // 新しい投稿のみを取得する関数
   const fetchLatestPosts = async () => {
@@ -359,8 +359,8 @@ export default function HomePage() {
       </div>
 
       {/* メインコンテンツ */}
-      <div className="flex-1 pb-16 md:pb-0">
-        <div className="mx-auto max-w-2xl p-4 md:ml-96">
+      <div className="flex flex-1 justify-center pb-16 md:pb-0">
+        <div className="w-full max-w-2xl p-4">
           {/* モバイル用ヘッダー */}
           <div className="mb-4 flex items-center justify-between border-b border-gray-800 pb-4 md:hidden">
             <button
@@ -375,7 +375,6 @@ export default function HomePage() {
             </button>
             <Search onSearch={handleSearch} />
           </div>
-
           <div className="space-y-4">
             {posts.length === 0 ? (
               <div className="rounded-lg border border-gray-800 p-8 text-center">
