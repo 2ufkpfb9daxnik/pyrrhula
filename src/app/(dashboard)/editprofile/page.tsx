@@ -76,6 +76,7 @@ export default function ProfileEditPage() {
             value={formData.icon}
             onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
             type="url"
+            placeholder="初期画像は以下を利用:https://api.dicebear.com/7.x/bottts/svg?seed=あなたのユーザーID"
           />
         </div>
         <div className="flex justify-end space-x-4">
