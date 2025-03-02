@@ -5,8 +5,6 @@
 ## TODO
 
 - フォローグラフ原因究明
-- 楽観的実行
-- 拡散について検証
 - 色々コンポーネント化して使いやすく
 - タイムライン/通知/チャット自動更新
 
@@ -237,4 +235,4 @@ graph TB
 ## 各種リンク
 
 - [2ufkpfbdaxnik](https://github.com/2ufkpfb9daxnik/pyrrhula)
-- [ポートフォリオ](https://2ufkpfb9daxnik.github.io/portfolio/page/pyrrhula)
+- [もう少しフランクな開発動機など](https://2ufkpfb9daxnik.github.io/portfolio/page/pyrrhula)
