@@ -1,15 +1,7 @@
 import type { RatingColor } from "@/app/_types/rating";
 
-export function calculateRating(
-  recentPosts: number,
-  totalPosts: number
-): RatingColor {
-  // 直近30日の投稿数と全体の投稿数から基本スコアを計算
-  const recentScore = Math.min(recentPosts / 50, 1) * 70;
-  const totalScore = Math.min(totalPosts / 1000, 1) * 30;
-  const score = recentScore + totalScore;
-
-  // スコアに基づいてレーティングカラーを決定
+// スコアから色を決定する関数
+export function getColorFromScore(score: number): RatingColor {
   if (score >= 200000)
     return "bg-gradient-to-r from-red-500 via-yellow-500 to-blue-500";
   if (score >= 30000) return "text-red-500";
@@ -23,4 +15,17 @@ export function calculateRating(
   if (score >= 3) return "text-amber-700";
   if (score >= 1) return "text-gray-500";
   return "text-gray-300";
+}
+
+// 従来の関数は互換性のために残す
+export function calculateRating(
+  recentPosts: number,
+  totalPosts: number
+): RatingColor {
+  // 直近30日の投稿数と全体の投稿数から基本スコアを計算
+  const recentScore = Math.min(recentPosts / 50, 1) * 70;
+  const totalScore = Math.min(totalPosts / 1000, 1) * 30;
+  const score = recentScore + totalScore;
+
+  return getColorFromScore(score);
 }

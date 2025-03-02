@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth/next";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { calculateRating } from "@/lib/rating";
+import { getColorFromScore } from "@/lib/rating";
 import { authOptions } from "@/lib/auth";
 import type { UserRating } from "@/app/_types/rating";
 
@@ -160,36 +160,26 @@ export async function GET(
       )
     );
 
-    // 既存のratingライブラリを使用して色を計算
-    const color = calculateRating(recentPosts, totalPosts);
-
     // エンハンストスコアの計算（レート関連機能強化用）
-    const enhancedScore =
+    const score = Math.floor(
       recentPosts * 10 + // 最近の投稿に高いウェイト
-      recentReposts * 5 + // 最近の拡散
-      Math.sqrt(totalPosts) * 15 + // 総投稿数（平方根でスケーリング）
-      Math.sqrt(totalReposts) * 7 + // 総拡散数
-      Math.sqrt(recentFavoritesReceived) * 8 + // 最近受けたお気に入り
-      Math.sqrt(favoritesReceived) * 5 + // 総受け取りお気に入り
-      Math.sqrt(followersCount) * 10 + // フォロワー数
-      Math.log(accountAgeDays + 1) * 5; // アカウント年齢ボーナス（対数スケール）
+        recentReposts * 5 + // 最近の拡散
+        Math.sqrt(totalPosts) * 15 + // 総投稿数（平方根でスケーリング）
+        Math.sqrt(totalReposts) * 7 + // 総拡散数
+        Math.sqrt(recentFavoritesReceived) * 8 + // 最近受けたお気に入り
+        Math.sqrt(favoritesReceived) * 5 + // 総受け取りお気に入り
+        Math.sqrt(followersCount) * 10 + // フォロワー数
+        Math.log(accountAgeDays + 1) * 5 // アカウント年齢ボーナス（対数スケール）
+    );
 
-    // 最終スコアは既存の方式を尊重しつつ拡張要素も反映
-    const baseScore =
-      Math.min(recentPosts / 50, 1) * 70 + Math.min(totalPosts / 1000, 1) * 30;
-    // 拡散やお気に入りによる補正を加える
-    const reposts_bonus =
-      Math.sqrt(totalReposts) * 2 + Math.sqrt(recentReposts) * 3;
-    const favorites_bonus =
-      Math.sqrt(favoritesReceived) * 2 + Math.sqrt(recentFavoritesReceived) * 3;
-    // 最終スコア（基本スコア + ボーナス）
-    const score = Math.floor(baseScore + reposts_bonus + favorites_bonus);
+    // スコアから色を決定
+    const color = getColorFromScore(score);
 
     // 大幅な変化がある場合のみ、データベースのレート値を更新
-    if (user.rate === null || Math.abs(enhancedScore - (user.rate || 0)) > 50) {
+    if (user.rate === null || Math.abs(score - (user.rate || 0)) > 50) {
       await prisma.user.update({
         where: { id: userId },
-        data: { rate: enhancedScore },
+        data: { rate: score },
       });
     }
 
