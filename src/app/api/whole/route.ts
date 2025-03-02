@@ -10,9 +10,8 @@ const limit = 50;
 export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const userId = session?.user?.id;
+    // 認証チェックを削除し、ユーザーIDを取得するだけに変更
 
     const { searchParams } = new URL(req.url);
     const cursor = searchParams.get("cursor");
@@ -142,26 +141,35 @@ export async function GET(req: Request) {
             repostedBy: true,
           },
         },
-        favoritedBy: {
-          where: { userId: session.user.id },
-          select: { userId: true },
-        },
-        repostedBy: {
-          where: { userId: session.user.id },
-          select: { userId: true, createdAt: true },
-        },
+        favoritedBy: userId
+          ? {
+              where: { userId },
+              select: { userId: true },
+            }
+          : undefined,
+        repostedBy: userId
+          ? {
+              where: { userId },
+              select: { userId: true, createdAt: true },
+            }
+          : undefined,
       },
     });
 
     let allPosts: FormattedPost[] = regularPosts.map((post) => ({
       ...post,
-      isReposted: post.repostedBy.length > 0,
-      isFavorited: post.favoritedBy.length > 0,
+      // ログインしていない場合はfalseに設定
+      isReposted: userId ? post.repostedBy?.length > 0 || false : false,
+      isFavorited: userId ? post.favoritedBy?.length > 0 || false : false,
       repostedAt:
-        post.repostedBy.length > 0 ? post.repostedBy[0].createdAt : undefined,
+        userId && post.repostedBy?.length > 0
+          ? post.repostedBy[0].createdAt
+          : undefined,
       parent: post.parent || null,
       // プロパティ名を完全に分けて重複を避ける
-      userRepostedData: post.repostedBy,
+      // 非ログインの場合は空の配列を設定
+      favoritedBy: post.favoritedBy || [],
+      userRepostedData: post.repostedBy || [],
     }));
 
     // 2. 拡散された投稿を取得（includeRepostsが指定されている場合のみ）
@@ -227,14 +235,18 @@ export async function GET(req: Request) {
                   repostedBy: true,
                 },
               },
-              favoritedBy: {
-                where: { userId: session.user.id },
-                select: { userId: true },
-              },
-              repostedBy: {
-                where: { userId: session.user.id },
-                select: { userId: true, createdAt: true },
-              },
+              favoritedBy: userId
+                ? {
+                    where: { userId },
+                    select: { userId: true },
+                  }
+                : undefined,
+              repostedBy: userId
+                ? {
+                    where: { userId },
+                    select: { userId: true, createdAt: true },
+                  }
+                : undefined,
             },
           },
         },
@@ -262,36 +274,20 @@ export async function GET(req: Request) {
           user: repost.post.user,
           parent: repost.post.parent || null,
           _count: repost.post._count,
-          favoritedBy: repost.post.favoritedBy,
+          // 非ログインの場合は空の配列を設定
+          favoritedBy: repost.post.favoritedBy || [],
           // DB データは userRepostedData として保存
-          userRepostedData: repost.post.repostedBy,
+          userRepostedData: repost.post.repostedBy || [],
           repostedAt: repost.createdAt,
-          isReposted: repost.post.repostedBy.length > 0,
-          isFavorited: repost.post.favoritedBy.length > 0,
+          isReposted: userId
+            ? repost.post.repostedBy?.length > 0 || false
+            : false,
+          isFavorited: userId
+            ? repost.post.favoritedBy?.length > 0 || false
+            : false,
           // 拡散者情報を repostedByInfo として保存
           repostedByInfo: repostingUserInfo,
         };
-      });
-
-      // 通常の投稿と拡散を結合
-      allPosts = [...allPosts, ...repostedPosts];
-
-      // 重複を除去（同じ投稿が通常の投稿と拡散で2回表示されないようにする）部分を修正
-      const seenIds = new Set<string>();
-      allPosts = allPosts.filter((post) => {
-        // 拡散された投稿を特定するためのユニークキーを作成
-        const postKey = post.repostedByInfo
-          ? `${post.id}-repost-${post.repostedByInfo.id}`
-          : post.id;
-
-        // 完全に同じ投稿（同じIDかつ同じ拡散者）の場合のみ除外
-        if (seenIds.has(postKey)) {
-          console.log(`全体タイムライン: 重複を検出: ${postKey}`);
-          return false;
-        }
-
-        seenIds.add(postKey);
-        return true;
       });
 
       // 日付でソート（拡散日時または投稿日時）
