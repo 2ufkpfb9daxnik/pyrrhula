@@ -537,23 +537,34 @@ export default function WholePage() {
               </div>
             ) : (
               <>
-                {posts.map((post) => (
-                  <Post
-                    key={
-                      post.id +
-                      (post.repostedBy
-                        ? `-repost-${post.repostedBy.id}`
-                        : post.repostedAt?.toString() || "")
-                    }
-                    post={post}
-                    onRepostSuccess={(newCount, isReposted) =>
-                      handleRepostSuccess(post.id, newCount, isReposted)
-                    }
-                    onFavoriteSuccess={(newCount, isFavorited) =>
-                      handleFavoriteSuccess(post.id, newCount, isFavorited)
-                    }
-                  />
-                ))}
+                {posts
+                  .filter((post) => {
+                    // 拡散された投稿（repostedByあり）はそのまま表示
+                    if (post.repostedBy) return true;
+
+                    // 通常の投稿は、同じIDの投稿が他の誰かによって拡散されている場合は表示しない
+                    const isRepostedByOthers = posts.some(
+                      (p) => p.repostedBy && p.id === post.id
+                    );
+                    return !isRepostedByOthers;
+                  })
+                  .map((post) => (
+                    <Post
+                      key={
+                        post.id +
+                        (post.repostedBy
+                          ? `-repost-${post.repostedBy.id}`
+                          : post.repostedAt?.toString() || "")
+                      }
+                      post={post}
+                      onRepostSuccess={(newCount, isReposted) =>
+                        handleRepostSuccess(post.id, newCount, isReposted)
+                      }
+                      onFavoriteSuccess={(newCount, isFavorited) =>
+                        handleFavoriteSuccess(post.id, newCount, isFavorited)
+                      }
+                    />
+                  ))}
               </>
             )}
 
