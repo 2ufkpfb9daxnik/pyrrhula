@@ -25,6 +25,7 @@ import { Navigation } from "@/app/_components/navigation";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { LoaderCircle } from "lucide-react";
+import { linkify } from "@/lib/linkify";
 
 interface UserDetail {
   id: string;
@@ -379,7 +380,7 @@ export default function UserProfilePage({
               </div>
 
               {user.profile && (
-                <p className="mt-4 text-gray-300">{user.profile}</p>
+                <p className="mt-4 text-gray-300">{linkify(user.profile)}</p>
               )}
 
               <div className="mt-4 flex flex-wrap gap-4 text-sm text-gray-400">
