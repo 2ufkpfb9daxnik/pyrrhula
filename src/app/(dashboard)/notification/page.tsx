@@ -45,7 +45,7 @@ export default function NotificationPage() {
 
   const fetchNotifications = async () => {
     try {
-      const url = `/fications${cursor ? `?cursor=${cursor}` : ""}`;
+      const url = `/api/notifications${cursor ? `?cursor=${cursor}` : ""}`;
       const response = await fetch(url);
       if (!response.ok) throw new Error("Failed to fetch notifications");
 
