@@ -42,7 +42,7 @@ export function useNotifications() {
     }
   }, [session, lastNotification]);
 
-  // 1分ごとにポーリング
+  // 10分ごとにポーリング
   useEffect(() => {
     if (!session?.user) return;
 
@@ -50,7 +50,7 @@ export function useNotifications() {
     checkNotifications();
 
     // ポーリングの設定
-    const interval = setInterval(checkNotifications, 60000);
+    const interval = setInterval(checkNotifications, 600000);
 
     return () => clearInterval(interval);
   }, [session, checkNotifications]);
