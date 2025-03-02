@@ -130,10 +130,10 @@ export default function ProfileEditPage() {
             onChange={(e) =>
               setFormData({ ...formData, profile: e.target.value })
             }
-            maxLength={160}
+            maxLength={500}
           />
           <p className="mt-1 text-xs text-muted-foreground">
-            {formData.profile.length}/160文字
+            {formData.profile.length}/500文字
           </p>
         </div>
         <div>
