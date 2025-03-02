@@ -303,7 +303,7 @@ export default function WholePage() {
     };
   };
 
-  // fetchLatestPosts関数も修正
+  // 新しい投稿のみを取得する関数
   const fetchLatestPosts = async () => {
     try {
       const response = await fetch(
@@ -355,8 +355,6 @@ export default function WholePage() {
       }
 
       params.append("includeReposts", "true");
-      // リミットパラメータを追加（APIのlimitとマッチさせる）
-      params.append("limit", "50");
 
       // APIエンドポイントを /api/posts から /api/whole に変更
       const response = await fetch(`/api/whole?${params}`, {
@@ -367,7 +365,6 @@ export default function WholePage() {
       }
 
       const data = await response.json();
-      console.log("API response:", data); // デバッグ用
 
       if (cursor) {
         // 追加読み込み
@@ -380,14 +377,10 @@ export default function WholePage() {
         setPosts(data.posts.map((post: any) => formatPost(post)));
       }
 
-      // hasMoreとnextCursorを明示的に設定
-      setHasMore(!!data.hasMore);
+      setHasMore(data.hasMore);
       setNextCursor(data.nextCursor);
       setLastUpdateTime(new Date());
       setNewPostsCount(0);
-
-      console.log("Has more:", data.hasMore);
-      console.log("Next cursor:", data.nextCursor);
     } catch (error) {
       console.error("Error fetching posts:", error);
       toast.error("投稿の取得に失敗しました");

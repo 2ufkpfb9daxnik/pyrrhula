@@ -4,10 +4,8 @@ import { authOptions } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import type { TimelineResponse, CreatePostRequest } from "@/app/_types/post";
 import { calculateRating } from "@/lib/rating";
-import { getColorFromScore } from "@/lib/rating";
 
-// デフォルトのリミット値
-const DEFAULT_LIMIT = 50;
+const limit = 50;
 
 export async function GET(req: Request) {
   try {
@@ -19,13 +17,6 @@ export async function GET(req: Request) {
     const cursor = searchParams.get("cursor");
     const since = searchParams.get("since");
     const includeReposts = searchParams.get("includeReposts") === "true";
-    // クライアントから指定されたリミット値を取得、指定がなければデフォルト値を使用
-    const requestedLimit = parseInt(
-      searchParams.get("limit") || String(DEFAULT_LIMIT),
-      50
-    );
-    // 実際に使用するリミット（次ページ判定用に+1）
-    const limit = requestedLimit;
 
     // 型を明示的に定義して互換性を確保
     type FormattedPost = {
@@ -165,10 +156,6 @@ export async function GET(req: Request) {
       },
     });
 
-    console.log(
-      `全体タイムライン: ${regularPosts.length}件の通常投稿を取得しました`
-    );
-
     let allPosts: FormattedPost[] = regularPosts.map((post) => ({
       ...post,
       // ログインしていない場合はfalseに設定
@@ -183,7 +170,6 @@ export async function GET(req: Request) {
       // 非ログインの場合は空の配列を設定
       favoritedBy: post.favoritedBy || [],
       userRepostedData: post.repostedBy || [],
-      images: post.images || [],
     }));
 
     // 2. 拡散された投稿を取得（includeRepostsが指定されている場合のみ）
@@ -304,22 +290,7 @@ export async function GET(req: Request) {
         };
       });
 
-      // 重複排除（同じ投稿IDが既にallPostsにある場合は拡散バージョンを優先）
-      const postIdsMap = new Map<string, boolean>();
-      allPosts.forEach((post) => postIdsMap.set(post.id, true));
-
-      // 重複しないrepostedPostsのみをallPostsに追加
-      const uniqueRepostedPosts = repostedPosts.filter((post) => {
-        // 既に追加済みの場合は加えない
-        if (postIdsMap.has(post.id)) return false;
-
-        // 新規投稿はマップに追加してtrueを返す
-        postIdsMap.set(post.id, true);
-        return true;
-      });
-
-      // 新規拡散投稿を追加
-      allPosts = [...allPosts, ...uniqueRepostedPosts];
+      allPosts = [...allPosts, ...repostedPosts];
 
       // 日付でソート（拡散日時または投稿日時）
       allPosts.sort((a, b) => {
@@ -329,22 +300,10 @@ export async function GET(req: Request) {
       });
     }
 
-    console.log(
-      `全体タイムライン: ソート後の投稿数=${allPosts.length}, リクエスト数=${requestedLimit}`
-    );
-
     // 次ページの有無を確認
-    const hasMore = allPosts.length > requestedLimit;
-
-    // 次のカーソル値（要求数を超える場合のみセット）
-    const nextCursor = hasMore ? allPosts[requestedLimit - 1].id : undefined;
-
-    // クライアントに返す投稿リスト（要求された数だけ）
-    const postList = hasMore ? allPosts.slice(0, requestedLimit) : allPosts;
-
-    console.log(
-      `全体タイムライン: 返却する投稿数=${postList.length}, hasMore=${hasMore}, nextCursor=${nextCursor || "なし"}`
-    );
+    const hasMore = allPosts.length > limit;
+    const nextCursor = hasMore ? allPosts[limit - 1].id : undefined;
+    const postList = hasMore ? allPosts.slice(0, limit) : allPosts;
 
     // レスポンスデータの整形
     const formattedPosts: ApiResponsePost[] = postList.map((post) => ({
@@ -369,7 +328,7 @@ export async function GET(req: Request) {
     return NextResponse.json({
       posts: formattedPosts,
       hasMore,
-      nextCursor,
+      ...(nextCursor && { nextCursor }),
     });
   } catch (error) {
     console.error("[Whole Timeline Error]:", error);
@@ -491,25 +450,32 @@ export async function POST(req: Request) {
       ]);
 
       // 3. レーティングの計算
-      const score = Math.floor(
-        recentPosts * 10 + // 最近の投稿に高いウェイト
-          recentReposts * 5 + // 最近の拡散
-          Math.sqrt(postCount) * 15 + // 総投稿数（平方根でスケーリング）
-          Math.sqrt(totalReposts) * 7 + // 総拡散数
-          Math.sqrt(recentFavoritesReceived) * 8 + // 最近受けたお気に入り
-          Math.sqrt(favoritesReceived) * 5 + // 総受け取りお気に入り
-          Math.sqrt(followersCount) * 10 // フォロワー数
-      );
+      // 既存のレーティングカラー
+      const ratingColor = calculateRating(recentPosts, postCount);
 
-      // 色の計算
-      const color = getColorFromScore(score);
+      // 拡張レーティングスコアの計算
+      const baseScore =
+        Math.min(recentPosts / 50, 1) * 70 + Math.min(postCount / 1000, 1) * 30;
+
+      // 拡散やお気に入りによるボーナス
+      const repostsBonus =
+        Math.sqrt(totalReposts) * 2 + Math.sqrt(recentReposts) * 3;
+      const favoritesBonus =
+        Math.sqrt(favoritesReceived) * 2 +
+        Math.sqrt(recentFavoritesReceived) * 3;
+      const followersBonus = Math.sqrt(followersCount) * 5;
+
+      // 計算されたレート値
+      const calculatedRate = Math.floor(
+        baseScore + repostsBonus + favoritesBonus + followersBonus
+      );
 
       // 4. ユーザー情報を更新
       await prisma.user.update({
         where: { id: session.user.id },
         data: {
           postCount,
-          rate: score,
+          rate: calculatedRate,
         },
       });
 
