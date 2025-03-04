@@ -3,7 +3,6 @@ import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import type { TimelineResponse, CreatePostRequest } from "@/app/_types/post";
-import { calculateRating } from "@/lib/rating";
 
 const limit = 50;
 
@@ -387,6 +386,7 @@ export async function POST(req: Request) {
         recentFavoritesReceived, // 過去30日に受け取ったお気に入り
         favoritesReceived, // 受け取ったお気に入りの合計
         followersCount, // フォロワー数
+        user, // ユーザー情報（アカウント作成日を取得するため）
       ] = await Promise.all([
         // 総投稿数
         prisma.post.count({
@@ -447,27 +447,32 @@ export async function POST(req: Request) {
             followedId: session.user.id,
           },
         }),
+
+        // ユーザー情報を取得（アカウント作成日を取得）
+        prisma.user.findUnique({
+          where: { id: session.user.id },
+          select: { createdAt: true },
+        }),
       ]);
 
-      // 3. レーティングの計算
-      // 既存のレーティングカラー
-      const ratingColor = calculateRating(recentPosts, postCount);
+      // アカウント年齢（日数）を計算
+      const accountAgeDays = user?.createdAt
+        ? Math.floor(
+            (Date.now() - new Date(user.createdAt).getTime()) /
+              (1000 * 60 * 60 * 24)
+          )
+        : 0;
 
-      // 拡張レーティングスコアの計算
-      const baseScore =
-        Math.min(recentPosts / 50, 1) * 70 + Math.min(postCount / 1000, 1) * 30;
-
-      // 拡散やお気に入りによるボーナス
-      const repostsBonus =
-        Math.sqrt(totalReposts) * 2 + Math.sqrt(recentReposts) * 3;
-      const favoritesBonus =
-        Math.sqrt(favoritesReceived) * 2 +
-        Math.sqrt(recentFavoritesReceived) * 3;
-      const followersBonus = Math.sqrt(followersCount) * 5;
-
-      // 計算されたレート値
+      // 3. レーティングの計算 - 新しい計算式に基づく
       const calculatedRate = Math.floor(
-        baseScore + repostsBonus + favoritesBonus + followersBonus
+        recentPosts * 10 + // 直近30日の投稿数 × 10
+          Math.sqrt(postCount) * 15 + // 総投稿数の平方根 × 15
+          recentReposts * 5 + // 直近30日の拡散数 × 5
+          Math.sqrt(totalReposts) * 7 + // 総拡散数の平方根 × 7
+          Math.sqrt(recentFavoritesReceived) * 8 + // 直近30日のお気に入り数の平方根 × 8
+          Math.sqrt(favoritesReceived) * 5 + // 総お気に入り数の平方根 × 5
+          Math.sqrt(followersCount) * 10 + // フォロワー数の平方根 × 10
+          Math.log(accountAgeDays + 1) * 5 // アカウント作成からの日数（対数） × 5
       );
 
       // 4. ユーザー情報を更新

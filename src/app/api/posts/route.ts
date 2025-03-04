@@ -2,14 +2,12 @@ import { getServerSession } from "next-auth/next";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { NextResponse } from "next/server";
-import type { TimelineResponse, CreatePostRequest } from "@/app/_types/post";
-import { calculateRating } from "@/lib/rating";
+import type { CreatePostRequest } from "@/app/_types/post";
 
 const limit = 50;
 
 // 投稿一覧を取得
 export async function GET(req: Request) {
-  // GET部分は既存のコードをそのまま使用（変更なし）
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) {
@@ -390,7 +388,7 @@ export async function GET(req: Request) {
   }
 }
 
-// 新規投稿を作成 - この部分を改修
+// 新規投稿を作成
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -437,6 +435,7 @@ export async function POST(req: Request) {
         recentFavoritesReceived, // 過去30日に受け取ったお気に入り
         favoritesReceived, // 受け取ったお気に入りの合計
         followersCount, // フォロワー数
+        user, // ユーザー情報（アカウント作成日を取得するため）
       ] = await Promise.all([
         // 総投稿数
         prisma.post.count({
@@ -497,41 +496,55 @@ export async function POST(req: Request) {
             followedId: session.user.id,
           },
         }),
+
+        // ユーザー情報を取得（アカウント作成日を取得するため）
+        prisma.user.findUnique({
+          where: { id: session.user.id },
+          select: { createdAt: true },
+        }),
       ]);
 
-      // 3. レート計算
-      // 既存のレーティングカラーを取得
-      const ratingColor = calculateRating(recentPosts, postCount);
+      // アカウント年齢（日数）を計算
+      const accountAgeDays = user?.createdAt
+        ? Math.floor(
+            (Date.now() - new Date(user.createdAt).getTime()) /
+              (1000 * 60 * 60 * 24)
+          )
+        : 0;
 
-      // 基本スコア計算（既存ロジックとの互換性を保持）
-      const baseScore =
-        Math.min(recentPosts / 50, 1) * 70 + Math.min(postCount / 1000, 1) * 30;
-
-      // 拡散およびお気に入りによるボーナス
-      const repostsBonus =
-        Math.sqrt(totalReposts) * 2 + Math.sqrt(recentReposts) * 3;
-      const favoritesBonus =
-        Math.sqrt(favoritesReceived) * 2 +
-        Math.sqrt(recentFavoritesReceived) * 3;
-      const followersBonus = Math.sqrt(followersCount) * 5;
-
-      // 最終レート計算
+      // 3. 新しい計算式に基づくレーティング計算
       const calculatedRate = Math.floor(
-        baseScore + repostsBonus + favoritesBonus + followersBonus
+        recentPosts * 10 + // 直近30日の投稿数 × 10
+          Math.sqrt(postCount) * 15 + // 過去の投稿の平方根 × 15
+          recentReposts * 5 + // 直近30日の拡散数 × 5
+          Math.sqrt(totalReposts) * 7 + // 総拡散数の平方根 × 7
+          Math.sqrt(recentFavoritesReceived) * 8 + // 直近30日のお気に入り数の平方根 × 8
+          Math.sqrt(favoritesReceived) * 5 + // 総お気に入り数の平方根 × 5
+          Math.sqrt(followersCount) * 10 + // フォロワー数の平方根 × 10
+          Math.log(accountAgeDays + 1) * 5 // アカウント作成からの日数（対数） × 5
       );
 
       // ログを出力（トラブルシューティング用）
       console.log(
-        `[Rating] ユーザー: ${session.user.id}, 基本スコア: ${baseScore}, 拡散ボーナス: ${repostsBonus}, お気に入りボーナス: ${favoritesBonus}, フォロワーボーナス: ${followersBonus}`
+        `[Rating] ユーザー: ${session.user.id}, 投稿数: 最近=${recentPosts}、総数=${postCount}`
       );
-      console.log(`[Rating] 総合レート: ${calculatedRate}`);
+      console.log(
+        `[Rating] 拡散数: 最近=${recentReposts}、総数=${totalReposts}`
+      );
+      console.log(
+        `[Rating] お気に入り: 最近=${recentFavoritesReceived}、総数=${favoritesReceived}`
+      );
+      console.log(
+        `[Rating] フォロワー数: ${followersCount}、アカウント年齢(日): ${accountAgeDays}`
+      );
+      console.log(`[Rating] 計算されたレート: ${calculatedRate}`);
 
       // 4. ユーザー情報を更新
       await prisma.user.update({
         where: { id: session.user.id },
         data: {
           postCount,
-          rate: calculatedRate, // 拡張スコアを保存
+          rate: calculatedRate,
         },
       });
 

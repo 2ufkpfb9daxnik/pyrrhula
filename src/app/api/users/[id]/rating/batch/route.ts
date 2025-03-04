@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth/next";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { calculateRating } from "@/lib/rating";
+import { getColorFromScore } from "@/lib/rating"; // calculateRatingからgetColorFromScoreに変更
 import { authOptions } from "@/lib/auth";
 import type { UserRating } from "@/app/_types/rating";
 // Prisma クライアントから Prisma 名前空間をインポート
@@ -84,12 +84,21 @@ export async function POST(req: Request) {
     });
 
     // お気に入り数 (受け取り) の取得
-    // SQLテンプレートリテラルの修正 - Prisma.join() を使用
     const favoritesReceivedData = await prisma.$queryRaw`
       SELECT p."userId", COUNT(*) as count 
       FROM "Favorite" f 
       JOIN "Post" p ON f."postId" = p.id 
       WHERE p."userId" IN (${Prisma.join(limitedUserIds)}) 
+      GROUP BY p."userId"
+    `;
+
+    // 最近のお気に入り数 (受け取り) の取得 (30日以内)
+    const recentFavoritesReceivedData = await prisma.$queryRaw`
+      SELECT p."userId", COUNT(*) as count 
+      FROM "Favorite" f 
+      JOIN "Post" p ON f."postId" = p.id 
+      WHERE p."userId" IN (${Prisma.join(limitedUserIds)}) 
+      AND f."createdAt" >= ${new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)}
       GROUP BY p."userId"
     `;
 
@@ -136,6 +145,14 @@ export async function POST(req: Request) {
         ? Number(favoritesReceivedItem.count)
         : 0;
 
+      // 最近のお気に入り数
+      const recentFavoritesReceivedItem = (
+        recentFavoritesReceivedData as any[]
+      ).find((item) => item.userId === user.id);
+      const recentFavoritesReceived = recentFavoritesReceivedItem
+        ? Number(recentFavoritesReceivedItem.count)
+        : 0;
+
       // フォロワー数
       const followersItem = followersData.find(
         (item) => item.followedId === user.id
@@ -144,21 +161,33 @@ export async function POST(req: Request) {
         ? followersItem._count.followerId
         : 0;
 
+      // アカウント年齢（日数）の計算
+      const accountAgeDays = Math.floor(
+        (Date.now() - new Date(user.createdAt).getTime()) /
+          (1000 * 60 * 60 * 24)
+      );
+
+      // レーティング計算式に基づいてスコアを計算
+      const score = Math.floor(
+        recentPosts * 10 + // 直近30日の投稿数 × 10
+          Math.sqrt(totalPosts) * 15 + // 過去の投稿の平方根 × 15
+          recentReposts * 5 + // 直近30日の拡散数 × 5
+          Math.sqrt(totalReposts) * 7 + // 総拡散数の平方根 × 7
+          Math.sqrt(recentFavoritesReceived) * 8 + // 直近30日のお気に入り数の平方根 × 8
+          Math.sqrt(favoritesReceived) * 5 + // 総お気に入り数の平方根 × 5
+          Math.sqrt(followersCount) * 10 + // フォロワー数の平方根 × 10
+          Math.log(accountAgeDays + 1) * 5 // アカウント作成からの日数（対数） × 5
+      );
+
       // レーティングカラーの計算
-      const color = calculateRating(recentPosts, totalPosts);
+      const color = getColorFromScore(score); // 計算したスコアに基づいて色を取得
 
       // レスポンス用のレーティングデータを構築
       result[user.id] = {
         color,
         recentPostCount: recentPosts,
         totalPostCount: totalPosts,
-        score:
-          totalPosts * 10 +
-          recentPosts * 20 +
-          totalReposts * 5 +
-          recentReposts * 10 +
-          Math.sqrt(favoritesReceived) * 15 +
-          Math.sqrt(followersCount) * 20,
+        score,
       };
     }
 

@@ -2,30 +2,110 @@ import type { RatingColor } from "@/app/_types/rating";
 
 // スコアから色を決定する関数
 export function getColorFromScore(score: number): RatingColor {
-  if (score >= 200000)
+  if (score >= 65536)
     return "bg-gradient-to-r from-red-500 via-yellow-500 to-blue-500";
-  if (score >= 30000) return "text-red-500";
-  if (score >= 5000) return "text-orange-500";
-  if (score >= 1000) return "text-yellow-500";
-  if (score >= 250) return "text-purple-500";
-  if (score >= 62) return "text-blue-500";
-  if (score >= 31) return "text-cyan-500";
-  if (score >= 15) return "text-green-500";
-  if (score >= 7) return "text-lime-500";
-  if (score >= 3) return "text-amber-700";
-  if (score >= 1) return "text-gray-500";
+  if (score >= 32768) return "text-red-500";
+  if (score >= 16384) return "text-orange-500";
+  if (score >= 8192) return "text-yellow-500";
+  if (score >= 4096) return "text-purple-500";
+  if (score >= 2048) return "text-blue-500";
+  if (score >= 1024) return "text-cyan-500";
+  if (score >= 512) return "text-green-500";
+  if (score >= 256) return "text-lime-500";
+  if (score >= 128) return "text-amber-700";
+  if (score >= 64) return "text-gray-500";
   return "text-gray-300";
 }
 
-// 従来の関数は互換性のために残す
+/**
+ * 新しい計算式に基づいたレーティングを計算する関数
+ * @param userData ユーザーデータのオブジェクト
+ * @returns レーティングスコア
+ */
+export function calculateFullRating({
+  recentPosts,
+  totalPosts,
+  recentReposts,
+  totalReposts,
+  recentFavoritesReceived,
+  favoritesReceived,
+  followersCount,
+  accountAgeDays,
+}: {
+  recentPosts: number;
+  totalPosts: number;
+  recentReposts: number;
+  totalReposts: number;
+  recentFavoritesReceived: number;
+  favoritesReceived: number;
+  followersCount: number;
+  accountAgeDays: number;
+}): number {
+  return Math.floor(
+    recentPosts * 10 + // 直近30日の投稿数 × 10
+      Math.sqrt(totalPosts) * 15 + // 過去の投稿の平方根 × 15
+      recentReposts * 5 + // 直近30日の拡散数 × 5
+      Math.sqrt(totalReposts) * 7 + // 総拡散数の平方根 × 7
+      Math.sqrt(recentFavoritesReceived) * 8 + // 直近30日のお気に入り数の平方根 × 8
+      Math.sqrt(favoritesReceived) * 5 + // 総お気に入り数の平方根 × 5
+      Math.sqrt(followersCount) * 10 + // フォロワー数の平方根 × 10
+      Math.log(accountAgeDays + 1) * 5 // アカウント作成からの日数（対数） × 5
+  );
+}
+
+/**
+ * 基本的な投稿数のみからレーティング色を計算する関数（後方互換性のために維持）
+ * 新しい計算式に基づいて色を決定する
+ */
 export function calculateRating(
   recentPosts: number,
   totalPosts: number
 ): RatingColor {
-  // 直近30日の投稿数と全体の投稿数から基本スコアを計算
-  const recentScore = Math.min(recentPosts / 50, 1) * 70;
-  const totalScore = Math.min(totalPosts / 1000, 1) * 30;
-  const score = recentScore + totalScore;
+  // 残りのデータがない場合は、最小限のデータで簡易計算
+  const baseScore = recentPosts * 10 + Math.sqrt(totalPosts) * 15;
 
-  return getColorFromScore(score);
+  // 簡易評価のため、基本スコアの2倍程度の値を返す（他のボーナスを概算）
+  const estimatedFullScore = baseScore * 2;
+
+  return getColorFromScore(estimatedFullScore);
+}
+
+/**
+ * レーティング色とスコアを計算する関数
+ * @returns レーティング色とスコア
+ */
+export function calculateRatingAndScore({
+  recentPosts,
+  totalPosts,
+  recentReposts,
+  totalReposts,
+  recentFavoritesReceived,
+  favoritesReceived,
+  followersCount,
+  accountAgeDays,
+}: {
+  recentPosts: number;
+  totalPosts: number;
+  recentReposts: number;
+  totalReposts: number;
+  recentFavoritesReceived: number;
+  favoritesReceived: number;
+  followersCount: number;
+  accountAgeDays: number;
+}): { color: RatingColor; score: number } {
+  const score = calculateFullRating({
+    recentPosts,
+    totalPosts,
+    recentReposts,
+    totalReposts,
+    recentFavoritesReceived,
+    favoritesReceived,
+    followersCount,
+    accountAgeDays,
+  });
+
+  return {
+    score,
+    color: getColorFromScore(score),
+  };
 }

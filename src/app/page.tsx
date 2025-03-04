@@ -215,74 +215,74 @@ export default function LandingPage() {
 
               <div className="rounded-lg border p-6">
                 <p className="mb-4 text-sm leading-relaxed text-muted-foreground">
-                  鷽のレーティングは、ユーザーの活動量と質を評価する指標です。投稿数や反応の数など、複数の要素から総合的に算出されます。
-                  アクティブで質の高い投稿を行うユーザーほど、高いレーティングが付与されます。
+                  鷽のレーティングは、ユーザーの活動量を評価する指標です。投稿数や反応の数など、複数の要素から総合的に算出されます。
+                  アクティブで投稿を行う頻度が高いユーザーほど、高いレーティングが付与されます。
                 </p>
                 <div className="grid grid-cols-1 gap-4 text-center sm:grid-cols-2 md:grid-cols-3">
                   <div className="flex flex-col items-center rounded-md border p-3">
                     <span className="text-gray-300">白</span>
                     <span className="text-xs text-muted-foreground">
-                      1点未満
+                      64点以下
                     </span>
                   </div>
                   <div className="flex flex-col items-center rounded-md border p-3">
                     <span className="text-gray-500">灰</span>
                     <span className="text-xs text-muted-foreground">
-                      1〜2点
+                      65～128点
                     </span>
                   </div>
                   <div className="flex flex-col items-center rounded-md border p-3">
                     <span className="text-amber-700">茶</span>
                     <span className="text-xs text-muted-foreground">
-                      3〜6点
+                      129～256点
                     </span>
                   </div>
                   <div className="flex flex-col items-center rounded-md border p-3">
                     <span className="text-lime-500">黄緑</span>
                     <span className="text-xs text-muted-foreground">
-                      7〜14点
+                      257〜512点
                     </span>
                   </div>
                   <div className="flex flex-col items-center rounded-md border p-3">
                     <span className="text-green-500">緑</span>
                     <span className="text-xs text-muted-foreground">
-                      15〜30点
+                      513〜1024点
                     </span>
                   </div>
                   <div className="flex flex-col items-center rounded-md border p-3">
                     <span className="text-cyan-500">水</span>
                     <span className="text-xs text-muted-foreground">
-                      31〜61点
+                      1025〜2048点
                     </span>
                   </div>
                   <div className="flex flex-col items-center rounded-md border p-3">
                     <span className="text-blue-500">青</span>
                     <span className="text-xs text-muted-foreground">
-                      62〜249点
+                      2049〜4096点
                     </span>
                   </div>
                   <div className="flex flex-col items-center rounded-md border p-3">
                     <span className="text-purple-500">紫</span>
                     <span className="text-xs text-muted-foreground">
-                      250〜999点
+                      4097〜8192点
                     </span>
                   </div>
                   <div className="flex flex-col items-center rounded-md border p-3">
                     <span className="text-yellow-500">黄</span>
                     <span className="text-xs text-muted-foreground">
-                      1000〜4999点
+                      8193〜16384点
                     </span>
                   </div>
                   <div className="flex flex-col items-center rounded-md border p-3">
                     <span className="text-orange-500">橙</span>
                     <span className="text-xs text-muted-foreground">
-                      5000〜29999点
+                      16385〜32768点
                     </span>
                   </div>
                   <div className="flex flex-col items-center rounded-md border p-3">
                     <span className="text-red-500">赤</span>
                     <span className="text-xs text-muted-foreground">
-                      30000点以上
+                      32769点以上
                     </span>
                   </div>
                 </div>
@@ -292,13 +292,14 @@ export default function LandingPage() {
                 <h3 className="mb-4 text-lg font-medium">
                   レーティングの計算方法
                 </h3>
+                <p className="text-sm text-muted-foreground">以下の和です。</p>
                 <div className="space-y-4">
                   <div className="flex items-center space-x-3 rounded-md border p-3">
                     <Activity className="size-5 text-blue-500" />
                     <div>
                       <h4 className="font-medium">基本スコア</h4>
                       <p className="text-sm text-muted-foreground">
-                        最近の投稿数 × 10 + 過去の投稿の平方根 × 15
+                        直近30日の投稿数 × 10 + 過去の投稿の平方根 × 15
                       </p>
                     </div>
                   </div>
@@ -308,7 +309,7 @@ export default function LandingPage() {
                     <div>
                       <h4 className="font-medium">拡散ボーナス</h4>
                       <p className="text-sm text-muted-foreground">
-                        最近の拡散数 × 5 + 総拡散数の平方根 × 7
+                        直近30日の拡散数 × 5 + 総拡散数の平方根 × 7
                       </p>
                     </div>
                   </div>
@@ -318,8 +319,8 @@ export default function LandingPage() {
                     <div>
                       <h4 className="font-medium">お気に入りボーナス</h4>
                       <p className="text-sm text-muted-foreground">
-                        最近のお気に入り数の平方根 × 8 + 総お気に入り数の平方根
-                        × 5
+                        直近30日のお気に入り数の平方根 × 8 +
+                        総お気に入り数の平方根 × 5
                       </p>
                     </div>
                   </div>
@@ -351,19 +352,17 @@ export default function LandingPage() {
                   レーティングを上げるには
                 </h3>
                 <ul className="list-inside list-disc space-y-2 text-sm text-muted-foreground">
-                  <li>定期的に投稿を行う（最近の投稿に高いウェイト）</li>
-                  <li>質の高い投稿をして拡散やお気に入りを集める</li>
-                  <li>他のユーザーの質の高い投稿を拡散する</li>
-                  <li>コミュニティに積極的に参加してフォロワーを増やす</li>
-                  <li>長期間アカウントを使い続ける（継続ボーナス）</li>
+                  <li>定期的に投稿を行う（直近30日の投稿に高い重み）</li>
+                  <li>拡散やお気に入りを集める</li>
+                  <li>投稿を拡散する</li>
+                  <li>フォロワーを増やす</li>
+                  <li>長期間アカウントを使い続ける</li>
                 </ul>
               </div>
 
               <div className="mt-6 text-center">
                 <Button asChild>
-                  <Link href="/signup">
-                    アカウント作成してレーティングを始める
-                  </Link>
+                  <Link href="/signup">アカウント作成</Link>
                 </Button>
               </div>
             </div>
