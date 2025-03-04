@@ -338,13 +338,26 @@ export default function UserProfilePage({
               {/* プロフィール編集またはフォローボタン */}
               <div className="mt-4 flex flex-wrap gap-2">
                 {session?.user?.id === params.id ? (
-                  <Button
-                    onClick={() => router.push(`/editprofile`)}
-                    variant="outline"
-                    className="w-full sm:w-auto"
-                  >
-                    プロフィールを編集
-                  </Button>
+                  <>
+                    <Button
+                      onClick={() => router.push(`/editprofile`)}
+                      variant="outline"
+                      className="w-full sm:w-auto"
+                    >
+                      プロフィールを編集
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/followgraph/${user.id}`);
+                      }}
+                      className="w-full sm:w-auto"
+                    >
+                      <BarChart className="mr-2 size-4" />
+                      フォローグラフ
+                    </Button>
+                  </>
                 ) : (
                   <>
                     <Button
@@ -376,14 +389,14 @@ export default function UserProfilePage({
                       チャット
                     </Button>
                     <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-28 border border-gray-800"
+                      variant="secondary"
                       onClick={(e) => {
                         e.stopPropagation();
                         router.push(`/followgraph/${user.id}`);
                       }}
+                      className="w-full sm:w-auto"
                     >
+                      <BarChart className="mr-2 size-4" />
                       フォローグラフ
                     </Button>
                   </>
