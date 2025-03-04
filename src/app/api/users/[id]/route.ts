@@ -117,7 +117,11 @@ export async function GET(
         skip: cursor ? 1 : 0,
         cursor: cursor ? { id: cursor } : undefined,
         orderBy: { createdAt: "desc" },
-        include: {
+        select: {
+          id: true,
+          content: true,
+          createdAt: true,
+          images: true, // 画像は文字列配列のフィールド
           user: {
             select: {
               id: true,
@@ -154,6 +158,7 @@ export async function GET(
             : undefined,
         },
       });
+
       const hasMore = posts.length > limit;
       const nextCursor = hasMore ? posts[limit - 1].id : undefined;
       const postList = hasMore ? posts.slice(0, -1) : posts;
@@ -163,6 +168,7 @@ export async function GET(
         content: post.content,
         createdAt: post.createdAt,
         user: post.user,
+        images: post.images, // 画像情報を追加
         _count: {
           replies: post._count.replies,
           favorites: post._count.favoritedBy,
@@ -184,51 +190,6 @@ export async function GET(
     console.error("[User API Error]:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
-    );
-  }
-}
-
-export async function PUT(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
-    }
-
-    if (session.user.id !== params.id) {
-      return NextResponse.json(
-        { error: "他のユーザーのプロフィールは編集できません" },
-        { status: 403 }
-      );
-    }
-
-    const body = await req.json();
-    const { username, profile, icon } = body;
-
-    const updatedUser = await prisma.user.update({
-      where: { id: params.id },
-      data: {
-        username: username,
-        profile: profile,
-        icon: icon,
-      },
-      select: {
-        id: true,
-        username: true,
-        icon: true,
-        profile: true,
-      },
-    });
-
-    return NextResponse.json(updatedUser);
-  } catch (error) {
-    console.error("[User Update Error]:", error);
-    return NextResponse.json(
-      { error: "サーバーエラーが発生しました" },
       { status: 500 }
     );
   }
