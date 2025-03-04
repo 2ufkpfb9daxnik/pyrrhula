@@ -405,7 +405,7 @@ export default function NetworkGraph({
               <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-gray-400">
                 <span className="flex items-center">
                   <Calendar className="mr-1 size-3" />
-                  {formatDistanceToNow(new Date(user.createdAt))}前に参加
+                  {formatDistanceToNow(new Date(user.createdAt))}に参加
                 </span>
                 <span className="flex items-center">
                   <Trophy className="mr-1 size-3" />
