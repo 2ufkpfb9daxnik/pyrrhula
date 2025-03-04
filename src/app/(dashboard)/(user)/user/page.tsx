@@ -448,8 +448,7 @@ export default function UsersPage() {
                     router.push(`/followgraph/${user.id}`);
                   }}
                 >
-                  フォローグラフ<br></br>
-                  壊れています
+                  フォローグラフ
                 </Button>
               </div>
             </div>

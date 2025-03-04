@@ -375,6 +375,17 @@ export default function UserProfilePage({
                       <Send className="mr-2 size-4" />
                       チャット
                     </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-28 border border-gray-800"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/followgraph/${user.id}`);
+                      }}
+                    >
+                      フォローグラフ
+                    </Button>
                   </>
                 )}
               </div>
