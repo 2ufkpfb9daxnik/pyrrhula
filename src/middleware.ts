@@ -11,6 +11,14 @@ const publicPaths = [
   "/api/posts",
   "/api/search",
   "/api/landing",
+  "/api/users/[id]/rating",
+  "/api/users/[id]/posts",
+  "/api/users/[id]/followers",
+  "/api/users/[id]/following",
+  "/api/users/[id]/favorite",
+  "/api/users/[id]/repost",
+  "/api/users/[id]/reply",
+  "/api/whole",
 ];
 
 export async function middleware(request: NextRequest) {

@@ -64,9 +64,8 @@ export default function LandingPage() {
   const fetchPosts = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch("/api/landing", {
+      const response = await fetch("/api/whole?limit=10&includeReposts=true", {
         next: { revalidate: 60 }, // 60秒間キャッシュ
-        credentials: "omit",
       });
 
       if (!response.ok) {
