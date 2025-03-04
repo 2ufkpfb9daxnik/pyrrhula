@@ -77,11 +77,21 @@ export async function GET(req: Request) {
       ratingColor: getColorFromScore(user.rate),
     }));
 
+    const totalPages = Math.ceil(totalUsers / limit);
+    const hasMore = page * limit < totalUsers;
+
+    // クライアントが期待するページネーション形式に合わせた構造
     const response = {
       users: formattedUsers,
-      hasMore: page * limit < totalUsers,
       total: totalUsers,
-      nextCursor: page * limit < totalUsers ? String(page + 1) : undefined,
+      nextCursor: hasMore ? String(page + 1) : undefined,
+      // ページネーション情報を追加
+      pagination: {
+        total: totalUsers,
+        pages: totalPages,
+        current: page,
+        hasMore: hasMore,
+      },
     };
 
     // キャッシュヘッダーを追加
