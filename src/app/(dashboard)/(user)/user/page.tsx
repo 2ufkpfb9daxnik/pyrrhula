@@ -179,11 +179,9 @@ export default function UsersPage() {
   const fetchUsers = async (page: number) => {
     try {
       setIsLoading(true);
-      const data = await fetchUsersWithRetry(page);
 
-      // タイムアウト時間を延長（15秒）
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15秒に延長
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
 
       const params = new URLSearchParams({
         sort: sortBy,
@@ -193,11 +191,10 @@ export default function UsersPage() {
       });
 
       const response = await fetch(`/api/users?${params}`, {
-        signal: controller.signal, // signal を追加（これが必要）
+        signal: controller.signal,
         next: { revalidate: 60 },
       });
 
-      // タイムアウトをクリア
       clearTimeout(timeoutId);
 
       if (!response.ok) {
@@ -207,6 +204,8 @@ export default function UsersPage() {
             : "ユーザー情報の取得に失敗しました"
         );
       }
+
+      const data = await response.json();
 
       // データの整形を確実に行う
       const formattedUsers = data.users.map((user: any) => ({
@@ -226,10 +225,12 @@ export default function UsersPage() {
       setUsers(formattedUsers);
 
       setPagination({
-        total: data.total || 0,
-        pages: Math.ceil(data.total / 5),
+        total: data.pagination?.total || 0,
+        pages:
+          data.pagination?.pages ||
+          Math.ceil((data.pagination?.total || 0) / 5),
         currentPage: page,
-        hasMore: data.hasMore || false,
+        hasMore: data.pagination?.hasMore || false,
       });
     } catch (error) {
       console.error("Error fetching users:", error);
