@@ -212,6 +212,7 @@ graph TB
 
 ### 開発ツール
 
+- **GitHub Copilot**: Claude3.5および3.7 sonnetを全体で使用
 - **TypeScript**: 型安全性
 - **ESLint**: コード品質
 - **Prettier**: コードフォーマット

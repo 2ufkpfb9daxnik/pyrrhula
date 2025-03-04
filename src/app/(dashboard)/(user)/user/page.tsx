@@ -129,19 +129,15 @@ export default function UsersPage() {
       });
 
       const response = await fetch(`/api/users?${params}`, {
-        signal: controller.signal,
         next: { revalidate: 60 }, // キャッシュを60秒間有効にする
       });
 
-      clearTimeout(timeoutId);
-
       if (!response.ok) {
-        if (response.status === 504) {
-          throw new Error(
-            "サーバーの応答がタイムアウトしました。後でもう一度お試しください。"
-          );
-        }
-        throw new Error("ユーザー情報の取得に失敗しました");
+        throw new Error(
+          response.status === 504
+            ? "サーバーの応答がタイムアウトしました。後でもう一度お試しください。"
+            : "ユーザー情報の取得に失敗しました"
+        );
       }
 
       const data = await response.json();
