@@ -114,10 +114,72 @@ export default function UsersPage() {
     fetchUsers(1);
   }, [sortBy]);
 
+  // 指数バックオフでリトライする関数
+  const fetchUsersWithRetry = async (
+    page: number,
+    retryCount = 0
+  ): Promise<any> => {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20000); // 20秒に延長
+
+      const params = new URLSearchParams({
+        sort: sortBy,
+        page: page.toString(),
+        limit: "5",
+        includeFollowStatus: session ? "true" : "false",
+      });
+
+      const response = await fetch(`/api/users?${params}`, {
+        signal: controller.signal,
+        cache: "no-store", // キャッシュ無効化（デバッグ時のみ）
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        // 500エラーでリトライ回数が最大値未満の場合
+        if (response.status === 500 && retryCount < 3) {
+          // 指数バックオフ待機（0.5秒、1秒、2秒...）
+          const waitTime = Math.pow(2, retryCount) * 500;
+          console.log(
+            `API接続エラー、${waitTime}ms後にリトライします (${retryCount + 1}/4)`
+          );
+          await new Promise((resolve) => setTimeout(resolve, waitTime));
+          return fetchUsersWithRetry(page, retryCount + 1);
+        }
+
+        throw new Error(
+          response.status === 504
+            ? "サーバーの応答がタイムアウトしました。後でもう一度お試しください。"
+            : "ユーザー情報の取得に失敗しました"
+        );
+      }
+
+      return await response.json();
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.name === "AbortError" &&
+        retryCount < 3
+      ) {
+        // タイムアウトの場合も指数バックオフでリトライ
+        const waitTime = Math.pow(2, retryCount) * 500;
+        console.log(
+          `タイムアウト、${waitTime}ms後にリトライします (${retryCount + 1}/4)`
+        );
+        await new Promise((resolve) => setTimeout(resolve, waitTime));
+        return fetchUsersWithRetry(page, retryCount + 1);
+      }
+      throw error;
+    }
+  };
+
   // APIルートの最適化
   const fetchUsers = async (page: number) => {
     try {
       setIsLoading(true);
+      const data = await fetchUsersWithRetry(page);
 
       // タイムアウト時間を延長（15秒）
       const controller = new AbortController();
@@ -145,8 +207,6 @@ export default function UsersPage() {
             : "ユーザー情報の取得に失敗しました"
         );
       }
-
-      const data = await response.json();
 
       // データの整形を確実に行う
       const formattedUsers = data.users.map((user: any) => ({
