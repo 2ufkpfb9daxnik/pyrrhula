@@ -1,11 +1,11 @@
 import React from "react";
 import Link from "next/link";
 
-// パターン定義を更新
+// パターン定義
 const URL_PATTERN = /(https?:\/\/[^\s]+)/g;
 const HASHTAG_PATTERN =
   /#[\w\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uff9f\u4e00-\u9faf\u3400-\u4dbf]+/g;
-const MENTION_PATTERN = /@[\w]+/g; // メンションパターンを追加
+const MENTION_PATTERN = /@[\w]+/g;
 
 export function linkify(text: string): React.ReactNode[] {
   if (!text) {
@@ -13,68 +13,80 @@ export function linkify(text: string): React.ReactNode[] {
   }
 
   const safeText = String(text);
+  const result: React.ReactNode[] = [];
 
-  // パターンに@メンションを追加
-  const segments = safeText.split(
-    new RegExp(
-      `(${URL_PATTERN.source}|${HASHTAG_PATTERN.source}|${MENTION_PATTERN.source})`,
-      "g"
-    )
+  // 最後に処理した位置を記録
+  let lastIndex = 0;
+
+  // 全てのパターンを組み合わせた正規表現
+  const combinedPattern = new RegExp(
+    `${URL_PATTERN.source}|${HASHTAG_PATTERN.source}|${MENTION_PATTERN.source}`,
+    "g"
   );
 
-  return segments.map((segment, i) => {
-    if (!segment) {
-      return "";
+  // マッチするたびに処理
+  let match;
+  while ((match = combinedPattern.exec(safeText)) !== null) {
+    // マッチした位置の前にあるテキストを追加
+    if (match.index > lastIndex) {
+      result.push(safeText.substring(lastIndex, match.index));
     }
 
+    const matchedText = match[0];
+
     // URLの場合
-    if (segment.match(URL_PATTERN)) {
-      return (
+    if (matchedText.match(URL_PATTERN)) {
+      result.push(
         <a
-          key={`url-${i}`}
-          href={segment}
+          key={`url-${match.index}`}
+          href={matchedText}
           target="_blank"
           rel="noopener noreferrer"
           className="break-all text-blue-400 hover:text-blue-300 hover:underline"
           onClick={(e) => e.stopPropagation()}
         >
-          {segment}
+          {matchedText}
         </a>
       );
     }
-
     // ハッシュタグの場合
-    if (segment.match(HASHTAG_PATTERN)) {
-      return (
+    else if (matchedText.match(HASHTAG_PATTERN)) {
+      result.push(
         <Link
-          key={`hashtag-${i}`}
-          href={`/search?q=${encodeURIComponent(segment)}`}
+          key={`hashtag-${match.index}`}
+          href={`/search?q=${encodeURIComponent(matchedText)}`}
           className="text-blue-400 hover:text-blue-300 hover:underline"
           onClick={(e) => e.stopPropagation()}
           prefetch={false}
         >
-          {segment}
+          {matchedText}
         </Link>
       );
     }
-
     // メンションの場合
-    if (segment.match(MENTION_PATTERN)) {
-      const username = segment.slice(1); // @を除去
-      return (
+    else if (matchedText.match(MENTION_PATTERN)) {
+      const username = matchedText.slice(1); // @を除去
+      result.push(
         <Link
-          key={`mention-${i}`}
+          key={`mention-${match.index}`}
           href={`/user/${username}`}
           className="text-blue-400 hover:text-blue-300 hover:underline"
           onClick={(e) => e.stopPropagation()}
           prefetch={false}
         >
-          {segment}
+          {matchedText}
         </Link>
       );
     }
 
-    // 通常のテキストの場合
-    return segment;
-  });
+    // 次の検索位置を更新
+    lastIndex = combinedPattern.lastIndex;
+  }
+
+  // 残りのテキストを追加
+  if (lastIndex < safeText.length) {
+    result.push(safeText.substring(lastIndex));
+  }
+
+  return result;
 }
