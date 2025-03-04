@@ -118,8 +118,10 @@ export default function UsersPage() {
   const fetchUsers = async (page: number) => {
     try {
       setIsLoading(true);
+
+      // タイムアウト時間を延長（15秒）
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15秒に延長
 
       const params = new URLSearchParams({
         sort: sortBy,
@@ -129,8 +131,12 @@ export default function UsersPage() {
       });
 
       const response = await fetch(`/api/users?${params}`, {
-        next: { revalidate: 60 }, // キャッシュを60秒間有効にする
+        signal: controller.signal, // signal を追加（これが必要）
+        next: { revalidate: 60 },
       });
+
+      // タイムアウトをクリア
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error(
@@ -167,9 +173,19 @@ export default function UsersPage() {
       });
     } catch (error) {
       console.error("Error fetching users:", error);
-      toast.error(
-        error instanceof Error ? error.message : "一時的なエラーが発生しました"
-      );
+
+      // AbortError の場合は特別なメッセージ
+      if (error instanceof Error) {
+        if (error.name === "AbortError") {
+          toast.error(
+            "リクエストがタイムアウトしました。ネットワーク接続を確認してください。"
+          );
+        } else {
+          toast.error(error.message);
+        }
+      } else {
+        toast.error("一時的なエラーが発生しました");
+      }
     } finally {
       setIsLoading(false);
     }
