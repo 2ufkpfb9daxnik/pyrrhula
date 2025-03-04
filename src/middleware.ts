@@ -4,8 +4,13 @@ import { getToken } from "next-auth/jwt";
 
 // 認証が不要なパスのリスト
 const publicPaths = [
-  '/api/login',
-  '/api/auth'
+  "/api/login",
+  "/api/auth",
+  "/api/signup",
+  "/api/users",
+  "/api/posts",
+  "/api/search",
+  "/api/landing",
 ];
 
 export async function middleware(request: NextRequest) {
@@ -13,7 +18,7 @@ export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
   // 認証不要なパスかチェック
-  if (publicPaths.some(publicPath => path.startsWith(publicPath))) {
+  if (publicPaths.some((publicPath) => path.startsWith(publicPath))) {
     console.log("認証スキップ:", path);
     return NextResponse.next();
   }
@@ -37,9 +42,5 @@ export async function middleware(request: NextRequest) {
 
 // ミドルウェアを適用するパスを指定
 export const config = {
-  matcher: [
-    '/api/:path*',
-    '/home/:path*',
-    '/admin/:path*'
-  ]
+  matcher: ["/api/:path*", "/home/:path*", "/admin/:path*"],
 };
