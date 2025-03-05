@@ -11,11 +11,14 @@ import {
   Activity,
   Users,
   Calendar,
+  Home,
 } from "lucide-react";
 import { Post } from "@/app/_components/post";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { Post as PostType } from "@/app/_types/post";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useSession } from "next-auth/react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 // 投稿の型定義
 interface PostUser {
@@ -53,6 +56,7 @@ export default function LandingPage() {
   const [posts, setPosts] = useState<TimelinePost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("timeline");
+  const { data: session } = useSession();
 
   useEffect(() => {
     if (activeTab === "timeline") {
@@ -117,6 +121,20 @@ export default function LandingPage() {
       {/* 左側：ランディングページ */}
       <div className="flex w-full flex-col items-center justify-center p-4 md:fixed md:left-0 md:h-screen md:w-1/2">
         <div className="flex max-w-xl flex-col items-center space-y-8 text-center">
+          {/* ログイン済みユーザー向けアラート */}
+          {session?.user && (
+            <Alert className="border-primary/50 bg-primary/5">
+              <Home className="h-4 w-4 text-primary" />
+              <AlertTitle className="text-primary">ログイン済み</AlertTitle>
+              <AlertDescription>ホームに移動しますか？</AlertDescription>
+              <div className="mt-3">
+                <Button asChild>
+                  <Link href="/home">ホームに移動</Link>
+                </Button>
+              </div>
+            </Alert>
+          )}
+
           {/* ロゴとタイトル */}
           <div className="space-y-4">
             <h1 className="text-4xl font-bold md:text-6xl">鷽</h1>
