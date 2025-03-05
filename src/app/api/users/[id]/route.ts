@@ -194,3 +194,71 @@ export async function GET(
     );
   }
 }
+
+export async function PUT(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
+    }
+
+    if (session.user.id !== params.id) {
+      return NextResponse.json(
+        { error: "他のユーザーのプロフィールは編集できません" },
+        { status: 403 }
+      );
+    }
+
+    const body = await req.json();
+    const { username, profile, icon } = body;
+
+    // ユーザー名は必須、プロフィールとアイコンは空でも可
+    if (!username || username.trim() === "") {
+      return NextResponse.json(
+        { error: "ユーザー名は必須です" },
+        { status: 400 }
+      );
+    }
+
+    // 更新データを準備
+    const updateData: {
+      username: string;
+      profile?: string | null;
+      icon?: string | null;
+    } = {
+      username: username.trim(),
+    };
+
+    // プロフィールフィールド - 明示的にnullも許可
+    if (profile !== undefined) {
+      updateData.profile = profile || null;
+    }
+
+    // アイコンフィールド - 明示的にnullも許可
+    if (icon !== undefined) {
+      updateData.icon = icon || null;
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: params.id },
+      data: updateData,
+      select: {
+        id: true,
+        username: true,
+        icon: true,
+        profile: true,
+      },
+    });
+
+    return NextResponse.json(updatedUser);
+  } catch (error: any) {
+    console.error("[User Update Error]:", error);
+    return NextResponse.json(
+      { error: "サーバーエラーが発生しました" },
+      { status: 500 }
+    );
+  }
+}
