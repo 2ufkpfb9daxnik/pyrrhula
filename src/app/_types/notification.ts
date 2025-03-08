@@ -1,37 +1,4 @@
-export interface NotificationResponse {
-  id: string;
-  type: "fol" | "fav" | "msg"; // フォロー、お気に入り、メッセージ
-  createdAt: Date;
-  sender?: {
-    id: string;
-    username: string;
-    icon: string | null;
-  };
-  relatedPost?: {
-    id: string;
-    content: string;
-  };
-}
-
-export interface NotificationsResponse {
-  notifications: {
-    id: string;
-    type: "fol" | "fav" | "msg" | "rep" | "reply";
-    createdAt: string;
-    sender?: {
-      id: string;
-      username: string;
-      icon: string | null;
-    };
-    relatedPost?: {
-      id: string;
-      content: string;
-    };
-  }[];
-  hasMore: boolean;
-  nextCursor?: string;
-}
-
+// 基本的な型定義
 export interface NotificationSender {
   id: string;
   username: string;
@@ -43,16 +10,22 @@ export interface RelatedPost {
   content: string;
 }
 
+// 共通の通知型定義
 export interface Notification {
   id: string;
-  type: "fol" | "fav" | "msg" | "rep" | "reply"; // 'reply' を追加
+  type: "fol" | "fav" | "msg" | "rep" | "reply" | "mention";
   createdAt: string;
+  isRead: boolean;
   sender?: NotificationSender;
   relatedPost?: RelatedPost;
 }
 
+// API レスポンス型
 export interface NotificationsResponse {
   notifications: Notification[];
   hasMore: boolean;
   nextCursor?: string;
 }
+
+// 下位互換性
+export type NotificationResponse = Notification;

@@ -127,6 +127,7 @@ model Notification {
   relatedPostId String?
   createdAt     DateTime @default(now())
   chatId        String?
+  isRead        Boolean  @default(false)
   Chat          Chat?    @relation(fields: [chatId], references: [id])
   receiver      User     @relation("NotificationReceiver", fields: [receiverId], references: [id])
   post          Post?    @relation(fields: [relatedPostId], references: [id])
@@ -134,6 +135,7 @@ model Notification {
 
   @@index([receiverId])
   @@index([senderId])
+  @@index([isRead])
   @@schema("public")
 }
 

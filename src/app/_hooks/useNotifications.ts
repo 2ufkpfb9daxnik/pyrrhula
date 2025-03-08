@@ -23,24 +23,25 @@ export function useNotifications() {
 
       const data: NotificationsResponse = await response.json();
 
+      // 通知がある場合の処理
       if (data.notifications.length > 0) {
         const latestNotification = data.notifications[0];
 
-        // 最新の通知が保存されていない、または異なる場合
-        if (
-          !lastNotification ||
-          latestNotification.id !== lastNotification.id ||
-          new Date(latestNotification.createdAt) >
-            new Date(lastNotification.createdAt)
-        ) {
-          setHasUnread(true);
-          setLastNotification(latestNotification);
-        }
+        // 未読通知があるかどうかをチェック
+        const hasAnyUnread = data.notifications.some(
+          (notification) => notification.isRead === false
+        );
+
+        // 未読通知があればハイライト表示
+        setHasUnread(hasAnyUnread);
+
+        // 最新の通知を保存
+        setLastNotification(latestNotification);
       }
     } catch (error) {
       console.error("Failed to check notifications:", error);
     }
-  }, [session, lastNotification]);
+  }, [session]);
 
   // 10分ごとにポーリング
   useEffect(() => {
@@ -55,13 +56,32 @@ export function useNotifications() {
     return () => clearInterval(interval);
   }, [session, checkNotifications]);
 
-  const markAsRead = useCallback(() => {
-    setHasUnread(false);
-  }, []);
+  // 通知を既読にするメソッド
+  const markAsRead = useCallback(async () => {
+    if (!session?.user) return;
+
+    try {
+      // 通知一覧ページを訪問した際は全て既読にする
+      const response = await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.ok) {
+        // ローカルの状態を更新
+        setHasUnread(false);
+      }
+    } catch (error) {
+      console.error("Failed to mark notifications as read:", error);
+    }
+  }, [session]);
 
   return {
     hasUnread,
     markAsRead,
-    lastNotification, // 最新の通知情報も返す
+    lastNotification,
+    checkNotifications, // 必要に応じて通知状態を手動更新するため
   };
 }

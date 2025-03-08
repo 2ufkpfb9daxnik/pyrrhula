@@ -12,8 +12,9 @@ import { Share2 } from "lucide-react";
 
 interface Notification {
   id: string;
-  type: "fol" | "fav" | "msg" | "rep" | "mention"; // repを追加
+  type: "fol" | "fav" | "msg" | "rep" | "mention";
   createdAt: string;
+  isRead: boolean; // isReadフィールドを追加
   sender?: {
     id: string;
     username: string;
@@ -41,7 +42,63 @@ export default function NotificationPage() {
 
   useEffect(() => {
     fetchNotifications();
+
+    // ページを開いたら未読通知を一括で既読にする
+    markAllNotificationsAsRead();
   }, []);
+
+  // 全通知を既読にするAPI呼び出し
+  const markAllNotificationsAsRead = async () => {
+    if (!session?.user) return;
+
+    try {
+      const response = await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("通知の既読処理に失敗しました");
+      }
+
+      // ローカルの通知状態も更新
+      setNotifications((prev) =>
+        prev.map((notification) => ({ ...notification, isRead: true }))
+      );
+    } catch (error) {
+      console.error("Error marking notifications as read:", error);
+      // ユーザーには通知しない（UI体験を妨げないため）
+    }
+  };
+
+  // 個別の通知を既読にする関数
+  const markNotificationAsRead = async (id: string) => {
+    try {
+      const response = await fetch(`/api/notifications/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("通知の既読処理に失敗しました");
+      }
+
+      // ローカルの通知状態を更新
+      setNotifications((prev) =>
+        prev.map((notification) =>
+          notification.id === id
+            ? { ...notification, isRead: true }
+            : notification
+        )
+      );
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+    }
+  };
 
   const fetchNotifications = async () => {
     try {
@@ -96,11 +153,12 @@ export default function NotificationPage() {
       case "msg":
         return <MessageCircle className="size-4 text-green-400" />;
       case "rep":
-        return <Share2 className="size-4 text-purple-400" />; // 紫色で拡散アイコンを表示
+        return <Share2 className="size-4 text-purple-400" />;
       case "mention":
-        return <MessageCircle className="size-4 text-amber-400" />; // メンション用のアイコン
+        return <MessageCircle className="size-4 text-amber-400" />;
     }
   };
+
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -116,8 +174,17 @@ export default function NotificationPage() {
         {notifications.map((notification) => (
           <div
             key={notification.id}
-            className="rounded-lg border border-gray-800 bg-gray-900 p-4"
+            className={`rounded-lg border ${
+              notification.isRead
+                ? "border-gray-800"
+                : "border-blue-800 bg-gray-900/60"
+            } bg-gray-900 p-4`}
             onClick={() => {
+              // 通知をクリックしたらその通知を既読にする
+              if (!notification.isRead) {
+                markNotificationAsRead(notification.id);
+              }
+
               if (notification.relatedPost) {
                 router.push(`/post/${notification.relatedPost.id}`);
               } else if (notification.sender) {
@@ -148,6 +215,9 @@ export default function NotificationPage() {
                   {formatDistanceToNow(new Date(notification.createdAt))}
                 </p>
               </div>
+              {!notification.isRead && (
+                <span className="size-2 rounded-full bg-blue-500"></span>
+              )}
             </div>
             {notification.relatedPost && (
               <p className="mt-2 pl-14 text-sm text-gray-400">
