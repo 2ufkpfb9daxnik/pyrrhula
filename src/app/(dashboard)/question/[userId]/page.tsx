@@ -75,18 +75,20 @@ const QuestionItem = ({
 
     setIsSubmitting(true);
     try {
-      // targetUserIdを直接使用
-      const response = await fetch(`/api/users/${targetUserId}/questions`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          questionId: question.id,
-          answer,
-          createPost: true,
-        }),
-      });
+      // URLパスを修正 - 質問IDを含める
+      const response = await fetch(
+        `/api/users/${targetUserId}/questions/${question.id}`, // ここを修正
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            answer,
+            createPost: true,
+          }),
+        }
+      );
 
       // より詳細なデバッグ情報
       console.log("回答リクエスト - ステータス:", response.status);
