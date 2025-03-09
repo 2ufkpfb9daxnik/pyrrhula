@@ -6,15 +6,24 @@ import { useSession } from "next-auth/react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "@/lib/formatDistanceToNow";
-import { MessageCircle, Heart, UserPlus, LoaderCircle } from "lucide-react";
+import {
+  MessageCircle,
+  Heart,
+  UserPlus,
+  LoaderCircle,
+  HelpCircle,
+  MessageSquare,
+  Bell,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Share2 } from "lucide-react";
 
+// 通知の型定義
 interface Notification {
   id: string;
-  type: "fol" | "fav" | "msg" | "rep" | "mention";
+  type: "fol" | "fav" | "msg" | "rep" | "mention" | "question" | "answer";
   createdAt: string;
-  isRead: boolean; // isReadフィールドを追加
+  isRead: boolean;
   sender?: {
     id: string;
     username: string;
@@ -23,6 +32,20 @@ interface Notification {
   relatedPost?: {
     id: string;
     content: string;
+  };
+  question?: {
+    id: string;
+    question: string;
+    answer: string | null;
+    sender: {
+      id: string;
+      username: string;
+      icon: string | null;
+    };
+  };
+  chat?: {
+    id: string;
+    message: string;
   };
 }
 
@@ -37,57 +60,85 @@ export default function NotificationPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [hasMore, setHasMore] = useState(false);
   const [cursor, setCursor] = useState<string | undefined>();
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const { data: session } = useSession();
 
+  // 初期データ取得
   useEffect(() => {
     fetchNotifications();
-
-    // ページを開いたら未読通知を一括で既読にする
     markAllNotificationsAsRead();
   }, []);
 
-  // 全通知を既読にするAPI呼び出し
+  // 通知データ取得
+  const fetchNotifications = async () => {
+    try {
+      setError(null);
+      const url = `/api/notifications${cursor ? `?cursor=${cursor}` : ""}`;
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "通知の取得に失敗しました");
+      }
+
+      const data: NotificationsResponse = await response.json();
+
+      // カーソルに応じてデータ更新
+      setNotifications((prev) =>
+        cursor ? [...prev, ...data.notifications] : data.notifications
+      );
+      setHasMore(data.hasMore);
+      setCursor(data.nextCursor);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "通知の取得に失敗しました";
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 全通知を既読にする
   const markAllNotificationsAsRead = async () => {
     if (!session?.user) return;
 
     try {
       const response = await fetch("/api/notifications", {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
       });
 
       if (!response.ok) {
-        throw new Error("通知の既読処理に失敗しました");
+        const errorData = await response.json();
+        throw new Error(errorData.error || "通知の既読処理に失敗しました");
       }
 
-      // ローカルの通知状態も更新
+      // ローカル状態を更新
       setNotifications((prev) =>
         prev.map((notification) => ({ ...notification, isRead: true }))
       );
     } catch (error) {
-      console.error("Error marking notifications as read:", error);
-      // ユーザーには通知しない（UI体験を妨げないため）
+      console.error("既読処理エラー:", error);
+      // UI体験を妨げないためユーザーには通知しない
     }
   };
 
-  // 個別の通知を既読にする関数
+  // 個別の通知を既読にする
   const markNotificationAsRead = async (id: string) => {
     try {
       const response = await fetch(`/api/notifications/${id}`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
       });
 
       if (!response.ok) {
-        throw new Error("通知の既読処理に失敗しました");
+        const errorData = await response.json();
+        throw new Error(errorData.error || "通知の既読処理に失敗しました");
       }
 
-      // ローカルの通知状態を更新
+      // ローカル状態を更新
       setNotifications((prev) =>
         prev.map((notification) =>
           notification.id === id
@@ -96,32 +147,11 @@ export default function NotificationPage() {
         )
       );
     } catch (error) {
-      console.error("Error marking notification as read:", error);
+      console.error("個別既読処理エラー:", error);
     }
   };
 
-  const fetchNotifications = async () => {
-    try {
-      const url = `/api/notifications${cursor ? `?cursor=${cursor}` : ""}`;
-      const response = await fetch(url);
-      if (!response.ok) throw new Error("Failed to fetch notifications");
-
-      const data: NotificationsResponse = await response.json();
-      // カーソルが存在しない（初回ロード）の場合は配列を置き換え、
-      // カーソルが存在する（追加ロード）の場合は配列を結合
-      setNotifications((prev) =>
-        cursor ? [...prev, ...data.notifications] : data.notifications
-      );
-      setHasMore(data.hasMore);
-      setCursor(data.nextCursor);
-    } catch (error) {
-      console.error("Error fetching notifications:", error);
-      toast.error("通知の取得に失敗しました");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  // 通知内容の生成
   const getNotificationContent = (notification: Notification) => {
     const senderName = notification.sender?.username || "不明なユーザー";
 
@@ -136,14 +166,18 @@ export default function NotificationPage() {
         return `${senderName}さんが投稿を拡散しました`;
       case "mention":
         return `${senderName}さんが以下の投稿であなたをメンションしました`;
+      case "question":
+        return `${senderName}さんがあなたに質問しました`;
+      case "answer":
+        return `${senderName}さんがあなたの質問に回答しました`;
       default:
-        console.log("Unknown notification type:", notification.type); // デバッグ用
         return "新しい通知があります";
     }
   };
 
+  // 通知アイコンの生成
   const getNotificationIcon = (
-    type: "fol" | "fav" | "msg" | "rep" | "mention"
+    type: "fol" | "fav" | "msg" | "rep" | "mention" | "question" | "answer"
   ) => {
     switch (type) {
       case "fol":
@@ -156,9 +190,67 @@ export default function NotificationPage() {
         return <Share2 className="size-4 text-purple-400" />;
       case "mention":
         return <MessageCircle className="size-4 text-amber-400" />;
+      case "question":
+        return <HelpCircle className="size-4 text-blue-400" />;
+      case "answer":
+        return <MessageSquare className="size-4 text-green-400" />;
     }
   };
 
+  // 通知クリック時のハンドラー
+  const handleNotificationClick = (notification: Notification) => {
+    // 未読なら既読にする
+    if (!notification.isRead) {
+      markNotificationAsRead(notification.id);
+    }
+
+    // 通知タイプに応じて遷移先を決定
+    try {
+      // 質問関連通知
+      if (notification.type === "question" || notification.type === "answer") {
+        if (notification.question?.id) {
+          // 質問の対象ユーザーIDを取得
+          const targetUserId =
+            notification.type === "question"
+              ? session?.user?.id // 自分が質問の対象者
+              : notification.question.sender.id; // 質問者が対象者
+
+          router.push(`/question/${targetUserId}/${notification.question.id}`);
+          return;
+        }
+        throw new Error("質問データが見つかりません");
+      }
+
+      // 投稿関連通知
+      if (notification.relatedPost?.id) {
+        router.push(`/post/${notification.relatedPost.id}`);
+        return;
+      }
+
+      // チャット関連通知
+      if (notification.type === "msg" && notification.chat?.id) {
+        router.push(`/chat/${notification.chat.id}`);
+        return;
+      }
+
+      // その他の通知は送信者のプロフィールへ
+      if (notification.sender?.id) {
+        router.push(`/user/${notification.sender.id}`);
+        return;
+      }
+
+      // 該当なしの場合
+      throw new Error("遷移先が見つかりません");
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "通知の処理に失敗しました";
+
+      toast.error(errorMessage);
+      console.error("通知クリック処理エラー:", { error, notification });
+    }
+  };
+
+  // ローディング表示
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -167,6 +259,42 @@ export default function NotificationPage() {
     );
   }
 
+  // エラー表示
+  if (error) {
+    return (
+      <div className="mx-auto max-w-2xl p-4 text-center">
+        <div className="rounded-lg border border-red-800 bg-red-900/20 p-4">
+          <p className="text-red-400">{error}</p>
+          <Button
+            variant="outline"
+            className="mt-4"
+            onClick={() => {
+              setIsLoading(true);
+              setError(null);
+              fetchNotifications();
+            }}
+          >
+            再読み込み
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // 通知がない場合
+  if (notifications.length === 0) {
+    return (
+      <div className="mx-auto max-w-2xl p-4">
+        <h1 className="mb-6 text-2xl font-bold">通知</h1>
+        <div className="flex flex-col items-center justify-center rounded-lg border border-gray-800 bg-gray-900 p-8">
+          <Bell className="mb-4 size-10 text-gray-500" />
+          <p className="text-gray-400">通知はありません</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 通知リスト表示
   return (
     <div className="mx-auto max-w-2xl p-4">
       <h1 className="mb-6 text-2xl font-bold">通知</h1>
@@ -178,32 +306,26 @@ export default function NotificationPage() {
               notification.isRead
                 ? "border-gray-800"
                 : "border-blue-800 bg-gray-900/60"
-            } bg-gray-900 p-4`}
-            onClick={() => {
-              // 通知をクリックしたらその通知を既読にする
-              if (!notification.isRead) {
-                markNotificationAsRead(notification.id);
-              }
-
-              if (notification.relatedPost) {
-                router.push(`/post/${notification.relatedPost.id}`);
-              } else if (notification.sender) {
-                router.push(`/user/${notification.sender.id}`);
-              }
-            }}
+            } cursor-pointer bg-gray-900 p-4 transition-colors hover:bg-gray-800/50`}
+            onClick={() => handleNotificationClick(notification)}
           >
             <div className="flex items-start space-x-4">
-              {notification.sender && (
+              {notification.sender ? (
                 <Avatar className="size-10 shrink-0">
                   <AvatarImage
-                    src={notification.sender.icon ?? undefined}
+                    src={notification.sender.icon || undefined}
                     alt={notification.sender.username}
                   />
                   <AvatarFallback>
-                    {notification.sender.username[0]}
+                    {notification.sender.username?.[0] || "?"}
                   </AvatarFallback>
                 </Avatar>
+              ) : (
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-gray-800">
+                  <Bell className="size-5 text-gray-400" />
+                </div>
               )}
+
               <div className="min-w-0 flex-1">
                 <div className="flex items-center space-x-2">
                   {getNotificationIcon(notification.type)}
@@ -215,13 +337,28 @@ export default function NotificationPage() {
                   {formatDistanceToNow(new Date(notification.createdAt))}
                 </p>
               </div>
+
               {!notification.isRead && (
                 <span className="size-2 rounded-full bg-blue-500"></span>
               )}
             </div>
+
+            {/* 関連コンテンツの表示 */}
             {notification.relatedPost && (
-              <p className="mt-2 pl-14 text-sm text-gray-400">
+              <p className="mt-2 line-clamp-2 pl-14 text-sm text-gray-400">
                 {notification.relatedPost.content}
+              </p>
+            )}
+
+            {notification.question && (
+              <p className="mt-2 line-clamp-2 pl-14 text-sm text-gray-400">
+                質問: {notification.question.question}
+              </p>
+            )}
+
+            {notification.type === "msg" && notification.chat && (
+              <p className="mt-2 line-clamp-2 pl-14 text-sm text-gray-400">
+                {notification.chat.message}
               </p>
             )}
           </div>

@@ -171,6 +171,18 @@ export async function POST(
 
       console.log("作成された質問:", createdQuestion);
 
+      // 質問通知を作成（この部分を追加）
+      await prisma.notification.create({
+        data: {
+          receiverId: targetUserId, // 質問を受け取るユーザーに通知
+          senderId: senderId, // 質問した人
+          type: "question", // 質問タイプの通知
+          createdAt: new Date(),
+          isRead: false,
+          relatedPostId: createdQuestion.id, // questionIdではなくcreatedQuestion.idを使用
+        },
+      });
+
       return NextResponse.json(
         {
           success: true,
@@ -194,141 +206,6 @@ export async function POST(
     console.error("[質問送信エラー]:", error);
     return NextResponse.json(
       { error: "質問の送信中にエラーが発生しました" },
-      { status: 500 }
-    );
-  }
-}
-
-export async function PUT(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
-  try {
-    // 認証チェック
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
-    }
-
-    const userId = session.user.id;
-    const targetUserId = params.id;
-
-    console.log("デバッグ - セッションユーザー:", userId);
-    console.log("デバッグ - ターゲットユーザー:", targetUserId);
-
-    // 質問対象のユーザーと現在のユーザーが一致するかのチェックを緩和
-    // または認証ユーザーが管理者の場合も許可
-    const currentUser = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { isAdmin: true },
-    });
-
-    if (userId !== targetUserId && !currentUser?.isAdmin) {
-      return NextResponse.json(
-        { error: "この操作を実行する権限がありません" },
-        { status: 403 }
-      );
-    }
-
-    // リクエストボディを解析
-    const { questionId, answer, createPost } = await req.json();
-    console.log("デバッグ - リクエストボディ:", {
-      questionId,
-      answer: answer?.substring(0, 20),
-      createPost,
-    });
-
-    if (!questionId) {
-      return NextResponse.json({ error: "質問IDが必要です" }, { status: 400 });
-    }
-
-    // 質問が存在し、対象ユーザー宛てのものか確認
-    const question = await prisma.question.findFirst({
-      where: {
-        id: questionId,
-        targetUserId: targetUserId, // 明示的にtargetUserIdを使用
-      },
-      select: {
-        id: true,
-        question: true,
-        answer: true,
-        senderId: true,
-      },
-    });
-
-    console.log("デバッグ - 見つかった質問:", question);
-
-    if (!question) {
-      return NextResponse.json(
-        { error: "質問が見つからないか、回答する権限がありません" },
-        { status: 404 }
-      );
-    }
-    let relatedPostId = null;
-
-    if (createPost && answer && answer.trim() !== "") {
-      // 投稿内容は回答のみとする（質問はフロントエンドで別枠表示）
-      const postContent = answer.trim();
-
-      // 投稿を作成
-      const post = await prisma.post.create({
-        data: {
-          userId,
-          content: postContent,
-          // Question との関連付けを直接行う
-          Question: {
-            connect: {
-              id: questionId,
-            },
-          },
-        },
-      });
-
-      relatedPostId = post.id;
-    }
-
-    // 質問の回答を更新
-    const updatedQuestion = await prisma.question.update({
-      where: {
-        id: questionId,
-      },
-      data: {
-        answer: answer ? answer.trim() : null,
-        answeredAt: answer ? new Date() : null,
-        relatedPostId,
-        status: answer ? "approved" : "pending",
-      },
-      select: {
-        id: true,
-        question: true,
-        answer: true,
-        answeredAt: true,
-        status: true,
-        relatedPostId: true,
-      },
-    });
-
-    // 回答通知を作成
-    if (answer && question.senderId) {
-      await prisma.notification.create({
-        data: {
-          receiverId: question.senderId,
-          senderId: userId,
-          type: "answer",
-          createdAt: new Date(),
-          isRead: false,
-        },
-      });
-    }
-
-    return NextResponse.json({
-      success: true,
-      question: updatedQuestion,
-    });
-  } catch (error) {
-    console.error("[質問回答エラー]:", error);
-    return NextResponse.json(
-      { error: "回答の保存中にエラーが発生しました" },
       { status: 500 }
     );
   }

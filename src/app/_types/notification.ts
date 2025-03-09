@@ -13,7 +13,15 @@ export interface RelatedPost {
 // 共通の通知型定義
 export interface Notification {
   id: string;
-  type: "fol" | "fav" | "msg" | "rep" | "reply" | "mention";
+  type:
+    | "fol"
+    | "fav"
+    | "msg"
+    | "rep"
+    | "reply"
+    | "mention"
+    | "question"
+    | "answer";
   createdAt: string;
   isRead: boolean;
   sender?: NotificationSender;

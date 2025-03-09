@@ -89,17 +89,20 @@ export default function QuestionDetailPage() {
 
     setIsSubmitting(true);
     try {
-      const response = await fetch(`/api/users/${userId}/questions`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          questionId: question.id,
-          answer,
-          createPost: true, // 投稿も作成するオプション
-        }),
-      });
+      const response = await fetch(
+        `/api/users/${userId}/questions/${questionId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            questionId: question.id,
+            answer,
+            createPost: true, // 投稿も作成するオプション
+          }),
+        }
+      );
 
       const responseData = await response.json();
 
