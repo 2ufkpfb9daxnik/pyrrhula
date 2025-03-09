@@ -7,7 +7,12 @@ import Link from "next/link";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useInterval } from "@/app/_hooks/useInterval";
 import { Plus, RefreshCw, LoaderCircle } from "lucide-react";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -61,12 +66,18 @@ const QuestionItem = ({
   const [showAnswerForm, setShowAnswerForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { data: session } = useSession();
+  const router = useRouter();
 
   const handleSubmitAnswer = async () => {
     if (!answer.trim()) {
       toast.error("回答を入力してください");
       return;
     }
+
+    // クリック時に詳細ページへ移動する関数を追加
+    const handleQuestionClick = () => {
+      router.push(`/question/${targetUserId}/${question.id}`);
+    };
 
     setIsSubmitting(true);
     try {
@@ -109,8 +120,27 @@ const QuestionItem = ({
     }
   };
 
+  const handleQuestionClick = (
+    event: React.MouseEvent<HTMLDivElement, MouseEvent>
+  ) => {
+    // Prevent navigation if clicking on a link or button
+    if (
+      event.target instanceof HTMLButtonElement ||
+      event.target instanceof HTMLAnchorElement ||
+      (event.target as HTMLElement).closest("button") ||
+      (event.target as HTMLElement).closest("a")
+    ) {
+      return;
+    }
+
+    router.push(`/question/${targetUserId}/${question.id}`);
+  };
+
   return (
-    <div className="rounded-lg border border-gray-800 p-4">
+    <div
+      className="rounded-lg border border-gray-800 p-4"
+      onClick={handleQuestionClick}
+    >
       {/* 質問者情報 */}
       <div className="mb-2 flex items-center gap-2">
         <Avatar className="size-8">
@@ -231,10 +261,12 @@ const AskQuestion = ({
   targetUserId,
   onQuestionSent,
   inputRef,
+  noBorder = false,
 }: {
   targetUserId: string;
   onQuestionSent: () => void;
   inputRef?: React.RefObject<HTMLTextAreaElement>;
+  noBorder?: boolean;
 }) => {
   const [question, setQuestion] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -286,13 +318,15 @@ const AskQuestion = ({
   };
 
   return (
-    <div className="rounded-lg border border-gray-800 p-4">
+    <div
+      className={`${noBorder ? "p-4" : "rounded-lg border border-gray-800 p-4"}`}
+    >
       <Textarea
         ref={inputRef}
         placeholder="500文字まで"
         value={question}
         onChange={(e) => setQuestion(e.target.value)}
-        onKeyDown={handleKeyDown} // キー操作イベントを追加
+        onKeyDown={handleKeyDown}
         className="mb-3 min-h-24"
         maxLength={500}
       />
@@ -335,7 +369,7 @@ const LoginPrompt = ({ targetUserId }: { targetUserId: string }) => {
 
 export default function QuestionPage() {
   const params = useParams();
-  const userId = typeof params?.id === "string" ? params.id : ""; // URLパラメータからユーザーID取得
+  const userId = typeof params?.userId === "string" ? params.userId : ""; // URLパラメータからユーザーID取得（idからuserIdに変更）
 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
@@ -526,7 +560,7 @@ export default function QuestionPage() {
         <div className="rounded-lg border border-gray-800 p-8 text-center">
           <h2 className="mb-2 text-xl font-bold">ユーザーが見つかりません</h2>
           <p className="text-gray-500">
-            指定されたユーザーIDの質問箱は存在しないか、削除された可能性があります
+            指定されたユーザーIDの質問は存在しないか、削除された可能性があります
           </p>
           <Link href="/" className="mt-4 inline-block">
             <Button variant="outline">トップページに戻る</Button>
@@ -551,7 +585,6 @@ export default function QuestionPage() {
               </Avatar>
               <h1 className="text-2xl font-bold">{userInfo.username}</h1>
               <p className="text-sm text-gray-500">@{userInfo.id}</p>
-              <h2 className="mt-4 text-xl">質問箱</h2>
             </div>
           )}
 
@@ -640,44 +673,41 @@ export default function QuestionPage() {
         </div>
       </div>
 
-      {/* モバイル用質問ボタンまたはログインボタン */}
-      {!isCurrentUser && (
-        <>
-          {session ? (
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button
-                  className="fixed bottom-20 right-4 size-14 rounded-full p-0 shadow-lg md:hidden"
-                  variant="default"
-                >
-                  <Plus className="size-6" />
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="w-[calc(100%-32px)] max-w-[425px]">
-                <div className="pt-6">
-                  <AskQuestion
-                    targetUserId={userId}
-                    onQuestionSent={() => {
-                      fetchLatestQuestions();
-                      setIsDialogOpen(false);
-                    }}
-                    inputRef={questionInputRef}
-                  />
-                </div>
-              </DialogContent>
-            </Dialog>
-          ) : (
-            <Link href={`/login?redirect=/question/${userId}`}>
+      {/* // モバイル用質問ボタン */}
+      {!isCurrentUser &&
+        (session ? (
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
               <Button
                 className="fixed bottom-20 right-4 size-14 rounded-full p-0 shadow-lg md:hidden"
                 variant="default"
               >
                 <Plus className="size-6" />
               </Button>
-            </Link>
-          )}
-        </>
-      )}
+            </DialogTrigger>
+            <DialogContent className="w-[calc(100%-32px)] max-w-[425px] p-0 pt-6">
+              <DialogTitle className="sr-only">新しい質問を投稿</DialogTitle>
+              <AskQuestion
+                targetUserId={userId}
+                onQuestionSent={() => {
+                  fetchLatestQuestions();
+                  setIsDialogOpen(false);
+                }}
+                inputRef={questionInputRef}
+                noBorder={true}
+              />
+            </DialogContent>
+          </Dialog>
+        ) : (
+          <Link href={`/login?redirect=/question/${userId}`}>
+            <Button
+              className="fixed bottom-20 right-4 size-14 rounded-full p-0 shadow-lg md:hidden"
+              variant="default"
+            >
+              <Plus className="size-6" />
+            </Button>
+          </Link>
+        ))}
     </>
   );
 }

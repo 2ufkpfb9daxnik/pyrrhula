@@ -357,6 +357,14 @@ export default function UserProfilePage({
                       <BarChart className="mr-2 size-4" />
                       フォローグラフ
                     </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={() => router.push(`/question/${user.id}`)}
+                      className="w-full sm:w-auto"
+                    >
+                      <MessageCircle className="mr-2 size-4" />
+                      質問
+                    </Button>
                   </>
                 ) : (
                   <>
@@ -398,6 +406,14 @@ export default function UserProfilePage({
                     >
                       <BarChart className="mr-2 size-4" />
                       フォローグラフ
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={() => router.push(`/question/${user.id}`)}
+                      className="w-full sm:w-auto"
+                    >
+                      <MessageCircle className="mr-2 size-4" />
+                      質問
                     </Button>
                   </>
                 )}
