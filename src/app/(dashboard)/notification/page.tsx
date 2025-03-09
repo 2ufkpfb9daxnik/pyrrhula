@@ -192,7 +192,6 @@ export default function NotificationPage() {
         return <MessageSquare className="size-4 text-green-400" />;
     }
   };
-
   // 通知クリック時のハンドラーを修正
   const handleNotificationClick = (notification: Notification) => {
     // 未読なら既読にする
@@ -201,14 +200,28 @@ export default function NotificationPage() {
     }
 
     try {
-      // 質問関連通知
+      // 質問関連通知の処理を修正
       if (notification.type === "anon_q" || notification.type === "answer") {
-        if (notification.question?.id) {
+        if (notification.question?.id && notification.question?.targetUserId) {
+          // 質問の対象者IDを取得
           const targetUserId = notification.question.targetUserId;
           router.push(`/question/${targetUserId}/${notification.question.id}`);
           return;
         }
-        throw new Error("質問データが見つかりません");
+
+        // デバッグ用のログ追加
+        console.debug("質問通知データ:", {
+          type: notification.type,
+          questionData: notification.question,
+        });
+
+        throw new Error(
+          "質問データが不完全です (ID: " +
+            notification.question?.id +
+            ", targetUserId: " +
+            notification.question?.targetUserId +
+            ")"
+        );
       }
 
       // 投稿関連通知
@@ -236,7 +249,11 @@ export default function NotificationPage() {
         error instanceof Error ? error.message : "通知の処理に失敗しました";
 
       toast.error(errorMessage);
-      console.error("通知クリック処理エラー:", { error, notification });
+      console.error("通知クリック処理エラー:", {
+        error,
+        notification,
+        questionData: notification.question,
+      });
     }
   };
 
