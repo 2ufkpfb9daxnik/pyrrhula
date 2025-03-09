@@ -7,10 +7,9 @@ export async function GET(
   req: Request,
   { params }: { params: { id: string; questionId: string } }
 ) {
-  // questionIdに修正
   try {
-    const userId = params.id;
-    const questionId = params.questionId; // questionsIdからquestionIdに修正
+    const targetUserId = params.id;
+    const questionId = params.questionId;
 
     // 質問を取得
     const question = await prisma.question.findUnique({
@@ -23,6 +22,11 @@ export async function GET(
             id: true,
             username: true,
             icon: true,
+          },
+        },
+        AnonymousQuestionToken: {
+          select: {
+            id: true,
           },
         },
       },
@@ -38,11 +42,12 @@ export async function GET(
     // 分割代入を使用して新しいオブジェクトを作成
     const { User_Question_targetUserIdToUser, ...rest } = question;
 
+    // 常に匿名化されたレスポンスを返す
     const responseData = {
       ...rest,
       sender: {
         id: "anonymous",
-        username: "名無し",
+        username: "匿名質問者",
         icon: null,
       },
       targetUser: User_Question_targetUserIdToUser,
@@ -73,12 +78,7 @@ export async function PUT(
     const targetUserId = params.id;
     const questionId = params.questionId;
 
-    console.log("デバッグ - セッションユーザー:", userId);
-    console.log("デバッグ - ターゲットユーザー:", targetUserId);
-    console.log("デバッグ - 質問ID:", questionId);
-
-    // 質問対象のユーザーと現在のユーザーが一致するかのチェックを緩和
-    // または認証ユーザーが管理者の場合も許可
+    // 管理者権限チェック
     const currentUser = await prisma.user.findUnique({
       where: { id: userId },
       select: { isAdmin: true },
@@ -100,15 +100,10 @@ export async function PUT(
         id: questionId,
         targetUserId: targetUserId,
       },
-      select: {
-        id: true,
-        question: true,
-        answer: true,
-        senderId: true,
+      include: {
+        AnonymousQuestionToken: true, // 匿名トークン情報も取得
       },
     });
-
-    console.log("デバッグ - 見つかった質問:", question);
 
     if (!question) {
       return NextResponse.json(
@@ -119,15 +114,12 @@ export async function PUT(
 
     let relatedPostId = null;
 
+    // 投稿作成処理
     if (createPost && answer && answer.trim() !== "") {
-      // 投稿内容は回答のみとする（質問はフロントエンドで別枠表示）
-      const postContent = answer.trim();
-
-      // 投稿を作成
       const post = await prisma.post.create({
         data: {
           userId,
-          content: postContent,
+          content: answer.trim(),
           Question: {
             connect: {
               id: questionId,
@@ -150,35 +142,36 @@ export async function PUT(
         relatedPostId,
         status: answer ? "approved" : "pending",
       },
-      select: {
-        id: true,
-        question: true,
-        answer: true,
-        answeredAt: true,
-        status: true,
-        relatedPostId: true,
-      },
     });
 
-    // 回答通知を作成
-    if (answer && question.senderId) {
-      // 関連する投稿がある場合は投稿IDを、なければnullを設定
+    // 匿名質問への回答通知を作成
+    if (answer && question.AnonymousQuestionToken.length > 0) {
+      const anonymousToken = question.AnonymousQuestionToken[0];
+
       await prisma.notification.create({
         data: {
-          receiverId: question.senderId,
-          senderId: userId,
-          type: "answer",
+          receiverId: anonymousToken.userId, // トークンから質問者IDを取得
+          senderId: targetUserId, // 回答者ID
+          type: "answer", // 10文字以内
           createdAt: new Date(),
           isRead: false,
-          // 投稿に関連付けられている場合はそのIDを、なければnull
-          relatedPostId: relatedPostId,
+          relatedPostId,
+          anonymousTokenId: anonymousToken.id,
         },
       });
     }
 
+    // レスポンスでは質問者情報を匿名化
     return NextResponse.json({
       success: true,
-      question: updatedQuestion,
+      question: {
+        ...updatedQuestion,
+        sender: {
+          id: "anonymous",
+          username: "匿名質問者",
+          icon: null,
+        },
+      },
     });
   } catch (error) {
     console.error("[質問回答エラー]:", error);

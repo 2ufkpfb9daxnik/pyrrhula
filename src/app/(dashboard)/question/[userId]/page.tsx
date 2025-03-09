@@ -32,7 +32,6 @@ interface Question {
   createdAt: string;
   answeredAt: string | null;
   status: string;
-  sender: QuestionSender;
   targetUserId: string;
 }
 
@@ -136,13 +135,11 @@ const QuestionItem = ({
       className="cursor-pointer rounded-lg border border-gray-800 p-4"
       onClick={handleQuestionClick}
     >
-      {/* 質問者情報 */}
-      <div className="mb-2 flex items-center gap-2">
-        <div>
-          <p className="text-xs text-gray-500">
-            {new Date(question.createdAt).toLocaleDateString()}
-          </p>
-        </div>
+      {/* 質問日時のみ表示（質問者情報は表示しない） */}
+      <div className="mb-2">
+        <p className="text-xs text-gray-500">
+          {new Date(question.createdAt).toLocaleDateString()}に質問
+        </p>
       </div>
 
       {/* 質問内容 */}

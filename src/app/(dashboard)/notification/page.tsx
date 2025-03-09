@@ -18,10 +18,10 @@ import {
 import { toast } from "sonner";
 import { Share2 } from "lucide-react";
 
-// 通知の型定義
+// 通知の型定義を修正
 interface Notification {
   id: string;
-  type: "fol" | "fav" | "msg" | "rep" | "mention" | "question" | "answer";
+  type: "fol" | "fav" | "msg" | "rep" | "mention" | "anon_q" | "answer";
   createdAt: string;
   isRead: boolean;
   sender?: {
@@ -37,11 +37,7 @@ interface Notification {
     id: string;
     question: string;
     answer: string | null;
-    sender: {
-      id: string;
-      username: string;
-      icon: string | null;
-    };
+    targetUserId: string; // 質問の対象者ID
   };
   chat?: {
     id: string;
@@ -166,8 +162,8 @@ export default function NotificationPage() {
         return `${senderName}さんが投稿を拡散しました`;
       case "mention":
         return `${senderName}さんが以下の投稿であなたをメンションしました`;
-      case "question":
-        return `${senderName}さんがあなたに質問しました`;
+      case "anon_q":
+        return "匿名の質問が届きました";
       case "answer":
         return `${senderName}さんがあなたの質問に回答しました`;
       default:
@@ -175,9 +171,9 @@ export default function NotificationPage() {
     }
   };
 
-  // 通知アイコンの生成
+  // 通知アイコンの生成を修正
   const getNotificationIcon = (
-    type: "fol" | "fav" | "msg" | "rep" | "mention" | "question" | "answer"
+    type: "fol" | "fav" | "msg" | "rep" | "mention" | "anon_q" | "answer"
   ) => {
     switch (type) {
       case "fol":
@@ -190,31 +186,25 @@ export default function NotificationPage() {
         return <Share2 className="size-4 text-purple-400" />;
       case "mention":
         return <MessageCircle className="size-4 text-amber-400" />;
-      case "question":
+      case "anon_q":
         return <HelpCircle className="size-4 text-blue-400" />;
       case "answer":
         return <MessageSquare className="size-4 text-green-400" />;
     }
   };
 
-  // 通知クリック時のハンドラー
+  // 通知クリック時のハンドラーを修正
   const handleNotificationClick = (notification: Notification) => {
     // 未読なら既読にする
     if (!notification.isRead) {
       markNotificationAsRead(notification.id);
     }
 
-    // 通知タイプに応じて遷移先を決定
     try {
       // 質問関連通知
-      if (notification.type === "question" || notification.type === "answer") {
+      if (notification.type === "anon_q" || notification.type === "answer") {
         if (notification.question?.id) {
-          // 質問の対象ユーザーIDを取得
-          const targetUserId =
-            notification.type === "question"
-              ? session?.user?.id // 自分が質問の対象者
-              : notification.question.sender.id; // 質問者が対象者
-
+          const targetUserId = notification.question.targetUserId;
           router.push(`/question/${targetUserId}/${notification.question.id}`);
           return;
         }

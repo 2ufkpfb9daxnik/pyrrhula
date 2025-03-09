@@ -9,7 +9,6 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    // 認証チェック
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
@@ -17,7 +16,6 @@ export async function GET(
 
     const notificationId = params.id;
 
-    // 通知を取得
     const notification = await prisma.notification.findUnique({
       where: { id: notificationId },
       include: {
@@ -28,20 +26,17 @@ export async function GET(
             icon: true,
           },
         },
-        // 投稿関連の通知
         post: {
           select: {
             id: true,
             content: true,
             Question: {
-              // 投稿に関連する質問も取得（回答通知用）
               select: {
                 id: true,
                 question: true,
                 answer: true,
-                senderId: true,
                 targetUserId: true,
-                User_Question_senderIdToUser: {
+                User_Question_targetUserIdToUser: {
                   select: {
                     username: true,
                     icon: true,
@@ -51,12 +46,16 @@ export async function GET(
             },
           },
         },
-        // チャット通知用
+        AnonymousQuestionToken: {
+          select: {
+            id: true,
+            questionId: true,
+          },
+        },
         Chat: true,
       },
     });
 
-    // 通知が存在しない場合
     if (!notification) {
       return NextResponse.json(
         { error: "通知が見つかりません" },
@@ -64,7 +63,6 @@ export async function GET(
       );
     }
 
-    // 自分の通知のみ閲覧可能
     if (notification.receiverId !== session.user.id) {
       return NextResponse.json(
         { error: "この通知を閲覧する権限がありません" },
@@ -72,37 +70,32 @@ export async function GET(
       );
     }
 
-    // レスポンス用のデータを整形
+    // 基本の通知データを作成
     const formattedNotification = {
       id: notification.id,
       type: notification.type,
       createdAt: notification.createdAt.toISOString(),
       isRead: notification.isRead,
-      sender: notification.sender
-        ? {
+      // 匿名質問の場合は送信者情報を含めない
+      ...(notification.type !== "anon_q" &&
+        notification.sender && {
+          sender: {
             id: notification.sender.id,
             username: notification.sender.username,
             icon: notification.sender.icon,
-          }
-        : null,
+          },
+        }),
     };
 
     // 通知タイプに応じてデータを追加
-    if (notification.type === "question" && notification.relatedPostId) {
-      // 質問データを取得
+    if (notification.type === "anon_q" && notification.relatedPostId) {
+      // 匿名質問の通知
       const question = await prisma.question.findUnique({
         where: { id: notification.relatedPostId },
         select: {
           id: true,
           question: true,
           answer: true,
-          senderId: true,
-          User_Question_senderIdToUser: {
-            select: {
-              username: true,
-              icon: true,
-            },
-          },
         },
       });
 
@@ -113,34 +106,36 @@ export async function GET(
             question: question.question,
             answer: question.answer,
             sender: {
-              id: question.senderId,
-              username: question.User_Question_senderIdToUser.username,
-              icon: question.User_Question_senderIdToUser.icon,
+              id: "anonymous",
+              username: "匿名質問者",
+              icon: null,
             },
           },
         });
       }
     } else if (
       notification.type === "answer" &&
-      Array.isArray(notification.post?.Question) &&
-      notification.post.Question.length > 0
+      notification.post?.Question?.[0]
     ) {
-      // 回答通知の場合、投稿から質問データを取得
+      // 回答通知の場合
       const questionData = notification.post.Question[0];
       Object.assign(formattedNotification, {
         question: {
           id: questionData.id,
           question: questionData.question,
           answer: questionData.answer,
-          sender: {
-            id: questionData.senderId,
-            username: questionData.User_Question_senderIdToUser.username,
-            icon: questionData.User_Question_senderIdToUser.icon,
-          },
+          // 回答者の情報は表示
+          answerer: notification.sender
+            ? {
+                id: notification.sender.id,
+                username: notification.sender.username,
+                icon: notification.sender.icon,
+              }
+            : null,
         },
       });
     } else if (notification.relatedPostId && notification.post) {
-      // 投稿関連の通知
+      // その他の投稿関連通知
       Object.assign(formattedNotification, {
         relatedPost: {
           id: notification.post.id,

@@ -1,6 +1,5 @@
 import { getServerSession } from "next-auth/next";
 import { NextResponse } from "next/server";
-import { randomUUID } from "crypto"; // Node.js組み込みのUUID生成
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 
@@ -9,7 +8,6 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
     const targetUserId = params.id;
 
     // クエリパラメータの取得
@@ -59,7 +57,7 @@ export async function GET(
         createdAt: true,
         answeredAt: true,
         status: true,
-        senderId: true,
+        // 常に質問者情報を匿名化するため、senderId不要
       },
     });
 
@@ -76,9 +74,10 @@ export async function GET(
       createdAt: question.createdAt,
       answeredAt: question.answeredAt,
       status: question.status,
+      // 常に匿名で表示
       sender: {
         id: "anonymous",
-        username: "名無し",
+        username: "匿名質問者",
         icon: null,
       },
     }));
@@ -151,8 +150,7 @@ export async function POST(
     }
 
     try {
-      // IDフィールドを完全に省略して質問を作成
-      // @db.Uuidに対応するため、明示的に指定しない
+      // 質問を作成（常に匿名）
       const createdQuestion = await prisma.question.create({
         data: {
           senderId,
@@ -160,6 +158,7 @@ export async function POST(
           question: question.trim(),
           status: "pending",
           isPublished: true,
+          isAnonymous: true, // すべての質問を匿名化
         },
         select: {
           id: true,
@@ -169,24 +168,38 @@ export async function POST(
         },
       });
 
-      console.log("作成された質問:", createdQuestion);
+      // 匿名トークンを作成（回答通知を送るため）
+      await prisma.anonymousQuestionToken.create({
+        data: {
+          questionId: createdQuestion.id,
+          userId: senderId,
+        },
+      });
 
-      // 質問通知を作成（この部分を追加）
+      // 質問通知を作成（10文字以内の型名を使用）
       await prisma.notification.create({
         data: {
-          receiverId: targetUserId, // 質問を受け取るユーザーに通知
-          senderId: senderId, // 質問した人
-          type: "question", // 質問タイプの通知
+          receiverId: targetUserId,
+          senderId: null, // 匿名質問の場合は送信者IDを設定しない
+          type: "anon_q", // 10文字以内に短縮
           createdAt: new Date(),
           isRead: false,
-          relatedPostId: createdQuestion.id, // questionIdではなくcreatedQuestion.idを使用
+          relatedPostId: createdQuestion.id,
         },
       });
 
       return NextResponse.json(
         {
           success: true,
-          question: createdQuestion,
+          question: {
+            ...createdQuestion,
+            // 匿名質問であることを示す
+            sender: {
+              id: "anonymous",
+              username: "匿名質問者",
+              icon: null,
+            },
+          },
         },
         { status: 201 }
       );
