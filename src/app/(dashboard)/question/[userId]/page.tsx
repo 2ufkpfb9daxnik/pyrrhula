@@ -143,17 +143,7 @@ const QuestionItem = ({
     >
       {/* 質問者情報 */}
       <div className="mb-2 flex items-center gap-2">
-        <Avatar className="size-8">
-          <AvatarImage src={question.sender.icon || undefined} />
-          <AvatarFallback>{question.sender.username[0]}</AvatarFallback>
-        </Avatar>
         <div>
-          <Link
-            href={`/user/${question.sender.id}`}
-            className="font-medium hover:underline"
-          >
-            {question.sender.username}
-          </Link>
           <p className="text-xs text-gray-500">
             {new Date(question.createdAt).toLocaleDateString()}
           </p>

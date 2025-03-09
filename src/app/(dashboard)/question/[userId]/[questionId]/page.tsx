@@ -183,25 +183,6 @@ export default function QuestionDetailPage() {
       {/* 質問カード */}
       <Card className="mb-6">
         <CardContent className="p-6">
-          {/* 質問者情報 */}
-          <div className="mb-4 flex items-center gap-2">
-            <Avatar className="size-10">
-              <AvatarImage src={question.sender.icon || undefined} />
-              <AvatarFallback>{question.sender.username[0]}</AvatarFallback>
-            </Avatar>
-            <div>
-              <Link
-                href={`/user/${question.sender.id}`}
-                className="font-medium hover:underline"
-              >
-                {question.sender.username}
-              </Link>
-              <p className="text-xs text-gray-500">
-                {formatDate(question.createdAt)}
-              </p>
-            </div>
-          </div>
-
           {/* 質問内容 */}
           <div className="mb-6 rounded-lg bg-gray-900 p-4">
             <p className="whitespace-pre-wrap text-gray-100">

@@ -60,14 +60,6 @@ export async function GET(
         answeredAt: true,
         status: true,
         senderId: true,
-        // 送信者の情報を含める
-        User_Question_senderIdToUser: {
-          select: {
-            id: true,
-            username: true,
-            icon: true,
-          },
-        },
       },
     });
 
@@ -85,9 +77,9 @@ export async function GET(
       answeredAt: question.answeredAt,
       status: question.status,
       sender: {
-        id: question.User_Question_senderIdToUser.id,
-        username: question.User_Question_senderIdToUser.username,
-        icon: question.User_Question_senderIdToUser.icon,
+        id: "anonymous",
+        username: "名無し",
+        icon: null,
       },
     }));
 

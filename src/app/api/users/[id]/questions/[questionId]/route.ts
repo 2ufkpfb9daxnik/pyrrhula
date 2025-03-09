@@ -18,13 +18,6 @@ export async function GET(
         id: questionId,
       },
       include: {
-        User_Question_senderIdToUser: {
-          select: {
-            id: true,
-            username: true,
-            icon: true,
-          },
-        },
         User_Question_targetUserIdToUser: {
           select: {
             id: true,
@@ -43,15 +36,15 @@ export async function GET(
     }
 
     // 分割代入を使用して新しいオブジェクトを作成
-    const {
-      User_Question_senderIdToUser,
-      User_Question_targetUserIdToUser,
-      ...rest
-    } = question;
+    const { User_Question_targetUserIdToUser, ...rest } = question;
 
     const responseData = {
       ...rest,
-      sender: User_Question_senderIdToUser,
+      sender: {
+        id: "anonymous",
+        username: "名無し",
+        icon: null,
+      },
       targetUser: User_Question_targetUserIdToUser,
     };
 
