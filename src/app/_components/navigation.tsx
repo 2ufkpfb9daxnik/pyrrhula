@@ -51,13 +51,16 @@ export function Navigation({ isMobile = false }: NavigationProps) {
         return `${notification.sender?.username}さんからメッセージが届きました`;
       case "rep":
         return `${notification.sender?.username}さんが投稿を拡散しました`;
-      case "reply":
-        return `${notification.sender?.username}さんが投稿にリプライしました`;
+      case "mention":
+        return `${notification.sender?.username}さんがあなたをメンションしました`;
+      case "anon_q":
+        return "匿名の質問が届きました";
+      case "answer":
+        return `${notification.sender?.username}さんがあなたの質問に回答しました`;
       default:
         return "新しい通知があります";
     }
   }
-
   // ナビゲーション用のクラスを修正 - 常に固定表示するために fixed クラスを正しく適用
   const navClasses =
     "fixed z-50 bg-background flex items-center justify-around md:flex-col md:items-center md:justify-start md:space-y-4 md:p-4 md:w-16 md:h-screen md:left-0 md:top-0 md:border-r md:border-gray-800 inset-x-0 bottom-0 h-16 border-t border-gray-800";

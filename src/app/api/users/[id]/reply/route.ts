@@ -1,4 +1,4 @@
-// users/[id]/reply          GET                 そのユーザーがリプライしている投稿取得
+// users/[id]/reply          GET                 そのユーザーが返信している投稿取得
 import { getServerSession } from "next-auth/next";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
@@ -24,7 +24,7 @@ export async function GET(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // リプライした投稿を取得
+    // 返信した投稿を取得
     const replies = await prisma.post.findMany({
       where: {
         userId: params.id,

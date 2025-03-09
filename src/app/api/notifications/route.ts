@@ -160,11 +160,7 @@ export async function GET(req: Request) {
                 id: questionData.id,
                 question: questionData.question,
                 answer: questionData.answer,
-                sender: {
-                  id: "anonymous",
-                  username: "匿名質問者",
-                  icon: null,
-                },
+                targetUserId: questionData.targetUserId, // targetUserIdを追加
               },
             };
           }
@@ -180,6 +176,7 @@ export async function GET(req: Request) {
               id: questionData.id,
               question: questionData.question,
               answer: questionData.answer,
+              targetUserId: questionData.targetUserId, // targetUserIdを追加
               answerer: notification.sender
                 ? {
                     id: notification.sender.id,
