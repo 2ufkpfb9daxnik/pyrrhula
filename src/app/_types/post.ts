@@ -1,3 +1,15 @@
+// 質問関連の型定義を追加
+export interface QuestionInfo {
+  id: string;
+  question: string;
+  answer: string | null;
+  targetUserId: string;
+  targetUser: {
+    username: string;
+    icon: string | null;
+  };
+}
+
 export interface Post {
   id: string;
   content: string;
@@ -36,6 +48,8 @@ export interface Post {
   };
   // 元の投稿 (拡散の場合)
   originalPost?: Post;
+  // 質問関連の情報を追加 (オプショナル)
+  question?: QuestionInfo;
 }
 
 // MakePostで使用する親投稿の型
@@ -80,6 +94,8 @@ interface PostResponse {
     icon: string | null;
   };
   repostedAt?: string | Date;
+  // 質問関連の情報を追加 (オプショナル)
+  question?: QuestionInfo;
 }
 
 export type TimelineResponse = {
@@ -126,7 +142,11 @@ export interface PostDetailResponse extends Omit<Post, "parent"> {
       username: string;
       icon: string | null;
     };
+    // 質問関連の情報を追加 (オプショナル)
+    question?: QuestionInfo;
   }[];
+  // 質問関連の情報を追加 (オプショナル)
+  question?: QuestionInfo;
 }
 
 export type UserRepliesResponse = {
@@ -149,6 +169,8 @@ export type UserRepliesResponse = {
         username: string;
       };
     } | null;
+    // 質問関連の情報を追加 (オプショナル)
+    question?: QuestionInfo;
   }[];
   hasMore: boolean;
   nextCursor?: string;
@@ -174,6 +196,8 @@ export interface UserRepostsResponse {
       username: string;
       icon: string | null;
     };
+    // 質問関連の情報を追加 (オプショナル)
+    question?: QuestionInfo;
   }[];
   hasMore: boolean;
   nextCursor?: string;
@@ -211,6 +235,8 @@ export interface SearchPost {
     icon: string | null;
   };
   repostedAt?: string | Date;
+  // 質問関連の情報を追加 (オプショナル)
+  question?: QuestionInfo;
 }
 
 // 拡散API用のレスポンス型

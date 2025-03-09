@@ -266,16 +266,21 @@ export async function PUT(
     }
     let relatedPostId = null;
 
-    // 投稿も作成する場合
     if (createPost && answer && answer.trim() !== "") {
-      // 投稿内容を作成
-      const postContent = `Q: ${question.question}\n\nA: ${answer}`;
+      // 投稿内容は回答のみとする（質問はフロントエンドで別枠表示）
+      const postContent = answer.trim();
 
       // 投稿を作成
       const post = await prisma.post.create({
         data: {
           userId,
           content: postContent,
+          // Question との関連付けを直接行う
+          Question: {
+            connect: {
+              id: questionId,
+            },
+          },
         },
       });
 

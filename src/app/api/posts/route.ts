@@ -104,6 +104,17 @@ export async function GET(req: Request) {
         username: string;
         icon: string | null;
       };
+      // 質問情報を追加
+      question?: {
+        id: string;
+        question: string;
+        answer: string | null;
+        targetUserId: string;
+        targetUser: {
+          username: string;
+          icon: string | null;
+        };
+      };
     };
 
     // API応答用の型
@@ -138,6 +149,17 @@ export async function GET(req: Request) {
         id: string;
         username: string;
         icon: string | null;
+      };
+      // 質問情報を追加
+      question?: {
+        id: string;
+        question: string;
+        answer: string | null;
+        targetUserId: string;
+        targetUser: {
+          username: string;
+          icon: string | null;
+        };
       };
     };
 
@@ -198,19 +220,55 @@ export async function GET(req: Request) {
           where: { userId: session.user.id },
           select: { userId: true, createdAt: true },
         },
+        // 質問情報を取得
+        Question: {
+          take: 1, // 最初の関連質問のみ取得
+          select: {
+            id: true,
+            question: true,
+            answer: true,
+            targetUserId: true,
+            User_Question_targetUserIdToUser: {
+              select: {
+                username: true,
+                icon: true,
+              },
+            },
+          },
+        },
       },
     });
 
-    let allPosts: FormattedPost[] = regularPosts.map((post) => ({
-      ...post,
-      isReposted: post.repostedBy.length > 0,
-      isFavorited: post.favoritedBy.length > 0,
-      repostedAt:
-        post.repostedBy.length > 0 ? post.repostedBy[0].createdAt : undefined,
-      parent: post.parent || null,
-      // プロパティ名を完全に分けて重複を避ける
-      userRepostedData: post.repostedBy,
-    }));
+    let allPosts: FormattedPost[] = regularPosts.map((post) => {
+      // 質問情報を整形
+      const question =
+        post.Question && post.Question.length > 0
+          ? {
+              id: post.Question[0].id,
+              question: post.Question[0].question,
+              answer: post.Question[0].answer,
+              targetUserId: post.Question[0].targetUserId,
+              targetUser: {
+                username:
+                  post.Question[0].User_Question_targetUserIdToUser.username,
+                icon: post.Question[0].User_Question_targetUserIdToUser.icon,
+              },
+            }
+          : undefined;
+
+      return {
+        ...post,
+        isReposted: post.repostedBy.length > 0,
+        isFavorited: post.favoritedBy.length > 0,
+        repostedAt:
+          post.repostedBy.length > 0 ? post.repostedBy[0].createdAt : undefined,
+        parent: post.parent || null,
+        // プロパティ名を完全に分けて重複を避ける
+        userRepostedData: post.repostedBy,
+        // 質問情報を追加
+        question,
+      };
+    });
 
     // 2. 拡散された投稿を取得
     if (includeReposts) {
@@ -283,6 +341,22 @@ export async function GET(req: Request) {
                 where: { userId: session.user.id },
                 select: { userId: true, createdAt: true },
               },
+              // 質問情報を取得
+              Question: {
+                take: 1,
+                select: {
+                  id: true,
+                  question: true,
+                  answer: true,
+                  targetUserId: true,
+                  User_Question_targetUserIdToUser: {
+                    select: {
+                      username: true,
+                      icon: true,
+                    },
+                  },
+                },
+              },
             },
           },
         },
@@ -296,6 +370,24 @@ export async function GET(req: Request) {
           username: repost.user.username,
           icon: repost.user.icon,
         };
+
+        // 質問情報を整形
+        const question =
+          repost.post.Question && repost.post.Question.length > 0
+            ? {
+                id: repost.post.Question[0].id,
+                question: repost.post.Question[0].question,
+                answer: repost.post.Question[0].answer,
+                targetUserId: repost.post.Question[0].targetUserId,
+                targetUser: {
+                  username:
+                    repost.post.Question[0].User_Question_targetUserIdToUser
+                      .username,
+                  icon: repost.post.Question[0].User_Question_targetUserIdToUser
+                    .icon,
+                },
+              }
+            : undefined;
 
         return {
           ...repost.post,
@@ -316,6 +408,8 @@ export async function GET(req: Request) {
           isFavorited: repost.post.favoritedBy.length > 0,
           // 拡散者情報を repostedByInfo として保存
           repostedByInfo: repostingUserInfo,
+          // 質問情報を追加
+          question,
         };
       });
 
@@ -372,6 +466,8 @@ export async function GET(req: Request) {
       repostedAt: post.repostedAt,
       // API応答では統一されたプロパティ名 repostedBy を使用
       repostedBy: post.repostedByInfo,
+      // 質問情報を追加
+      question: post.question,
     }));
 
     return NextResponse.json({

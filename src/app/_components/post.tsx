@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Star, RefreshCw, MessageCircle } from "lucide-react";
+import { Star, RefreshCw, MessageCircle, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { formatDistanceToNow } from "@/lib/formatDistanceToNow";
@@ -20,6 +20,17 @@ import { useOptimisticUpdate } from "@/app/_hooks/useOptimisticUpdate";
 import type { Post as PostType } from "@/app/_types/post";
 import Link from "next/link";
 
+interface QuestionType {
+  id: string;
+  question: string;
+  answer?: string | null;
+  targetUserId: string;
+  targetUser: {
+    username: string;
+    icon: string | null;
+  };
+}
+
 interface PostProps {
   post: PostType & {
     repostedBy?: {
@@ -29,6 +40,7 @@ interface PostProps {
     };
     repostedAt?: string | Date;
     favoritedAt?: string | Date;
+    question?: QuestionType;
   };
   onRepostSuccess?: (newCount: number, isReposted: boolean) => void;
   onFavoriteSuccess?: (newCount: number, isFavorited: boolean) => void;
@@ -40,7 +52,21 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
   const { rating } = useRating(post.user.id);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
-  // 日付をフォーマットするヘルパー関数
+  // 投稿内容を処理する関数を追加
+  const formatPostContent = (content: string): string => {
+    // Q: と A: のパターンを検出
+    const qAndAPattern = /^Q:([\s\S]+?)(?:\r?\n)+A:([\s\S]+)$/;
+    const match = content.match(qAndAPattern);
+
+    // Q:A:形式の場合は、A:の部分のみを返す
+    if (match && match[2]) {
+      return match[2].trim();
+    }
+
+    // それ以外はそのまま返す
+    return content;
+  };
+
   const formatDate = (dateValue: string | Date | undefined): Date => {
     if (!dateValue) return new Date();
 
@@ -52,7 +78,6 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
     return new Date();
   };
 
-  // 楽観的更新のためのフック
   const {
     count: favorites,
     isActive: isFavorited,
@@ -83,7 +108,6 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
     errorMessage: "拡散の処理に失敗しました",
   });
 
-  // イベントハンドラー
   const handleUserClick = () => {
     router.push(`/user/${post.user.id}`);
   };
@@ -145,12 +169,21 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
     }
   };
 
+  const handleQuestionCardClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    if (post.question) {
+      router.push(
+        `/question/${post.question.targetUserId}/${post.question.id}`
+      );
+    }
+  };
+
   return (
     <div
       className="cursor-pointer border-b border-gray-700 p-4 transition-colors hover:bg-gray-900/50"
       onClick={handlePostClick}
     >
-      {/* 拡散表示 */}
       {post.repostedBy && (
         <div className="mb-2 flex items-center text-sm text-gray-500">
           <RefreshCw className="mr-2 size-3.5" />
@@ -164,7 +197,6 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
         </div>
       )}
 
-      {/* 親投稿への返信表示 */}
       {post.parent && post.parent.user && (
         <div className="mb-2 text-sm text-gray-500">
           返信先: @{post.parent.user.username}
@@ -172,7 +204,6 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
       )}
 
       <div className="flex flex-col space-y-3">
-        {/* ユーザー情報 */}
         <div className="flex items-start space-x-3">
           <Button
             variant="ghost"
@@ -205,7 +236,6 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
               {post.user.username}
             </Button>
 
-            {/* 投稿メタ情報 */}
             <div className="flex items-center space-x-2 text-sm">
               <span className="text-gray-500">@{post.user.id}</span>
               <span className="text-gray-500">·</span>
@@ -234,12 +264,11 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
           </div>
         </div>
 
-        {/* 投稿本文 */}
+        {/* 投稿本文 - Q:部分を除去して表示 */}
         <p className="whitespace-pre-wrap break-words">
-          {linkify(post.content)}
+          {linkify(formatPostContent(post.content))}
         </p>
 
-        {/* 画像表示 */}
         {post.images && post.images.length > 0 && (
           <div
             className={`mt-2 grid gap-2 ${
@@ -279,8 +308,28 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
             ))}
           </div>
         )}
+        {/* 質問カード - 回答状態を表示するように改善 */}
+        {post.question && (
+          <div
+            className="mt-3 cursor-pointer rounded-lg border border-blue-600/30 bg-blue-950/20 p-3 transition-colors hover:bg-blue-900/20"
+            onClick={handleQuestionCardClick}
+            role="button"
+            aria-label="質問の詳細を見る"
+          >
+            <div className="mb-2 flex items-center justify-between">
+              <div className="flex items-center text-sm">
+                <HelpCircle className="mr-2 size-4 text-blue-400" />
+                <span className="font-medium text-blue-400">質問</span>
+              </div>
+            </div>
 
-        {/* 画像モーダル */}
+            <p className="mb-2 text-sm font-medium">{post.question.question}</p>
+            <div className="flex items-center justify-between text-xs text-gray-400">
+              <span>{post.question.targetUser?.username}さんへの質問</span>
+            </div>
+          </div>
+        )}
+
         <ImageModal
           isOpen={!!selectedImage}
           onClose={() => setSelectedImage(null)}
@@ -288,9 +337,7 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
           alt="拡大画像"
         />
 
-        {/* アクションボタン */}
         <div className="mt-3 flex items-center space-x-6">
-          {/* 返信ボタン */}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -308,7 +355,6 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
             </TooltipContent>
           </Tooltip>
 
-          {/* 拡散ボタン */}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -328,7 +374,6 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
             </TooltipContent>
           </Tooltip>
 
-          {/* お気に入りボタン */}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button

@@ -129,11 +129,23 @@ export default function UserProfilePage({
 
       const data = await response.json();
 
+      // デバッグ: 質問データが含まれているか確認
+      if (process.env.NODE_ENV === "development") {
+        console.log(`[Debug] ${type} response:`, {
+          hasQuestion:
+            data.posts?.some((p: any) => p.question) ||
+            data.reposts?.some((p: any) => p.question) ||
+            data.replies?.some((p: any) => p.question),
+          firstPostSample:
+            data.posts?.[0] || data.reposts?.[0] || data.replies?.[0],
+        });
+      }
+
       // hasMoreとnextCursorの状態を更新
       setHasMore(data.hasMore || false);
       setNextCursor(data.nextCursor || null);
 
-      // レスポンスの形式に応じてデータを整形（既存のコード）
+      // レスポンスの形式に応じてデータを整形（質問情報を含む）
       switch (type) {
         case "reposts":
           if (!data.reposts) {
@@ -157,6 +169,8 @@ export default function UserProfilePage({
               replies: post._count?.replies || 0,
             },
             images: post.images || [],
+            // 質問情報を追加 - post自体またはpost.postから取得
+            question: post.question || post.post?.question,
           }));
           break;
 
@@ -171,6 +185,9 @@ export default function UserProfilePage({
             favoritedAt: new Date(post.favoritedAt),
             user: post.user,
             content: post.content,
+            // 質問情報を追加
+            question: post.question,
+            images: post.images || [],
           }));
           break;
 
@@ -182,6 +199,9 @@ export default function UserProfilePage({
           formattedPosts = data.replies.map((post: any) => ({
             ...post,
             createdAt: new Date(post.createdAt),
+            // 質問情報を追加
+            question: post.question,
+            images: post.images || [],
           }));
           break;
 
@@ -189,6 +209,9 @@ export default function UserProfilePage({
           formattedPosts = (data.posts || []).map((post: any) => ({
             ...post,
             createdAt: new Date(post.createdAt),
+            // 質問情報を明示的に追加
+            question: post.question,
+            images: post.images || [],
           }));
           break;
       }

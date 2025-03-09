@@ -34,7 +34,25 @@ export async function GET(
           followingCount: true,
         },
       });
-      return NextResponse.json(user);
+
+      // フォロー状態の確認
+      let isFollowing = false;
+      if (session?.user && session.user.id !== params.id) {
+        const follow = await prisma.follow.findUnique({
+          where: {
+            followerId_followedId: {
+              followerId: session.user.id,
+              followedId: params.id,
+            },
+          },
+        });
+        isFollowing = !!follow;
+      }
+
+      return NextResponse.json({
+        ...user,
+        isFollowing,
+      });
     }
 
     // フォロワー/フォロイーの取得を追加
@@ -42,7 +60,7 @@ export async function GET(
       const users = await prisma.user.findUnique({
         where: { id: params.id },
         select: {
-          [type === "followers" ? "followers" : "following"]: {
+          [type === "followers" ? "followers" : "follows"]: {
             take: limit + 1,
             skip: cursor ? 1 : 0,
             cursor: cursor ? { id: cursor } : undefined,
@@ -79,7 +97,7 @@ export async function GET(
       }
 
       const userList = users[
-        type === "followers" ? "followers" : "following"
+        type === "followers" ? "followers" : "follows"
       ].map((follow: any) => {
         const userData =
           type === "followers" ? follow.follower : follow.followed;
@@ -106,6 +124,7 @@ export async function GET(
         ...(nextCursor && { nextCursor }),
       });
     }
+
     // 投稿の取得
     if (type === "posts") {
       const posts = await prisma.post.findMany({
@@ -156,6 +175,22 @@ export async function GET(
                 },
               }
             : undefined,
+          // 質問情報を取得
+          Question: {
+            take: 1,
+            select: {
+              id: true,
+              question: true,
+              answer: true,
+              targetUserId: true,
+              User_Question_targetUserIdToUser: {
+                select: {
+                  username: true,
+                  icon: true,
+                },
+              },
+            },
+          },
         },
       });
 
@@ -163,20 +198,48 @@ export async function GET(
       const nextCursor = hasMore ? posts[limit - 1].id : undefined;
       const postList = hasMore ? posts.slice(0, -1) : posts;
 
-      const formattedPosts = postList.map((post) => ({
-        id: post.id,
-        content: post.content,
-        createdAt: post.createdAt,
-        user: post.user,
-        images: post.images, // 画像情報を追加
-        _count: {
-          replies: post._count.replies,
-          favorites: post._count.favoritedBy,
-          reposts: post._count.repostedBy,
-        },
-        isFavorited: post.favoritedBy?.length > 0,
-        isReposted: post.repostedBy?.length > 0,
-      }));
+      const formattedPosts = postList.map((post) => {
+        // 質問情報を整形
+        const question =
+          post.Question && post.Question.length > 0
+            ? {
+                id: post.Question[0].id,
+                question: post.Question[0].question,
+                answer: post.Question[0].answer,
+                targetUserId: post.Question[0].targetUserId,
+                targetUser: {
+                  username:
+                    post.Question[0].User_Question_targetUserIdToUser.username,
+                  icon: post.Question[0].User_Question_targetUserIdToUser.icon,
+                },
+              }
+            : undefined;
+
+        return {
+          id: post.id,
+          content: post.content,
+          createdAt: post.createdAt,
+          user: post.user,
+          images: post.images, // 画像情報を追加
+          _count: {
+            replies: post._count.replies,
+            favorites: post._count.favoritedBy,
+            reposts: post._count.repostedBy,
+          },
+          isFavorited: post.favoritedBy?.length > 0,
+          isReposted: post.repostedBy?.length > 0,
+          // 質問情報を追加
+          question: question,
+        };
+      });
+
+      // 開発環境では質問情報の有無をログ出力
+      if (process.env.NODE_ENV === "development") {
+        console.log(`[Debug] Users/${params.id}/posts API:`, {
+          postsCount: formattedPosts.length,
+          postsWithQuestions: formattedPosts.filter((p) => p.question).length,
+        });
+      }
 
       return NextResponse.json({
         posts: formattedPosts,

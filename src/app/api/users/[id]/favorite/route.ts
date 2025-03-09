@@ -10,6 +10,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    const session = await getServerSession(authOptions);
     const { searchParams } = new URL(req.url);
     const cursor = searchParams.get("cursor");
     const limit = Number(searchParams.get("limit")) || 20;
@@ -44,6 +45,50 @@ export async function GET(
                 icon: true,
               },
             },
+            // 質問情報を追加
+            Question: {
+              take: 1,
+              select: {
+                id: true,
+                question: true,
+                answer: true,
+                targetUserId: true,
+                User_Question_targetUserIdToUser: {
+                  select: {
+                    username: true,
+                    icon: true,
+                  },
+                },
+              },
+            },
+            // いいね情報を取得
+            favoritedBy: session?.user
+              ? {
+                  where: {
+                    userId: session.user.id,
+                  },
+                  select: {
+                    userId: true,
+                  },
+                }
+              : undefined,
+            // リポスト情報を取得
+            repostedBy: session?.user
+              ? {
+                  where: {
+                    userId: session.user.id,
+                  },
+                  select: {
+                    userId: true,
+                  },
+                }
+              : undefined,
+            // 返信数を取得
+            _count: {
+              select: {
+                replies: true,
+              },
+            },
           },
         },
       },
@@ -56,15 +101,46 @@ export async function GET(
 
     // レスポンスデータの整形
     const response: UserFavoritePostsResponse = {
-      posts: favoriteList.map((favorite) => ({
-        id: favorite.post.id,
-        content: favorite.post.content,
-        createdAt: favorite.post.createdAt,
-        favorites: favorite.post.favorites,
-        reposts: favorite.post.reposts,
-        user: favorite.post.user,
-        favoritedAt: favorite.createdAt,
-      })),
+      posts: favoriteList.map((favorite) => {
+        // 質問情報を整形
+        const question =
+          favorite.post.Question && favorite.post.Question.length > 0
+            ? {
+                id: favorite.post.Question[0].id,
+                question: favorite.post.Question[0].question,
+                answer: favorite.post.Question[0].answer,
+                targetUserId: favorite.post.Question[0].targetUserId,
+                targetUser: {
+                  username:
+                    favorite.post.Question[0].User_Question_targetUserIdToUser
+                      .username,
+                  icon: favorite.post.Question[0]
+                    .User_Question_targetUserIdToUser.icon,
+                },
+              }
+            : undefined;
+
+        return {
+          id: favorite.post.id,
+          content: favorite.post.content,
+          createdAt: favorite.post.createdAt,
+          favorites: favorite.post.favorites,
+          reposts: favorite.post.reposts,
+          user: favorite.post.user,
+          favoritedAt: favorite.createdAt,
+          // 画像情報を追加
+          images: favorite.post.images || [],
+          // 質問情報を追加
+          question: question,
+          // いいね・リポスト状態を追加
+          isFavorited: favorite.post.favoritedBy?.length > 0 || false,
+          isReposted: favorite.post.repostedBy?.length > 0 || false,
+          // 返信数情報を追加
+          _count: {
+            replies: favorite.post._count?.replies || 0,
+          },
+        };
+      }),
       hasMore,
       ...(nextCursor && { nextCursor }),
     };

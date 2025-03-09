@@ -53,9 +53,41 @@ export async function GET(
                 icon: true,
               },
             },
+            // 返信の質問情報も取得
+            Question: {
+              take: 1,
+              select: {
+                id: true,
+                question: true,
+                answer: true,
+                targetUserId: true,
+                User_Question_targetUserIdToUser: {
+                  select: {
+                    username: true,
+                    icon: true,
+                  },
+                },
+              },
+            },
           },
           orderBy: {
             createdAt: "desc",
+          },
+        },
+        // 投稿本体の質問情報を取得
+        Question: {
+          take: 1,
+          select: {
+            id: true,
+            question: true,
+            answer: true,
+            targetUserId: true,
+            User_Question_targetUserIdToUser: {
+              select: {
+                username: true,
+                icon: true,
+              },
+            },
           },
         },
         ...(session?.user
@@ -108,6 +140,46 @@ export async function GET(
         })
       : null;
 
+    // 投稿の質問情報を整形
+    const question =
+      post.Question && post.Question.length > 0
+        ? {
+            id: post.Question[0].id,
+            question: post.Question[0].question,
+            answer: post.Question[0].answer,
+            targetUserId: post.Question[0].targetUserId,
+            targetUser: {
+              username:
+                post.Question[0].User_Question_targetUserIdToUser.username,
+              icon: post.Question[0].User_Question_targetUserIdToUser.icon,
+            },
+          }
+        : undefined;
+
+    // 返信の質問情報を整形
+    const formattedReplies = post.replies.map((reply) => {
+      const replyQuestion =
+        reply.Question && reply.Question.length > 0
+          ? {
+              id: reply.Question[0].id,
+              question: reply.Question[0].question,
+              answer: reply.Question[0].answer,
+              targetUserId: reply.Question[0].targetUserId,
+              targetUser: {
+                username:
+                  reply.Question[0].User_Question_targetUserIdToUser.username,
+                icon: reply.Question[0].User_Question_targetUserIdToUser.icon,
+              },
+            }
+          : undefined;
+
+      return {
+        ...reply,
+        images: reply.images || [],
+        question: replyQuestion,
+      };
+    });
+
     // レスポンスデータの整形
     const response: PostDetailResponse = {
       ...post,
@@ -121,10 +193,7 @@ export async function GET(
             images: post.parent.images || [],
           }
         : null,
-      replies: post.replies.map((reply) => ({
-        ...reply,
-        images: reply.images || [],
-      })),
+      replies: formattedReplies,
       isFavorited: session?.user ? post.favoritedBy?.length > 0 : false,
       isReposted: session?.user ? post.repostedBy?.length > 0 : false,
       // 拡散情報を追加
@@ -140,6 +209,8 @@ export async function GET(
             icon: repostInfo.user.icon,
           }
         : undefined,
+      // 質問情報を追加
+      question: question,
     };
 
     return NextResponse.json(response);
