@@ -35,23 +35,31 @@ interface TimelinePost {
   reposts: number;
   images?: string[];
   user: PostUser;
-  parent: {
+  parent?: {
     id: string;
     content: string;
     user?: {
       id: string;
       username: string;
     };
-  } | null;
+  };
   _count: {
     replies: number;
   };
-  isFavorited: boolean;
-  isReposted: boolean;
   repostedAt?: Date;
   repostedBy?: PostUser;
+  // QuestionInfo型と一致するように質問情報を定義
+  question?: {
+    id: string;
+    question: string;
+    answer: string | null;
+    targetUserId: string;
+    targetUser: {
+      username: string;
+      icon: string | null;
+    };
+  };
 }
-
 export default function LandingPage() {
   const [posts, setPosts] = useState<TimelinePost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -64,13 +72,16 @@ export default function LandingPage() {
     }
   }, [activeTab]);
 
-  // 全体タイムラインの投稿を取得する関数
+  // fetchPosts関数でレスポンスの型を修正
   const fetchPosts = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch("/api/whole?limit=10&includeReposts=true", {
-        next: { revalidate: 60 }, // 60秒間キャッシュ
-      });
+      const response = await fetch(
+        "/api/whole?limit=10&includeReposts=true&includeQuestions=true",
+        {
+          next: { revalidate: 60 },
+        }
+      );
 
       if (!response.ok) {
         throw new Error("タイムラインの取得に失敗しました");
@@ -78,12 +89,13 @@ export default function LandingPage() {
 
       const data = await response.json();
 
-      // 日付をDate型に変換して投稿を設定
+      // 日付とQuestion情報を変換して投稿を設定
       setPosts(
         data.posts.map((post: any) => ({
           ...post,
           createdAt: new Date(post.createdAt),
           repostedAt: post.repostedAt ? new Date(post.repostedAt) : undefined,
+          question: post.question || undefined,
         }))
       );
     } catch (error) {
@@ -101,16 +113,26 @@ export default function LandingPage() {
       createdAt: post.createdAt,
       favorites: post.favorites,
       reposts: post.reposts,
-      images: post.images || [], // 必ず配列を返すように
+      images: post.images || [],
       user: post.user,
       parent: post.parent || undefined,
       _count: {
         replies: post._count.replies,
       },
-      // 非ログイン時はfalse
+      question: post.question
+        ? {
+            id: post.question.id,
+            question: post.question.question,
+            answer: post.question.answer,
+            targetUserId: post.question.targetUserId,
+            targetUser: {
+              username: post.question.targetUser.username,
+              icon: post.question.targetUser.icon,
+            },
+          }
+        : undefined,
       isFavorited: false,
       isReposted: false,
-      // 拡散情報を保持
       repostedAt: post.repostedAt,
       repostedBy: post.repostedBy,
     };
@@ -124,7 +146,7 @@ export default function LandingPage() {
           {/* ログイン済みユーザー向けアラート */}
           {session?.user && (
             <Alert className="border-primary/50 bg-primary/5">
-              <Home className="h-4 w-4 text-primary" />
+              <Home className="size-4 text-primary" />
               <AlertTitle className="text-primary">ログイン済み</AlertTitle>
               <AlertDescription>ホームに移動しますか？</AlertDescription>
               <div className="mt-3">
