@@ -41,6 +41,9 @@ model User {
   Question_Question_senderIdToUser     Question[]               @relation("Question_senderIdToUser")
   Question_Question_targetUserIdToUser Question[]               @relation("Question_targetUserIdToUser")
   repostedPosts                        Repost[]                 @relation("UserReposts")
+  list_followers                       list_followers[]
+  list_members                         list_members[]
+  lists                                lists[]
   repliedPosts                         Post[]                   @relation("UserReplies")
 
   @@schema("public")
@@ -56,12 +59,14 @@ model Post {
   parentId         String?
   images           String[]       @default([]) @db.VarChar
   repostedByUserId String?        @db.Uuid
+  list_id          String?        @db.Uuid
   favoritedBy      Favorite[]
   notifications    Notification[]
   parent           Post?          @relation("Replies", fields: [parentId], references: [id])
   replies          Post[]         @relation("Replies")
   users            users?         @relation(fields: [repostedByUserId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   user             User           @relation(fields: [userId], references: [id])
+  lists            lists?         @relation(fields: [list_id], references: [id], onUpdate: NoAction, map: "fk_post_list")
   Question         Question[]
   repostedBy       Repost[]
   repliedBy        User[]         @relation("UserReplies")
@@ -69,6 +74,7 @@ model Post {
   @@index([userId])
   @@index([parentId])
   @@index([repostedByUserId])
+  @@index([list_id], map: "idx_posts_list")
   @@schema("public")
 }
 
@@ -595,6 +601,55 @@ model AnonymousQuestionToken {
 
   @@index([questionId])
   @@index([userId])
+  @@schema("public")
+}
+
+model list_followers {
+  id         String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  list_id    String    @db.Uuid
+  user_id    String    @db.VarChar(16)
+  created_at DateTime? @default(now()) @db.Timestamptz(6)
+  lists      lists     @relation(fields: [list_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_list")
+  User       User      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_user")
+
+  @@unique([list_id, user_id])
+  @@index([list_id], map: "idx_list_followers_list")
+  @@index([user_id], map: "idx_list_followers_user")
+  @@schema("public")
+}
+
+model list_members {
+  id        String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  list_id   String    @db.Uuid
+  user_id   String    @db.VarChar(16)
+  is_admin  Boolean?  @default(false)
+  status    String?   @default("pending") @db.VarChar(10)
+  joined_at DateTime? @default(now()) @db.Timestamptz(6)
+  lists     lists     @relation(fields: [list_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_list")
+  User      User      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_user")
+
+  @@unique([list_id, user_id])
+  @@index([list_id], map: "idx_list_members_list")
+  @@index([status], map: "idx_list_members_status")
+  @@index([user_id], map: "idx_list_members_user")
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model lists {
+  id                     String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name                   String           @db.VarChar(50)
+  description            String?
+  creator_id             String           @db.VarChar(16)
+  is_managed             Boolean?         @default(false)
+  include_timeline_posts Boolean?         @default(false)
+  created_at             DateTime?        @default(now()) @db.Timestamptz(6)
+  Post                   Post[]
+  list_followers         list_followers[]
+  list_members           list_members[]
+  User                   User             @relation(fields: [creator_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_creator")
+
+  @@index([creator_id], map: "idx_lists_creator")
   @@schema("public")
 }
 

@@ -250,3 +250,33 @@ export interface RepostListResponse {
   hasMore: boolean;
   nextCursor?: string;
 }
+
+export interface PostWithExtra {
+  id: string;
+  content: string;
+  createdAt: string;
+  parentId: string | null;
+  listId: string | null;
+  userId: string;
+  repostedByUserId: string | null;
+  user: {
+    id: string;
+    username: string;
+    icon: string | null;
+  };
+  parent?: {
+    id: string;
+    content: string;
+    user: {
+      id: string;
+      username: string;
+    };
+  } | null;
+  _count: {
+    replies: number;
+    favoritedBy: number;
+    repostedBy: number;
+  };
+  isFavorited: boolean;
+  isReposted: boolean;
+}
