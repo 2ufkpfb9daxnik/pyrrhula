@@ -31,6 +31,11 @@ interface UserInfo {
 interface List {
   id: string;
   name: string;
+  description: string;
+  creatorId: string;
+  isManaged: boolean;
+  includeTimelinePosts: boolean;
+  createdAt: Date;
 }
 
 type TabType =
@@ -222,8 +227,20 @@ export default function TimelineLayout({ children }: { children: ReactNode }) {
             <ColumnView
               onViewChange={() => setIsColumnView(false)}
               userInfo={userInfo}
-              userLists={userLists || []}
-              followedLists={followedLists || []}
+              userLists={(userLists || []).map((list) => ({
+                ...list,
+                createdAt:
+                  list.createdAt instanceof Date
+                    ? list.createdAt.toISOString()
+                    : list.createdAt,
+              }))}
+              followedLists={(followedLists || []).map((list) => ({
+                ...list,
+                createdAt:
+                  list.createdAt instanceof Date
+                    ? list.createdAt.toISOString()
+                    : list.createdAt,
+              }))}
             />
           )}
 
