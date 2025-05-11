@@ -19,6 +19,8 @@ import {
 import { useSwipeable } from "react-swipeable";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { ColumnView } from "@/app/_components/column-view";
 
 interface UserInfo {
   icon: string | null;
@@ -50,6 +52,7 @@ export default function TimelineLayout({ children }: { children: ReactNode }) {
   const [parentPost, setParentPost] = useState<any | null>(null);
   const postInputRef = useRef<HTMLTextAreaElement>(null);
   const tabsContainerRef = useRef<HTMLDivElement>(null);
+  const [isColumnView, setIsColumnView] = useState(false);
 
   useEffect(() => {
     if (pathname === "/" || pathname === "/home") {
@@ -213,12 +216,37 @@ export default function TimelineLayout({ children }: { children: ReactNode }) {
           />
 
           <Search onSearch={handleSearch} />
+
+          {/* カラムビュー */}
+          {isColumnView && (
+            <ColumnView
+              onViewChange={() => setIsColumnView(false)}
+              userInfo={userInfo}
+              userLists={userLists || []}
+              followedLists={followedLists || []}
+            />
+          )}
+
+          {/* デスクトップのみ表示切替ボタン */}
+          <div className="mt-8 hidden justify-center md:flex">
+            <Button
+              variant="outline"
+              onClick={() => setIsColumnView(true)}
+              className="w-full max-w-xs"
+            >
+              <div className="flex items-center gap-2">
+                カラム表示に切り替え
+              </div>
+            </Button>
+          </div>
         </div>
       )}
 
       <div className="flex-1">
         <div className="mx-auto max-w-2xl md:ml-96">
-          <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md">
+          <div
+            className={`sticky top-0 z-20 bg-background/95 backdrop-blur-md ${isColumnView ? "hidden" : ""}`}
+          >
             <div className="relative flex border-b border-gray-800">
               <button
                 onClick={() => handleScroll("left")}
@@ -346,9 +374,11 @@ export default function TimelineLayout({ children }: { children: ReactNode }) {
             </div>
           </div>
 
-          <div {...swipeHandlers} className="touch-pan-y">
-            {children}
-          </div>
+          {!isColumnView && (
+            <div {...swipeHandlers} className="touch-pan-y">
+              {children}
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +23,13 @@ export function Navigation({ isMobile = false }: NavigationProps) {
   const router = useRouter();
   const { data: session } = useSession();
   const { hasUnread, markAsRead, lastNotification } = useNotifications();
+  const searchParams = useSearchParams();
+  const hideNav = searchParams.get("hideNav") === "true";
+
+  // カラムビューでナビゲーションを非表示にする
+  if (hideNav) {
+    return null;
+  }
 
   const handleProfileClick = () => {
     if (session?.user?.id) {

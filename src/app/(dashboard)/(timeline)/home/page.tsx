@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import { ColumnView } from "@/app/_components/column-view";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import type { Post } from "@/app/_types/post";
 import { Post as PostComponent } from "@/app/_components/post";
@@ -26,6 +27,7 @@ export default function HomePage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isColumnView, setIsColumnView] = useState(false);
   const { data: session } = useSession();
   const router = useRouter();
   const [parentPost, setParentPost] = useState<Post | null>(null);
@@ -444,6 +446,16 @@ export default function HomePage() {
           </div>
         </div>
       </div>
+
+      {/* カラムビュー */}
+      {isColumnView && (
+        <ColumnView
+          onViewChange={() => setIsColumnView(false)}
+          userInfo={userInfo}
+          userLists={[]}
+          followedLists={[]}
+        />
+      )}
 
       {/* モバイル用投稿ボタン */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
