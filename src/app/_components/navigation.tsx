@@ -57,17 +57,22 @@ export function Navigation({ isMobile = false }: NavigationProps) {
         return "匿名の質問が届きました";
       case "answer":
         return `${notification.sender?.username}さんがあなたの質問に回答しました`;
+      case "list_admin_invite":
+        return `${notification.sender?.username}さんがリストの管理者に招待しています`;
+      case "list_admin_request":
+        return notification.sender?.id
+          ? `リストの管理者申請が${notification.sender.username}さんによって承認されました`
+          : "リストの管理者申請が却下されました";
       default:
         return "新しい通知があります";
     }
   }
-  // ナビゲーション用のクラスを修正 - 常に固定表示するために fixed クラスを正しく適用
+
   const navClasses =
     "fixed z-50 bg-background flex items-center justify-around md:flex-col md:items-center md:justify-start md:space-y-4 md:p-4 md:w-16 md:h-screen md:left-0 md:top-0 md:border-r md:border-gray-800 inset-x-0 bottom-0 h-16 border-t border-gray-800";
 
   return (
     <nav className={navClasses}>
-      {/* ホームボタン - フォロー中/全体タイムラインへのアクセスポイント */}
       <Button
         variant="ghost"
         size="icon"
@@ -78,7 +83,6 @@ export function Navigation({ isMobile = false }: NavigationProps) {
         <Home className="size-6" />
       </Button>
 
-      {/* 検索ボタン */}
       <Button
         variant="ghost"
         size="icon"
@@ -89,7 +93,6 @@ export function Navigation({ isMobile = false }: NavigationProps) {
         <Search className="size-6" />
       </Button>
 
-      {/* 通知ボタン */}
       <div className="relative">
         <Button
           variant="ghost"
@@ -109,7 +112,6 @@ export function Navigation({ isMobile = false }: NavigationProps) {
         </Button>
       </div>
 
-      {/* チャットボタン */}
       <Button
         variant="ghost"
         size="icon"
@@ -120,7 +122,6 @@ export function Navigation({ isMobile = false }: NavigationProps) {
         <MessageCircle className="size-6" />
       </Button>
 
-      {/* プロフィールボタン - ユーザー関連ページへのアクセスポイント */}
       <Button
         variant="ghost"
         size="icon"
@@ -131,7 +132,6 @@ export function Navigation({ isMobile = false }: NavigationProps) {
         <User className="size-6" />
       </Button>
 
-      {/* ログイン/ログアウトボタン - 条件付きで表示 */}
       {!session ? (
         <Button
           variant="ghost"

@@ -9,18 +9,33 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Post } from "@/app/_components/post";
 import { MakePost } from "@/app/_components/makepost";
+import { LoaderCircle, ArrowLeft, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import type { PostDetailResponse } from "@/app/_types/post";
-import { LoaderCircle } from "lucide-react";
+
+interface SiblingPosts {
+  previousPost: {
+    id: string;
+    content: string;
+    createdAt: string;
+  } | null;
+  nextPost: {
+    id: string;
+    content: string;
+    createdAt: string;
+  } | null;
+}
 
 export default function PostDetailPage({ params }: { params: { id: string } }) {
   const [post, setPost] = useState<PostDetailResponse | null>(null);
+  const [siblings, setSiblings] = useState<SiblingPosts | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { data: session } = useSession();
   const router = useRouter();
 
   useEffect(() => {
     fetchPost();
+    fetchSiblings();
   }, [params.id]);
 
   const fetchPost = async () => {
@@ -39,8 +54,25 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
     }
   };
 
+  const fetchSiblings = async () => {
+    try {
+      const response = await fetch(`/api/posts/${params.id}/siblings`);
+      if (!response.ok) {
+        throw new Error("前後の投稿の取得に失敗しました");
+      }
+      const data = await response.json();
+      setSiblings(data);
+    } catch (error) {
+      console.error("Error fetching siblings:", error);
+    }
+  };
+
   const handlePostCreated = () => {
     fetchPost();
+  };
+
+  const handleSiblingNavigation = (postId: string) => {
+    router.push(`/post/${postId}`);
   };
 
   if (isLoading) {
@@ -59,7 +91,6 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
     );
   }
 
-  // Post型に変換する関数
   const convertToPost = (postDetail: PostDetailResponse) => ({
     ...postDetail,
     images: postDetail.images || [],
@@ -71,6 +102,35 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
 
   return (
     <div className="mx-auto max-w-2xl p-4">
+      {/* ナビゲーションボタン */}
+      <div className="mb-4 flex items-center justify-between">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-sm"
+          onClick={() =>
+            siblings?.previousPost &&
+            handleSiblingNavigation(siblings.previousPost.id)
+          }
+          disabled={!siblings?.previousPost}
+        >
+          <ArrowLeft className="mr-2 size-4" />
+          前の投稿
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-sm"
+          onClick={() =>
+            siblings?.nextPost && handleSiblingNavigation(siblings.nextPost.id)
+          }
+          disabled={!siblings?.nextPost}
+        >
+          次の投稿
+          <ArrowRight className="ml-2 size-4" />
+        </Button>
+      </div>
+
       {/* 親投稿 */}
       {post.parent && (
         <div className="mb-4">
@@ -84,7 +144,6 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
               parent: null,
               images: post.parent.images || [],
               _count: {
-                // _countを追加
                 replies: 0,
               },
             })}
@@ -147,7 +206,6 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
                 replies: [],
                 images: reply.images || [],
                 _count: {
-                  // _countを追加
                   replies: 0,
                 },
               })}

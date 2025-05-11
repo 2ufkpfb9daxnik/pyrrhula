@@ -7,58 +7,82 @@ import { Navigation } from "@/app/_components/navigation";
 import { MakePost } from "@/app/_components/makepost";
 import { Search } from "@/app/_components/search";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Users, Globe } from "lucide-react";
+import {
+  Users,
+  Globe,
+  LayoutList,
+  ListChecks,
+  Star,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { useSwipeable } from "react-swipeable";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
-// ユーザー情報の型定義
 interface UserInfo {
   icon: string | null;
   username: string;
   id: string;
 }
 
+interface List {
+  id: string;
+  name: string;
+}
+
+type TabType =
+  | "following"
+  | "global"
+  | "lists"
+  | `list-${string}`
+  | `followed-list-${string}`;
+
 export default function TimelineLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { data: session } = useSession();
-  const [activeTab, setActiveTab] = useState<"following" | "global">(
-    "following"
-  );
-
-  // 左サイドバー用の状態
+  const [activeTab, setActiveTab] = useState<TabType>("following");
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
+  const [userLists, setUserLists] = useState<List[]>([]);
+  const [followedLists, setFollowedLists] = useState<List[]>([]);
+  const [isLoadingLists, setIsLoadingLists] = useState(true);
   const [parentPost, setParentPost] = useState<any | null>(null);
   const postInputRef = useRef<HTMLTextAreaElement>(null);
+  const tabsContainerRef = useRef<HTMLDivElement>(null);
 
-  // パスに基づいてアクティブタブを設定
   useEffect(() => {
     if (pathname === "/" || pathname === "/home") {
       setActiveTab("following");
     } else if (pathname === "/whole") {
       setActiveTab("global");
+    } else if (pathname === "/lists") {
+      setActiveTab("lists");
+    } else if (pathname.startsWith("/lists/")) {
+      const listId = pathname.split("/")[2];
+      setActiveTab(`list-${listId}`);
     }
   }, [pathname]);
 
-  // ユーザー情報を取得
   useEffect(() => {
     if (session?.user?.id) {
       fetchUserInfo();
+      fetchUserLists();
+      fetchFollowedLists();
     }
-  }, [session]);
+  }, [session?.user?.id]);
 
-  // ユーザー情報を取得する関数
+  const handleUserClick = () => {
+    if (session?.user?.id) {
+      router.push(`/user/${session.user.id}`);
+    }
+  };
+
   const fetchUserInfo = async () => {
     if (!session?.user?.id) return;
-
     try {
-      const response = await fetch(`/api/users/${session.user.id}`, {
-        next: { revalidate: 300 }, // 5分間キャッシュ
-      });
-      if (!response.ok) {
-        throw new Error("Failed to fetch user info");
-      }
-
+      const response = await fetch(`/api/users/${session.user.id}`);
+      if (!response.ok) throw new Error("Failed to fetch user info");
       const data = await response.json();
       setUserInfo(data);
     } catch (error) {
@@ -66,65 +90,79 @@ export default function TimelineLayout({ children }: { children: ReactNode }) {
     }
   };
 
-  // タブの変更を処理
-  const handleTabChange = (value: "following" | "global") => {
+  const fetchUserLists = async () => {
+    if (!session?.user?.id) return;
+    try {
+      setIsLoadingLists(true);
+      const response = await fetch("/api/lists?isMember=true");
+      if (!response.ok) throw new Error("Failed to fetch user lists");
+      const data = await response.json();
+      setUserLists(data.lists || []);
+    } catch (error) {
+      console.error("Error fetching user lists:", error);
+      setUserLists([]);
+    } finally {
+      setIsLoadingLists(false);
+    }
+  };
+
+  const fetchFollowedLists = async () => {
+    if (!session?.user?.id) return;
+    try {
+      const response = await fetch("/api/lists/followed");
+      if (!response.ok) throw new Error("Failed to fetch followed lists");
+      const data = await response.json();
+      setFollowedLists(data.lists || []);
+    } catch (error) {
+      console.error("Error fetching followed lists:", error);
+      setFollowedLists([]);
+    }
+  };
+
+  const handleTabChange = (value: TabType) => {
     if (value === "following") {
       router.push("/home");
     } else if (value === "global") {
       router.push("/whole");
+    } else if (value === "lists") {
+      router.push("/lists");
+    } else if (value.startsWith("list-")) {
+      const listId = value.replace("list-", "");
+      router.push(`/lists/${listId}`);
+    } else if (value.startsWith("followed-list-")) {
+      const listId = value.replace("followed-list-", "");
+      router.push(`/lists/${listId}`);
     }
     setActiveTab(value);
   };
 
-  // ユーザープロフィールをクリックした時の処理
-  const handleUserClick = () => {
-    if (session?.user?.id) {
-      router.push(`/user/${session.user.id}`);
+  const handleScroll = (direction: "left" | "right") => {
+    if (tabsContainerRef.current) {
+      const scrollAmount = 200;
+      const targetScroll =
+        tabsContainerRef.current.scrollLeft +
+        (direction === "left" ? -scrollAmount : scrollAmount);
+      tabsContainerRef.current.scrollTo({
+        left: targetScroll,
+        behavior: "smooth",
+      });
     }
   };
 
-  // キーボードショートカット
-  useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
-      if (
-        e.key === "n" &&
-        !e.ctrlKey &&
-        !e.metaKey &&
-        document.activeElement?.tagName !== "TEXTAREA" &&
-        document.activeElement?.tagName !== "INPUT"
-      ) {
-        e.preventDefault();
-        postInputRef.current?.focus();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyPress);
-    return () => window.removeEventListener("keydown", handleKeyPress);
-  }, []);
-
-  // 投稿作成成功時のハンドラ（子コンポーネントに渡す用）
   const handlePostCreated = (newPost: any) => {
-    // 実際の処理は子コンポーネント側で行われる
     toast.success("投稿が作成されました");
   };
 
-  // 検索ハンドラ（必要に応じて実装）
   const handleSearch = (query: string) => {
-    // 検索クエリに応じてルーティングするなどの処理
     toast.info(`「${query}」で検索中...`);
   };
 
-  // スワイプハンドラーを設定
   const swipeHandlers = useSwipeable({
     onSwipedLeft: () => {
-      if (activeTab === "following") {
-        handleTabChange("global");
-      }
+      if (activeTab === "following") handleTabChange("global");
     },
     onSwipedRight: () => {
-      if (activeTab === "global") {
-        handleTabChange("following");
-      }
+      if (activeTab === "global") handleTabChange("following");
     },
     preventScrollOnSwipe: true,
     trackMouse: false,
@@ -132,17 +170,14 @@ export default function TimelineLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen flex-col pb-16 md:pb-0 md:pl-16">
-      {/* モバイル向けの固定ナビゲーションバー（画面下部） */}
       <div className="md:hidden">
         <Navigation />
       </div>
 
-      {/* デスクトップ向けの左サイドナビゲーション */}
       <div className="hidden md:block">
         <Navigation />
       </div>
 
-      {/* デスクトップ向けの左サイドバー - layout.tsxに移植 */}
       {session && (
         <div className="fixed hidden h-full w-80 flex-col gap-4 border-r border-gray-800 p-4 md:left-16 md:top-0 md:flex">
           <button
@@ -183,41 +218,134 @@ export default function TimelineLayout({ children }: { children: ReactNode }) {
 
       <div className="flex-1">
         <div className="mx-auto max-w-2xl md:ml-96">
-          {/* タブナビゲーション - 常に表示されるように sticky に */}
           <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md">
-            <div className="flex border-b border-gray-800">
+            <div className="relative flex border-b border-gray-800">
               <button
-                className={`relative flex flex-1 items-center justify-center py-3 font-medium transition-colors ${
-                  activeTab === "following"
-                    ? "text-primary"
-                    : "text-gray-500 hover:text-gray-300"
-                }`}
-                onClick={() => handleTabChange("following")}
+                onClick={() => handleScroll("left")}
+                className="absolute left-0 top-0 z-10 h-full bg-gradient-to-r from-background via-background/90 to-transparent px-2 hover:from-gray-800/50"
               >
-                <Users className="mr-2 size-4" />
-                フォロー中
-                {activeTab === "following" && (
-                  <span className="absolute inset-x-0 bottom-0 h-1 bg-gray-500" />
-                )}
+                <ChevronLeft className="size-4" />
               </button>
-              <button
-                className={`relative flex flex-1 items-center justify-center py-3 font-medium transition-colors ${
-                  activeTab === "global"
-                    ? "text-primary"
-                    : "text-gray-500 hover:text-gray-300"
-                }`}
-                onClick={() => handleTabChange("global")}
+
+              <div
+                ref={tabsContainerRef}
+                className="scrollbar-none flex flex-1 overflow-x-auto"
+                style={{ scrollBehavior: "smooth" }}
               >
-                <Globe className="mr-2 size-4" />
-                全体
-                {activeTab === "global" && (
-                  <span className="absolute inset-x-0 bottom-0 h-1 bg-gray-500" />
-                )}
+                <div className="flex items-center">
+                  {/* メインナビゲーション */}
+                  <button
+                    className={cn(
+                      "relative flex min-w-[120px] items-center justify-center py-3 font-medium transition-colors",
+                      activeTab === "following"
+                        ? "text-primary"
+                        : "text-gray-500 hover:text-gray-300"
+                    )}
+                    onClick={() => handleTabChange("following")}
+                  >
+                    <Users className="mr-2 size-4" />
+                    フォロー中
+                    {activeTab === "following" && (
+                      <span className="absolute inset-x-0 bottom-0 h-1 bg-primary" />
+                    )}
+                  </button>
+
+                  <button
+                    className={cn(
+                      "relative flex min-w-[120px] items-center justify-center py-3 font-medium transition-colors",
+                      activeTab === "global"
+                        ? "text-primary"
+                        : "text-gray-500 hover:text-gray-300"
+                    )}
+                    onClick={() => handleTabChange("global")}
+                  >
+                    <Globe className="mr-2 size-4" />
+                    全体
+                    {activeTab === "global" && (
+                      <span className="absolute inset-x-0 bottom-0 h-1 bg-primary" />
+                    )}
+                  </button>
+
+                  <button
+                    className={cn(
+                      "relative flex min-w-[120px] items-center justify-center py-3 font-medium transition-colors",
+                      activeTab === "lists"
+                        ? "text-primary"
+                        : "text-gray-500 hover:text-gray-300"
+                    )}
+                    onClick={() => handleTabChange("lists")}
+                  >
+                    <LayoutList className="mr-2 size-4" />
+                    リスト
+                    {activeTab === "lists" && (
+                      <span className="absolute inset-x-0 bottom-0 h-1 bg-primary" />
+                    )}
+                  </button>
+
+                  {/* セパレータ - メンバーリスト */}
+                  {!isLoadingLists && userLists?.length > 0 && (
+                    <div className="mx-2 my-3 w-px bg-gray-800" />
+                  )}
+
+                  {/* 参加中のリスト */}
+                  {!isLoadingLists &&
+                    userLists?.map((list) => (
+                      <button
+                        key={list.id}
+                        className={cn(
+                          "relative flex min-w-[120px] items-center justify-center py-3 font-medium transition-colors",
+                          activeTab === `list-${list.id}`
+                            ? "text-primary"
+                            : "text-gray-500 hover:text-gray-300"
+                        )}
+                        onClick={() => handleTabChange(`list-${list.id}`)}
+                      >
+                        <ListChecks className="mr-2 size-4" />
+                        {list.name}
+                        {activeTab === `list-${list.id}` && (
+                          <span className="absolute inset-x-0 bottom-0 h-1 bg-primary" />
+                        )}
+                      </button>
+                    ))}
+
+                  {/* セパレータ - フォローリスト */}
+                  {followedLists?.length > 0 && (
+                    <div className="mx-2 my-3 w-px bg-gray-800" />
+                  )}
+
+                  {/* フォロー中のリスト */}
+                  {followedLists?.map((list) => (
+                    <button
+                      key={list.id}
+                      className={cn(
+                        "relative flex min-w-[120px] items-center justify-center py-3 font-medium transition-colors",
+                        activeTab === `followed-list-${list.id}`
+                          ? "text-primary"
+                          : "text-gray-500 hover:text-gray-300"
+                      )}
+                      onClick={() =>
+                        handleTabChange(`followed-list-${list.id}`)
+                      }
+                    >
+                      <Star className="mr-2 size-4" />
+                      {list.name}
+                      {activeTab === `followed-list-${list.id}` && (
+                        <span className="absolute inset-x-0 bottom-0 h-1 bg-primary" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                onClick={() => handleScroll("right")}
+                className="absolute right-0 top-0 z-10 h-full bg-gradient-to-l from-background via-background/90 to-transparent px-2 hover:from-gray-800/50"
+              >
+                <ChevronRight className="size-4" />
               </button>
             </div>
           </div>
 
-          {/* コンテンツエリア - スワイプできるようにする */}
           <div {...swipeHandlers} className="touch-pan-y">
             {children}
           </div>

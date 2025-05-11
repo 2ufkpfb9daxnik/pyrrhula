@@ -14,14 +14,25 @@ import {
   HelpCircle,
   MessageSquare,
   Bell,
+  Share2,
+  ShieldCheck,
+  Shield,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Share2 } from "lucide-react";
 
-// 通知の型定義を修正
+// 通知の型定義を更新
 interface Notification {
   id: string;
-  type: "fol" | "fav" | "msg" | "rep" | "mention" | "anon_q" | "answer";
+  type:
+    | "fol"
+    | "fav"
+    | "msg"
+    | "rep"
+    | "mention"
+    | "anon_q"
+    | "answer"
+    | "list_admin_invite"
+    | "list_admin_request";
   createdAt: string;
   isRead: boolean;
   sender?: {
@@ -37,11 +48,15 @@ interface Notification {
     id: string;
     question: string;
     answer: string | null;
-    targetUserId: string; // 質問の対象者ID
+    targetUserId: string;
   };
   chat?: {
     id: string;
     message: string;
+  };
+  list?: {
+    id: string;
+    name: string;
   };
 }
 
@@ -60,13 +75,11 @@ export default function NotificationPage() {
   const router = useRouter();
   const { data: session } = useSession();
 
-  // 初期データ取得
   useEffect(() => {
     fetchNotifications();
     markAllNotificationsAsRead();
   }, []);
 
-  // 通知データ取得
   const fetchNotifications = async () => {
     try {
       setError(null);
@@ -80,7 +93,6 @@ export default function NotificationPage() {
 
       const data: NotificationsResponse = await response.json();
 
-      // カーソルに応じてデータ更新
       setNotifications((prev) =>
         cursor ? [...prev, ...data.notifications] : data.notifications
       );
@@ -96,7 +108,6 @@ export default function NotificationPage() {
     }
   };
 
-  // 全通知を既読にする
   const markAllNotificationsAsRead = async () => {
     if (!session?.user) return;
 
@@ -111,17 +122,14 @@ export default function NotificationPage() {
         throw new Error(errorData.error || "通知の既読処理に失敗しました");
       }
 
-      // ローカル状態を更新
       setNotifications((prev) =>
         prev.map((notification) => ({ ...notification, isRead: true }))
       );
     } catch (error) {
       console.error("既読処理エラー:", error);
-      // UI体験を妨げないためユーザーには通知しない
     }
   };
 
-  // 個別の通知を既読にする
   const markNotificationAsRead = async (id: string) => {
     try {
       const response = await fetch(`/api/notifications/${id}`, {
@@ -134,7 +142,6 @@ export default function NotificationPage() {
         throw new Error(errorData.error || "通知の既読処理に失敗しました");
       }
 
-      // ローカル状態を更新
       setNotifications((prev) =>
         prev.map((notification) =>
           notification.id === id
@@ -147,9 +154,9 @@ export default function NotificationPage() {
     }
   };
 
-  // 通知内容の生成
   const getNotificationContent = (notification: Notification) => {
     const senderName = notification.sender?.username || "不明なユーザー";
+    const listName = notification.list?.name || "リスト";
 
     switch (notification.type) {
       case "fol":
@@ -166,15 +173,18 @@ export default function NotificationPage() {
         return "匿名の質問が届きました";
       case "answer":
         return `${senderName}さんがあなたの質問に回答しました`;
+      case "list_admin_invite":
+        return `${senderName}さんがあなたを${listName}の管理者に招待しています`;
+      case "list_admin_request":
+        return notification.sender
+          ? `${senderName}さんがあなたを${listName}の管理者として承認しました`
+          : `${listName}の管理者申請が却下されました`;
       default:
         return "新しい通知があります";
     }
   };
 
-  // 通知アイコンの生成を修正
-  const getNotificationIcon = (
-    type: "fol" | "fav" | "msg" | "rep" | "mention" | "anon_q" | "answer"
-  ) => {
+  const getNotificationIcon = (type: Notification["type"]) => {
     switch (type) {
       case "fol":
         return <UserPlus className="size-4 text-blue-400" />;
@@ -190,26 +200,37 @@ export default function NotificationPage() {
         return <HelpCircle className="size-4 text-blue-400" />;
       case "answer":
         return <MessageSquare className="size-4 text-green-400" />;
+      case "list_admin_invite":
+      case "list_admin_request":
+        return <ShieldCheck className="size-4 text-yellow-400" />;
+      default:
+        return <Bell className="size-4 text-gray-400" />;
     }
   };
-  // 通知クリック時のハンドラーを修正
+
   const handleNotificationClick = (notification: Notification) => {
-    // 未読なら既読にする
     if (!notification.isRead) {
       markNotificationAsRead(notification.id);
     }
 
     try {
-      // 質問関連通知の処理を修正
+      // リスト関連の通知
+      if (
+        notification.type.startsWith("list_admin_") &&
+        notification.list?.id
+      ) {
+        router.push(`/lists/${notification.list.id}`);
+        return;
+      }
+
+      // 質問関連通知
       if (notification.type === "anon_q" || notification.type === "answer") {
         if (notification.question?.id && notification.question?.targetUserId) {
-          // 質問の対象者IDを取得
           const targetUserId = notification.question.targetUserId;
           router.push(`/question/${targetUserId}/${notification.question.id}`);
           return;
         }
 
-        // デバッグ用のログ追加
         console.debug("質問通知データ:", {
           type: notification.type,
           questionData: notification.question,
@@ -242,7 +263,6 @@ export default function NotificationPage() {
         return;
       }
 
-      // 該当なしの場合
       throw new Error("遷移先が見つかりません");
     } catch (error) {
       const errorMessage =
@@ -257,7 +277,6 @@ export default function NotificationPage() {
     }
   };
 
-  // ローディング表示
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -266,7 +285,6 @@ export default function NotificationPage() {
     );
   }
 
-  // エラー表示
   if (error) {
     return (
       <div className="mx-auto max-w-2xl p-4 text-center">
@@ -288,7 +306,6 @@ export default function NotificationPage() {
     );
   }
 
-  // 通知がない場合
   if (notifications.length === 0) {
     return (
       <div className="mx-auto max-w-2xl p-4">
@@ -301,7 +318,6 @@ export default function NotificationPage() {
     );
   }
 
-  // 通知リスト表示
   return (
     <div className="mx-auto max-w-2xl p-4">
       <h1 className="mb-6 text-2xl font-bold">通知</h1>
@@ -329,7 +345,7 @@ export default function NotificationPage() {
                 </Avatar>
               ) : (
                 <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-gray-800">
-                  <Bell className="size-5 text-gray-400" />
+                  <Shield className="size-5 text-gray-400" />
                 </div>
               )}
 
@@ -350,7 +366,6 @@ export default function NotificationPage() {
               )}
             </div>
 
-            {/* 関連コンテンツの表示 */}
             {notification.relatedPost && (
               <p className="mt-2 line-clamp-2 pl-14 text-sm text-gray-400">
                 {notification.relatedPost.content}
@@ -368,6 +383,13 @@ export default function NotificationPage() {
                 {notification.chat.message}
               </p>
             )}
+
+            {notification.type.startsWith("list_admin_") &&
+              notification.list && (
+                <p className="mt-2 line-clamp-2 pl-14 text-sm text-gray-400">
+                  リスト: {notification.list.name}
+                </p>
+              )}
           </div>
         ))}
 

@@ -133,17 +133,19 @@ model Notification {
   id                     String                  @id @default(cuid())
   receiverId             String                  @db.VarChar(16)
   senderId               String?                 @db.VarChar(16)
-  type                   String                  @db.VarChar(10)
+  type                   String                  @db.VarChar(20)
   relatedPostId          String?
   createdAt              DateTime                @default(now())
   chatId                 String?
   isRead                 Boolean                 @default(false)
   anonymousTokenId       String?                 @db.Uuid
+  list_id                String?                 @db.Uuid
   AnonymousQuestionToken AnonymousQuestionToken? @relation(fields: [anonymousTokenId], references: [id], onUpdate: NoAction)
   Chat                   Chat?                   @relation(fields: [chatId], references: [id])
   receiver               User                    @relation("NotificationReceiver", fields: [receiverId], references: [id])
   post                   Post?                   @relation(fields: [relatedPostId], references: [id])
   sender                 User?                   @relation("NotificationSender", fields: [senderId], references: [id])
+  lists                  lists?                  @relation(fields: [list_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_notification_list")
 
   @@index([receiverId])
   @@index([senderId])
@@ -151,6 +153,7 @@ model Notification {
   @@index([anonymousTokenId])
   @@index([relatedPostId])
   @@index([type])
+  @@index([list_id], map: "idx_notification_list")
   @@schema("public")
 }
 
@@ -644,6 +647,7 @@ model lists {
   is_managed             Boolean?         @default(false)
   include_timeline_posts Boolean?         @default(false)
   created_at             DateTime?        @default(now()) @db.Timestamptz(6)
+  Notification           Notification[]
   Post                   Post[]
   list_followers         list_followers[]
   list_members           list_members[]

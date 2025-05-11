@@ -2,9 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
-import { MoreHorizontal, Users } from "lucide-react";
+import { MoreHorizontal, Users, Star } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,10 +23,16 @@ export function ListHeader({ list }: ListHeaderProps) {
 
   const { mutate: toggleFollow, isPending: isToggling } = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`/api/lists/${list.list.id}/follow`, {
+      const res = await fetch(`/api/lists/${list.list.id}/followers`, {
         method: list.isFollowing ? "DELETE" : "POST",
       });
-      if (!res.ok) throw new Error("操作に失敗しました");
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "操作に失敗しました");
+      }
+      toast.success(
+        list.isFollowing ? "フォロー解除しました" : "フォローしました"
+      );
     },
     onSuccess: () => {
       router.refresh();
@@ -46,13 +53,20 @@ export function ListHeader({ list }: ListHeaderProps) {
             </p>
           )}
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span className="flex items-center gap-1">
+            <Link
+              href={`/lists/${list.list.id}/members`}
+              className="flex items-center gap-1 hover:underline"
+            >
               <Users className="size-4" />
               {list.list._count?.members ?? 0}人のメンバー
-            </span>
-            {(list.list._count?.followers ?? 0) > 0 && (
-              <span>・{list.list._count?.followers ?? 0}人のフォロワー</span>
-            )}
+            </Link>
+            <Link
+              href={`/lists/${list.list.id}/followers`}
+              className="flex items-center gap-1 hover:underline"
+            >
+              <Star className="size-4" />
+              {list.list._count?.followers ?? 0}人のフォロワー
+            </Link>
           </div>
         </div>
 
