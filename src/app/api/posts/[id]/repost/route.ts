@@ -1,9 +1,9 @@
-// posts/[id]/repost       GET/POST/        拡散した人取得 / 拡散する
 import { getServerSession } from "next-auth/next";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import type { RepostListResponse } from "@/app/_types/repost";
+import { createRatingHistory, RATING_REASONS } from "@/lib/rating";
 
 // 拡散した人一覧を取得
 export async function GET(
@@ -93,36 +93,89 @@ export async function POST(
       return NextResponse.json({ error: "Post not found" }, { status: 404 });
     }
 
-    // トランザクションで拡散と通知を作成し、カウントを更新
-    const [repost, _, updatedPost] = await prisma.$transaction([
-      // 拡散を作成
-      prisma.repost.create({
+    // トランザクションで拡散と通知を作成し、カウントとレートを更新
+    const result = await prisma.$transaction(async (prisma) => {
+      // 1. 拡散を作成
+      const repost = await prisma.repost.create({
         data: {
           postId: params.id,
           userId: session.user.id,
         },
-      }),
-      // 通知を作成
-      prisma.notification.create({
+      });
+
+      // 2. 通知を作成
+      await prisma.notification.create({
         data: {
           type: "rep",
           senderId: session.user.id,
           receiverId: post.userId,
           relatedPostId: params.id,
         },
-      }),
-      // 拡散数を増やす
-      prisma.post.update({
+      });
+
+      // 3. 拡散数を増やす
+      await prisma.post.update({
         where: { id: params.id },
         data: {
           reposts: {
             increment: 1,
           },
         },
-      }),
-    ]);
+      });
 
-    return NextResponse.json(repost, { status: 201 });
+      // 4. レート計算に必要な情報を取得
+      const [recentReposts, totalReposts, user] = await Promise.all([
+        // 過去30日の拡散数
+        prisma.repost.count({
+          where: {
+            userId: session.user.id,
+            createdAt: {
+              gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+            },
+          },
+        }),
+        // 総拡散数
+        prisma.repost.count({
+          where: {
+            userId: session.user.id,
+          },
+        }),
+        // ユーザー情報
+        prisma.user.findUnique({
+          where: { id: session.user.id },
+          select: { rate: true },
+        }),
+      ]);
+
+      // 5. レート計算
+      const repostBonus = Math.floor(
+        recentReposts * 5 + Math.sqrt(totalReposts) * 7
+      );
+      const newRate = (user?.rate || 0) + repostBonus;
+
+      // 6. レート履歴を記録
+      if (user) {
+        const delta = repostBonus;
+        await createRatingHistory(
+          session.user.id,
+          delta,
+          newRate,
+          RATING_REASONS.POST_REPOSTED
+        );
+      }
+
+      // 7. ユーザーのレートを更新
+      await prisma.user.update({
+        where: { id: session.user.id },
+        data: {
+          rate: newRate,
+        },
+      });
+
+      return repost;
+    });
+
+    return NextResponse.json(result, { status: 201 });
   } catch (error) {
     // ユニーク制約違反（既に拡散済み）
     if (

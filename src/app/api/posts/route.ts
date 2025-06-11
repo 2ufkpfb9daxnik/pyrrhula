@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import type { CreatePostRequest } from "@/app/_types/post";
+import { createRatingHistory, RATING_REASONS } from "@/lib/rating";
 
 const limit = 50;
 
@@ -93,18 +94,15 @@ export async function GET(req: Request) {
         repostedBy?: number;
       };
       favoritedBy: { userId: string }[];
-      // データベースから取得した拡散情報
       userRepostedData: { userId: string; createdAt?: Date }[];
       isReposted: boolean;
       isFavorited: boolean;
       repostedAt?: Date;
-      // 拡散者情報 (オブジェクト形式)
       repostedByInfo?: {
         id: string;
         username: string;
         icon: string | null;
       };
-      // 質問情報を追加
       question?: {
         id: string;
         question: string;
@@ -144,13 +142,11 @@ export async function GET(req: Request) {
       isFavorited: boolean;
       isReposted: boolean;
       repostedAt?: Date;
-      // API応答では repostedBy を使用
       repostedBy?: {
         id: string;
         username: string;
         icon: string | null;
       };
-      // 質問情報を追加
       question?: {
         id: string;
         question: string;
@@ -163,7 +159,7 @@ export async function GET(req: Request) {
       };
     };
 
-    // 1. 通常の投稿を取得
+    // 通常の投稿を取得
     const regularPosts = await prisma.post.findMany({
       where: {
         userId: { in: followingIds },
@@ -220,9 +216,8 @@ export async function GET(req: Request) {
           where: { userId: session.user.id },
           select: { userId: true, createdAt: true },
         },
-        // 質問情報を取得
         Question: {
-          take: 1, // 最初の関連質問のみ取得
+          take: 1,
           select: {
             id: true,
             question: true,
@@ -240,7 +235,6 @@ export async function GET(req: Request) {
     });
 
     let allPosts: FormattedPost[] = regularPosts.map((post) => {
-      // 質問情報を整形
       const question =
         post.Question && post.Question.length > 0
           ? {
@@ -263,14 +257,12 @@ export async function GET(req: Request) {
         repostedAt:
           post.repostedBy.length > 0 ? post.repostedBy[0].createdAt : undefined,
         parent: post.parent || null,
-        // プロパティ名を完全に分けて重複を避ける
         userRepostedData: post.repostedBy,
-        // 質問情報を追加
         question,
       };
     });
 
-    // 2. 拡散された投稿を取得
+    // 拡散された投稿を取得
     if (includeReposts) {
       const repostCursor = searchParams.get("repostCursor");
 
@@ -341,7 +333,6 @@ export async function GET(req: Request) {
                 where: { userId: session.user.id },
                 select: { userId: true, createdAt: true },
               },
-              // 質問情報を取得
               Question: {
                 take: 1,
                 select: {
@@ -364,14 +355,12 @@ export async function GET(req: Request) {
 
       // 拡散情報をフォーマット
       const repostedPosts: FormattedPost[] = reposts.map((repost) => {
-        // 拡散者情報を設定
         const repostingUserInfo = {
           id: repost.user.id,
           username: repost.user.username,
           icon: repost.user.icon,
         };
 
-        // 質問情報を整形
         const question =
           repost.post.Question && repost.post.Question.length > 0
             ? {
@@ -401,14 +390,11 @@ export async function GET(req: Request) {
           parent: repost.post.parent || null,
           _count: repost.post._count,
           favoritedBy: repost.post.favoritedBy,
-          // DB データは userRepostedData として保存
           userRepostedData: repost.post.repostedBy,
           repostedAt: repost.createdAt,
           isReposted: repost.post.repostedBy.length > 0,
           isFavorited: repost.post.favoritedBy.length > 0,
-          // 拡散者情報を repostedByInfo として保存
           repostedByInfo: repostingUserInfo,
-          // 質問情報を追加
           question,
         };
       });
@@ -419,13 +405,10 @@ export async function GET(req: Request) {
       // 重複を除去（同じ投稿が通常の投稿と拡散で2回表示されないようにする）部分を修正
       const seenIds = new Set<string>();
       allPosts = allPosts.filter((post) => {
-        // 自分の拡散も含めて全て表示する（フィルタリングをしない）
-        // 拡散されている投稿を特定するためのユニークキーを作成
         const postKey = post.repostedByInfo
           ? `${post.id}-repost-${post.repostedByInfo.id}`
           : post.id;
 
-        // 完全に同じ投稿（同じIDかつ同じ拡散者）の場合のみ除外
         if (seenIds.has(postKey)) {
           console.log(`重複を検出: ${postKey}`);
           return false;
@@ -464,9 +447,7 @@ export async function GET(req: Request) {
       isFavorited: post.isFavorited,
       isReposted: post.isReposted,
       repostedAt: post.repostedAt,
-      // API応答では統一されたプロパティ名 repostedBy を使用
       repostedBy: post.repostedByInfo,
-      // 質問情報を追加
       question: post.question,
     }));
 
@@ -524,60 +505,49 @@ export async function POST(req: Request) {
 
       // 2. 統計情報の取得と更新
       const [
-        postCount, // 総投稿数
-        recentPosts, // 過去30日の投稿数
-        recentReposts, // 過去30日の拡散数
-        totalReposts, // 総拡散数
-        recentFavoritesReceived, // 過去30日に受け取ったお気に入り
-        favoritesReceived, // 受け取ったお気に入りの合計
-        followersCount, // フォロワー数
-        user, // ユーザー情報（アカウント作成日を取得するため）
+        postCount,
+        recentPosts,
+        recentReposts,
+        totalReposts,
+        recentFavoritesReceived,
+        favoritesReceived,
+        followersCount,
+        user,
       ] = await Promise.all([
-        // 総投稿数
         prisma.post.count({
           where: { userId: session.user.id },
         }),
-
-        // 過去30日の投稿数
         prisma.post.count({
           where: {
             userId: session.user.id,
             createdAt: {
-              gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 過去30日
+              gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
             },
           },
         }),
-
-        // 過去30日の拡散数
         prisma.repost.count({
           where: {
             userId: session.user.id,
             createdAt: {
-              gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 過去30日
+              gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
             },
           },
         }),
-
-        // 総拡散数
         prisma.repost.count({
           where: {
             userId: session.user.id,
           },
         }),
-
-        // 過去30日に受け取ったお気に入り
         prisma.favorite.count({
           where: {
             post: {
               userId: session.user.id,
             },
             createdAt: {
-              gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 過去30日
+              gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
             },
           },
         }),
-
-        // 受け取ったお気に入りの合計
         prisma.favorite.count({
           where: {
             post: {
@@ -585,22 +555,17 @@ export async function POST(req: Request) {
             },
           },
         }),
-
-        // フォロワー数
         prisma.follow.count({
           where: {
             followedId: session.user.id,
           },
         }),
-
-        // ユーザー情報を取得（アカウント作成日を取得するため）
         prisma.user.findUnique({
           where: { id: session.user.id },
-          select: { createdAt: true },
+          select: { createdAt: true, rate: true },
         }),
       ]);
 
-      // アカウント年齢（日数）を計算
       const accountAgeDays = user?.createdAt
         ? Math.floor(
             (Date.now() - new Date(user.createdAt).getTime()) /
@@ -608,19 +573,17 @@ export async function POST(req: Request) {
           )
         : 0;
 
-      // 3. 新しい計算式に基づくレーティング計算
       const calculatedRate = Math.floor(
-        recentPosts * 10 + // 直近30日の投稿数 × 10
-          Math.sqrt(postCount) * 15 + // 過去の投稿の平方根 × 15
-          recentReposts * 5 + // 直近30日の拡散数 × 5
-          Math.sqrt(totalReposts) * 7 + // 総拡散数の平方根 × 7
-          Math.sqrt(recentFavoritesReceived) * 8 + // 直近30日のお気に入り数の平方根 × 8
-          Math.sqrt(favoritesReceived) * 5 + // 総お気に入り数の平方根 × 5
-          Math.sqrt(followersCount) * 10 + // フォロワー数の平方根 × 10
-          Math.log(accountAgeDays + 1) * 5 // アカウント作成からの日数（対数） × 5
+        recentPosts * 10 +
+          Math.sqrt(postCount) * 15 +
+          recentReposts * 5 +
+          Math.sqrt(totalReposts) * 7 +
+          Math.sqrt(recentFavoritesReceived) * 8 +
+          Math.sqrt(favoritesReceived) * 5 +
+          Math.sqrt(followersCount) * 10 +
+          Math.log(accountAgeDays + 1) * 5
       );
 
-      // ログを出力（トラブルシューティング用）
       console.log(
         `[Rating] ユーザー: ${session.user.id}, 投稿数: 最近=${recentPosts}、総数=${postCount}`
       );
@@ -634,6 +597,19 @@ export async function POST(req: Request) {
         `[Rating] フォロワー数: ${followersCount}、アカウント年齢(日): ${accountAgeDays}`
       );
       console.log(`[Rating] 計算されたレート: ${calculatedRate}`);
+
+      // レート変動を記録
+      if (user) {
+        const previousRate = user.rate;
+        const delta = calculatedRate - previousRate;
+
+        await createRatingHistory(
+          session.user.id,
+          delta,
+          calculatedRate,
+          RATING_REASONS.POST_CREATED
+        );
+      }
 
       // 4. ユーザー情報を更新
       await prisma.user.update({

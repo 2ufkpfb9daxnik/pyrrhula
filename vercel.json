@@ -1,7 +1,19 @@
 {
-  "functions": {
-    "src/app/api/**/*": {
-      "maxDuration": 30
+  "crons": [
+    {
+      "path": "/api/cron/update-account-age-rating",
+      "schedule": "0 0 * * *"
     }
-  }
+  ],
+  "headers": [
+    {
+      "source": "/api/cron/(.*)",
+      "headers": [
+        {
+          "key": "Authorization",
+          "value": "Bearer %s!CRON_SECRET"
+        }
+      ]
+    }
+  ]
 }

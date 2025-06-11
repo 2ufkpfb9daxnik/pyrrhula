@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { updateUserStats } from "@/lib/user-stats";
+import { createRatingHistory, RATING_REASONS } from "@/lib/rating";
 
 // フォローする
 export async function POST(
@@ -29,6 +30,11 @@ export async function POST(
       // フォロー対象ユーザーの存在確認
       const targetUser = await prisma.user.findUnique({
         where: { id: targetUserId },
+        select: {
+          id: true,
+          rate: true,
+          followersCount: true,
+        },
       });
 
       if (!targetUser) {
@@ -52,12 +58,26 @@ export async function POST(
         },
       });
 
-      // フォロワー数とフォロー数を更新
+      // フォロワー数に基づくレートボーナスを計算
+      const newFollowersCount = targetUser.followersCount + 1;
+      const rateBonus = Math.floor(Math.sqrt(newFollowersCount) * 10);
+      const newRate = targetUser.rate + rateBonus;
+
+      // レート履歴を記録
+      await createRatingHistory(
+        targetUserId,
+        rateBonus,
+        newRate,
+        RATING_REASONS.NEW_FOLLOWER
+      );
+
+      // フォロワー数、フォロー数、レートを更新
       await Promise.all([
         prisma.user.update({
           where: { id: targetUserId },
           data: {
             followersCount: { increment: 1 },
+            rate: newRate,
           },
         }),
         prisma.user.update({

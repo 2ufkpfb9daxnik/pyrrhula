@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { formatDistanceToNow } from "@/lib/formatDistanceToNow";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -22,6 +22,7 @@ import {
 import type { Post } from "@/app/_types/post";
 import { Post as PostComponent } from "@/app/_components/post";
 import { Navigation } from "@/app/_components/navigation";
+import { RatingChart } from "@/app/_components/RatingChart";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { LoaderCircle } from "lucide-react";
@@ -40,17 +41,24 @@ interface UserDetail {
   isFollowing?: boolean;
 }
 
-export default function UserProfilePage({
-  params,
-}: {
-  params: { id: string };
-}) {
+interface RatingHistory {
+  delta: number;
+  rating: number;
+  createdAt: string;
+  reason?: string;
+}
+
+export default function UserProfilePage() {
+  const params = useParams();
+  const userId = params.id as string;
   const [user, setUser] = useState<UserDetail | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [ratingHistory, setRatingHistory] = useState<RatingHistory[]>([]);
   const [activeTab, setActiveTab] = useState<
     "posts" | "reposts" | "favorites" | "replies"
   >("posts");
   const [isLoading, setIsLoading] = useState(true);
+  const [isRatingHistoryLoading, setIsRatingHistoryLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   const [isFollowLoading, setIsFollowLoading] = useState(false);
   const { data: session } = useSession();
@@ -61,15 +69,33 @@ export default function UserProfilePage({
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   useEffect(() => {
+    if (!userId) return;
+
     fetchUserDetails();
+    fetchRatingHistory();
     // タブが変わったときはカーソルをリセット
     setNextCursor(null);
     fetchUserContent(activeTab);
-  }, [params.id, activeTab]);
+  }, [userId, activeTab]);
+
+  const fetchRatingHistory = async () => {
+    try {
+      setIsRatingHistoryLoading(true);
+      const response = await fetch(`/api/users/${userId}/rating/history`);
+      if (!response.ok) throw new Error("Failed to fetch rating history");
+      const data = await response.json();
+      setRatingHistory(data.ratingHistory);
+    } catch (error) {
+      console.error("Error fetching rating history:", error);
+      toast.error("レート履歴の取得に失敗しました");
+    } finally {
+      setIsRatingHistoryLoading(false);
+    }
+  };
 
   const fetchUserDetails = async () => {
     try {
-      const response = await fetch(`/api/users/${params.id}`, {
+      const response = await fetch(`/api/users/${userId}`, {
         next: { revalidate: 60 }, // キャッシュを60秒間有効にする
       });
       if (!response.ok) throw new Error("Failed to fetch user details");
@@ -98,19 +124,19 @@ export default function UserProfilePage({
       let formattedPosts;
 
       // タイプに応じたエンドポイントを選択
-      let endpoint = `/api/users/${params.id}`;
+      let endpoint = `/api/users/${userId}`;
       switch (type) {
         case "posts":
-          endpoint = `/api/users/${params.id}?type=posts${cursor ? `&cursor=${cursor}` : ""}`;
+          endpoint = `/api/users/${userId}?type=posts${cursor ? `&cursor=${cursor}` : ""}`;
           break;
         case "reposts":
-          endpoint = `/api/users/${params.id}/repost${cursor ? `?cursor=${cursor}` : ""}`;
+          endpoint = `/api/users/${userId}/repost${cursor ? `?cursor=${cursor}` : ""}`;
           break;
         case "favorites":
-          endpoint = `/api/users/${params.id}/favorite${cursor ? `?cursor=${cursor}` : ""}`;
+          endpoint = `/api/users/${userId}/favorite${cursor ? `?cursor=${cursor}` : ""}`;
           break;
         case "replies":
-          endpoint = `/api/users/${params.id}/reply${cursor ? `?cursor=${cursor}` : ""}`;
+          endpoint = `/api/users/${userId}/reply${cursor ? `?cursor=${cursor}` : ""}`;
           break;
       }
 
@@ -128,18 +154,6 @@ export default function UserProfilePage({
       }
 
       const data = await response.json();
-
-      // デバッグ: 質問データが含まれているか確認
-      if (process.env.NODE_ENV === "development") {
-        console.log(`[Debug] ${type} response:`, {
-          hasQuestion:
-            data.posts?.some((p: any) => p.question) ||
-            data.reposts?.some((p: any) => p.question) ||
-            data.replies?.some((p: any) => p.question),
-          firstPostSample:
-            data.posts?.[0] || data.reposts?.[0] || data.replies?.[0],
-        });
-      }
 
       // hasMoreとnextCursorの状態を更新
       setHasMore(data.hasMore || false);
@@ -262,7 +276,7 @@ export default function UserProfilePage({
       const currentlyFollowing = isFollowing;
 
       // フォロー状態に応じて適切なメソッドを選択
-      const response = await fetch(`/api/follow/${params.id}`, {
+      const response = await fetch(`/api/follow/${userId}`, {
         method: currentlyFollowing ? "DELETE" : "POST",
         headers: {
           "Content-Type": "application/json",
@@ -343,6 +357,7 @@ export default function UserProfilePage({
       </div>
     );
   }
+
   return (
     <>
       {/* ユーザープロフィールカード */}
@@ -360,7 +375,7 @@ export default function UserProfilePage({
 
               {/* プロフィール編集またはフォローボタン */}
               <div className="mt-4 flex flex-wrap gap-2">
-                {session?.user?.id === params.id ? (
+                {session?.user?.id === userId ? (
                   <>
                     <Button
                       onClick={() => router.push(`/editprofile`)}
@@ -481,6 +496,15 @@ export default function UserProfilePage({
                   </div>
                 </div>
               </div>
+
+              {/* レート変動グラフ */}
+              {isRatingHistoryLoading ? (
+                <div className="mt-4 flex h-[300px] items-center justify-center">
+                  <LoaderCircle className="size-8 animate-spin" />
+                </div>
+              ) : ratingHistory.length > 0 ? (
+                <RatingChart history={ratingHistory} />
+              ) : null}
             </div>
           </div>
         </CardContent>
@@ -517,56 +541,62 @@ export default function UserProfilePage({
           onClick={() => setActiveTab("replies")}
           className="grow sm:grow-0"
         >
-          <MessageCircle className="mr-2 size-4" />
+          <MessageSquare className="mr-2 size-4" />
           返信
         </Button>
       </div>
 
       {/* 投稿一覧 */}
-      <div className="space-y-4">
-        {isContentLoading ? (
-          <div className="flex justify-center p-8">
-            <LoaderCircle className="size-8 animate-spin text-gray-500" />
-          </div>
-        ) : posts.length === 0 ? (
-          <div className="rounded-lg border border-gray-800 p-8 text-center text-gray-500">
-            {activeTab === "posts" && "投稿がありません"}
-            {activeTab === "reposts" && "拡散した投稿がありません"}
-            {activeTab === "favorites" && "お気に入りの投稿がありません"}
-            {activeTab === "replies" && "返信した投稿がありません"}
-          </div>
-        ) : (
-          <>
-            {posts.map((post) => (
-              <PostComponent
-                key={post.id}
-                post={post}
-                onRepostSuccess={() => fetchUserContent(activeTab)}
-                onFavoriteSuccess={() => fetchUserContent(activeTab)}
-              />
-            ))}
+      {isContentLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <LoaderCircle className="size-20 animate-spin" />
+        </div>
+      ) : posts.length === 0 ? (
+        <div className="rounded-lg border border-gray-800 p-8 text-center">
+          <p className="text-gray-500">
+            {activeTab === "posts"
+              ? "まだ投稿がありません"
+              : activeTab === "reposts"
+                ? "まだ拡散した投稿はありません"
+                : activeTab === "favorites"
+                  ? "まだお気に入りの投稿はありません"
+                  : "まだ返信した投稿はありません"}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {posts.map((post) => (
+            <PostComponent
+              key={post.id + (post.repostedAt?.toString() || "")}
+              post={post}
+            />
+          ))}
 
-            {/* さらに読み込むボタン */}
-            {hasMore && (
-              <div className="mt-6 flex justify-center">
-                <Button
-                  variant="outline"
-                  onClick={handleLoadMore}
-                  disabled={isLoadingMore}
-                  className="w-full"
-                >
-                  {isLoadingMore ? (
-                    <LoaderCircle className="mr-2 size-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="mr-2 size-4" />
-                  )}
-                  さらに読み込む
-                </Button>
-              </div>
-            )}
-          </>
-        )}
-      </div>
+          {/* もっと読み込むボタン */}
+          {hasMore && (
+            <div className="mt-6 flex justify-center">
+              <Button
+                variant="outline"
+                onClick={handleLoadMore}
+                disabled={isLoadingMore}
+                className="w-full max-w-xs"
+              >
+                {isLoadingMore ? (
+                  <div className="flex items-center gap-2">
+                    <LoaderCircle className="size-4 animate-spin" />
+                    読み込み中...
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <RefreshCw className="size-4" />
+                    もっと読み込む
+                  </div>
+                )}
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
     </>
   );
 }
