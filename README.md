@@ -236,4 +236,4 @@ graph TB
 ## 各種リンク
 
 - [2ufkpfbdaxnik](https://github.com/2ufkpfb9daxnik/pyrrhula)
-- [もう少しフランクな開発動機など](https://2ufkpfb9daxnik.github.io/portfolio/page/pyrrhula)
+- [もう少しフランクな開発動機など](https://2ufkpfb9daxnik.github.io/portfolio/pages/pyrrhula)
