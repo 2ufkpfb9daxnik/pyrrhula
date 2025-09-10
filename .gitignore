@@ -41,3 +41,5 @@ next-env.d.ts
 /ignore
 
 .vercel
+
+/prisma/seed.ts
