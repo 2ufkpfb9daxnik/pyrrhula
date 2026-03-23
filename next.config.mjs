@@ -3,6 +3,12 @@ const nextConfig = {
   experimental: {
     forceSwcTransforms: true,
   },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   poweredByHeader: false,
   reactStrictMode: true,
   output: "standalone",

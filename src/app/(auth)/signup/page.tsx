@@ -3,6 +3,7 @@
 import type React from "react";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,7 @@ export default function SignupPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
     setIsLoading(true);
 
     try {
@@ -90,7 +92,7 @@ export default function SignupPage() {
         ),
         {
           duration: REDIRECT_DELAY - 1000,
-        }
+        },
       );
 
       // 遅延してからリダイレクト
@@ -158,6 +160,15 @@ export default function SignupPage() {
                 </Button>
               </div>
             </div>
+
+            <div className="rounded-md border border-border p-3 text-sm text-muted-foreground">
+              アカウントを作成した時点で
+              <Link href="/terms" className="mx-1 text-primary hover:underline">
+                利用規約
+              </Link>
+              に同意したものとみなされます。
+            </div>
+
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? "新規登録中..." : "新規登録"}
             </Button>
