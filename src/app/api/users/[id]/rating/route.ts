@@ -7,11 +7,11 @@ import type { UserRating } from "@/app/_types/rating";
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const session = await getServerSession(authOptions);
-    const userId = params.id;
+    const userId = (await params).id;
 
     // 直近の投稿数を取得（過去30日）
     const recentPosts = await prisma.post.count({

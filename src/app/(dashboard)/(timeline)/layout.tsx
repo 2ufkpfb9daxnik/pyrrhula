@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, ReactNode, useRef } from "react";
+import { useState, useEffect, ReactNode, useRef, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Navigation } from "@/app/_components/navigation";
@@ -64,21 +64,13 @@ export default function TimelineLayout({ children }: { children: ReactNode }) {
     }
   }, [pathname]);
 
-  useEffect(() => {
-    if (session?.user?.id) {
-      fetchUserInfo();
-      fetchUserLists();
-      fetchFollowedLists();
-    }
-  }, [session?.user?.id]);
-
   const handleUserClick = () => {
     if (session?.user?.id) {
       router.push(`/user/${session.user.id}`);
     }
   };
 
-  const fetchUserInfo = async () => {
+  const fetchUserInfo = useCallback(async () => {
     if (!session?.user?.id) return;
     try {
       const response = await fetch(`/api/users/${session.user.id}`);
@@ -88,9 +80,9 @@ export default function TimelineLayout({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error("Error fetching user info:", error);
     }
-  };
+  }, [session?.user?.id]);
 
-  const fetchUserLists = async () => {
+  const fetchUserLists = useCallback(async () => {
     if (!session?.user?.id) return;
     try {
       setIsLoadingLists(true);
@@ -104,9 +96,9 @@ export default function TimelineLayout({ children }: { children: ReactNode }) {
     } finally {
       setIsLoadingLists(false);
     }
-  };
+  }, [session?.user?.id]);
 
-  const fetchFollowedLists = async () => {
+  const fetchFollowedLists = useCallback(async () => {
     if (!session?.user?.id) return;
     try {
       const response = await fetch("/api/lists/followed");
@@ -117,7 +109,15 @@ export default function TimelineLayout({ children }: { children: ReactNode }) {
       console.error("Error fetching followed lists:", error);
       setFollowedLists([]);
     }
-  };
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    if (session?.user?.id) {
+      fetchUserInfo();
+      fetchUserLists();
+      fetchFollowedLists();
+    }
+  }, [fetchFollowedLists, fetchUserInfo, fetchUserLists, session?.user?.id]);
 
   const handleTabChange = (value: TabType) => {
     if (value === "following") {
@@ -229,7 +229,7 @@ export default function TimelineLayout({ children }: { children: ReactNode }) {
 
               <div
                 ref={tabsContainerRef}
-                className="scrollbar-none flex flex-1 overflow-x-auto"
+                className="flex flex-1 overflow-x-auto"
                 style={{ scrollBehavior: "smooth" }}
               >
                 <div className="flex items-center">
@@ -239,7 +239,7 @@ export default function TimelineLayout({ children }: { children: ReactNode }) {
                       "relative flex min-w-[120px] items-center justify-center py-3 font-medium transition-colors",
                       activeTab === "following"
                         ? "text-primary"
-                        : "text-gray-500 hover:text-gray-300"
+                        : "text-gray-500 hover:text-gray-300",
                     )}
                     onClick={() => handleTabChange("following")}
                   >
@@ -255,7 +255,7 @@ export default function TimelineLayout({ children }: { children: ReactNode }) {
                       "relative flex min-w-[120px] items-center justify-center py-3 font-medium transition-colors",
                       activeTab === "global"
                         ? "text-primary"
-                        : "text-gray-500 hover:text-gray-300"
+                        : "text-gray-500 hover:text-gray-300",
                     )}
                     onClick={() => handleTabChange("global")}
                   >
@@ -271,7 +271,7 @@ export default function TimelineLayout({ children }: { children: ReactNode }) {
                       "relative flex min-w-[120px] items-center justify-center py-3 font-medium transition-colors",
                       activeTab === "lists"
                         ? "text-primary"
-                        : "text-gray-500 hover:text-gray-300"
+                        : "text-gray-500 hover:text-gray-300",
                     )}
                     onClick={() => handleTabChange("lists")}
                   >
@@ -296,7 +296,7 @@ export default function TimelineLayout({ children }: { children: ReactNode }) {
                           "relative flex min-w-[120px] items-center justify-center py-3 font-medium transition-colors",
                           activeTab === `list-${list.id}`
                             ? "text-primary"
-                            : "text-gray-500 hover:text-gray-300"
+                            : "text-gray-500 hover:text-gray-300",
                         )}
                         onClick={() => handleTabChange(`list-${list.id}`)}
                       >
@@ -321,7 +321,7 @@ export default function TimelineLayout({ children }: { children: ReactNode }) {
                         "relative flex min-w-[120px] items-center justify-center py-3 font-medium transition-colors",
                         activeTab === `followed-list-${list.id}`
                           ? "text-primary"
-                          : "text-gray-500 hover:text-gray-300"
+                          : "text-gray-500 hover:text-gray-300",
                       )}
                       onClick={() =>
                         handleTabChange(`followed-list-${list.id}`)

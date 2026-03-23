@@ -7,7 +7,7 @@ import type { UserFavoritePostsResponse } from "@/app/_types/favorite";
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -17,7 +17,7 @@ export async function GET(
 
     // ユーザーの存在確認
     const user = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
     });
 
     if (!user) {
@@ -27,7 +27,7 @@ export async function GET(
     // お気に入りした投稿を取得
     const favorites = await prisma.favorite.findMany({
       where: {
-        userId: params.id,
+        userId: (await params).id,
       },
       take: limit + 1,
       skip: cursor ? 1 : 0,

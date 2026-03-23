@@ -5,9 +5,10 @@ import { authOptions } from "@/lib/auth";
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id: targetUserId } = await params;
     // 管理者権限チェック
     const session = await getServerSession(authOptions);
     if (!session?.user?.isAdmin) {
@@ -16,7 +17,7 @@ export async function DELETE(
 
     // 削除対象ユーザーの存在確認
     const user = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id: targetUserId },
     });
 
     if (!user) {
@@ -32,43 +33,43 @@ export async function DELETE(
     await prisma.$transaction([
       // ユーザーのお気に入りを削除
       prisma.favorite.deleteMany({
-        where: { userId: params.id },
+        where: { userId: targetUserId },
       }),
 
       // ユーザーの拡散を削除
       prisma.repost.deleteMany({
-        where: { userId: params.id },
+        where: { userId: targetUserId },
       }),
 
       // フォロー関係を削除
       prisma.follow.deleteMany({
         where: {
-          OR: [{ followerId: params.id }, { followedId: params.id }],
+          OR: [{ followerId: targetUserId }, { followedId: targetUserId }],
         },
       }),
 
       // チャットメッセージを削除
       prisma.chat.deleteMany({
         where: {
-          OR: [{ senderId: params.id }, { receiverId: params.id }],
+          OR: [{ senderId: targetUserId }, { receiverId: targetUserId }],
         },
       }),
 
       // 通知を削除
       prisma.notification.deleteMany({
         where: {
-          OR: [{ receiverId: params.id }, { senderId: params.id }],
+          OR: [{ receiverId: targetUserId }, { senderId: targetUserId }],
         },
       }),
 
       // ユーザーの投稿を削除（返信の処理含む）
       prisma.post.deleteMany({
-        where: { userId: params.id },
+        where: { userId: targetUserId },
       }),
 
       // 最後にユーザーを削除
       prisma.user.delete({
-        where: { id: params.id },
+        where: { id: targetUserId },
       }),
     ]);
 

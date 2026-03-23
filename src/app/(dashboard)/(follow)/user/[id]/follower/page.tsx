@@ -5,79 +5,13 @@ import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { PowerPagination } from "@/components/ui/power-pagination";
 import { formatDistanceToNow } from "@/lib/formatDistanceToNow";
 import { toast } from "sonner";
 import type { UserFollowersResponse } from "@/app/_types/follow";
 import { LoaderCircle, UserPlus, UserMinus } from "lucide-react";
 
 type Follower = UserFollowersResponse["followers"][0];
-
-// 2のべきペースのページネーションコンポーネント
-const PowerPagination: React.FC<{
-  currentPage: number;
-  totalPages: number;
-  onPageChange: (page: number) => void;
-}> = ({ currentPage, totalPages, onPageChange }) => {
-  const generatePowerPages = () => {
-    const pages = new Set<number>();
-
-    // 常に1ページ目を表示
-    pages.add(1);
-
-    // 現在のページを追加
-    pages.add(currentPage);
-
-    // 前のページ（2のべき乗分）
-    let power = 1;
-    while (currentPage - power >= 1) {
-      pages.add(currentPage - power);
-      power *= 2;
-    }
-
-    // 次のページ（2のべき乗分）
-    power = 1;
-    while (currentPage + power <= totalPages) {
-      pages.add(currentPage + power);
-      power *= 2;
-    }
-
-    // 最後のページを追加（総ページ数が2以上の場合）
-    if (totalPages > 1) {
-      pages.add(totalPages);
-    }
-
-    return Array.from(pages).sort((a, b) => a - b);
-  };
-
-  const powerPages = generatePowerPages();
-
-  return (
-    <div className="mt-4 flex flex-wrap justify-center gap-2">
-      {powerPages.map((page, index) => {
-        // 表示するページ番号の間に大きなギャップがある場合は省略記号を表示
-        if (index > 0 && page > powerPages[index - 1] + 1) {
-          return (
-            <div key={`ellipsis-${page}`} className="flex items-end px-2">
-              …
-            </div>
-          );
-        }
-
-        return (
-          <Button
-            key={page}
-            variant={currentPage === page ? "default" : "outline"}
-            size="sm"
-            onClick={() => onPageChange(page)}
-            className="min-w-[40px]"
-          >
-            {page}
-          </Button>
-        );
-      })}
-    </div>
-  );
-};
 
 export default function FollowersPage() {
   const [followers, setFollowers] = useState<Follower[]>([]);

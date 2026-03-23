@@ -5,10 +5,10 @@ import { authOptions } from "@/lib/auth";
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const targetUserId = params.id;
+    const targetUserId = (await params).id;
 
     // クエリパラメータの取得
     const { searchParams } = new URL(req.url);
@@ -98,7 +98,7 @@ export async function GET(
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // 認証チェック
@@ -107,7 +107,7 @@ export async function POST(
       return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
     }
 
-    const targetUserId = params.id;
+    const targetUserId = (await params).id;
     const senderId = session.user.id;
 
     // 自分自身への質問は禁止

@@ -226,7 +226,7 @@ export async function GET(req: Request) {
 
 export async function PUT(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -234,7 +234,7 @@ export async function PUT(
       return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
     }
 
-    const notificationId = params.id;
+    const notificationId = (await params).id;
 
     const notification = await prisma.notification.findUnique({
       where: { id: notificationId },

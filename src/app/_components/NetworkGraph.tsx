@@ -1,22 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Network, Node, Edge } from "vis-network";
-import { DataSet } from "vis-data";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { Edge, Node } from "vis-network";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { PowerPagination } from "@/components/ui/power-pagination";
 import { formatDistanceToNow } from "@/lib/formatDistanceToNow";
-import {
-  Star,
-  Users,
-  Calendar,
-  Trophy,
-  ArrowRight,
-  UserCircle,
-  Share2,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
+import { Calendar, Trophy, UserCircle, Share2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMediaQuery } from "@/app/_hooks/useMediaQuery";
@@ -58,71 +48,6 @@ const EDGE_DEPTH_COLORS = {
 // 1ページあたりの表示ノード数
 const NODES_PER_PAGE = 1000;
 
-// 指数ページネーションコンポーネント
-const PowerPagination: React.FC<{
-  currentPage: number;
-  totalPages: number;
-  onPageChange: (page: number) => void;
-}> = ({ currentPage, totalPages, onPageChange }) => {
-  const generatePowerPages = () => {
-    const pages = new Set<number>();
-
-    // 常に1ページ目を表示
-    pages.add(1);
-
-    // 現在のページを追加
-    pages.add(currentPage);
-
-    // 前のページ（2のべき乗分）
-    let power = 1;
-    while (currentPage - power >= 1) {
-      pages.add(currentPage - power);
-      power *= 2;
-    }
-
-    // 次のページ（2のべき乗分）
-    while (currentPage + power <= totalPages) {
-      pages.add(currentPage + power);
-      power *= 2;
-    }
-
-    // 最後のページを追加（総ページ数が2以上の場合）
-    if (totalPages > 1) {
-      pages.add(totalPages);
-    }
-
-    return Array.from(pages).sort((a, b) => a - b);
-  };
-
-  const powerPages = generatePowerPages();
-
-  return (
-    <div className="flex flex-wrap justify-center gap-2 pt-4">
-      {powerPages.map((page, index) => (
-        <div key={`page-group-${page}`} className="flex items-center">
-          {index > 0 && powerPages[index] - powerPages[index - 1] > 1 && (
-            <span
-              key={`ellipsis-${index}`}
-              className="flex items-center px-2 text-gray-400"
-            >
-              ...
-            </span>
-          )}
-          <Button
-            key={page}
-            variant={page === currentPage ? "default" : "outline"}
-            size="sm"
-            onClick={() => onPageChange(page)}
-            className="min-w-[40px]"
-          >
-            {page}
-          </Button>
-        </div>
-      ))}
-    </div>
-  );
-};
-
 export default function NetworkGraph({
   graphData,
   onNodeClick,
@@ -136,7 +61,7 @@ export default function NetworkGraph({
   const isMobile = useMediaQuery("(max-width: 768px)");
 
   // ユーザー詳細情報を取得する関数
-  const fetchUserDetails = async (userId: string) => {
+  const fetchUserDetails = useCallback(async (userId: string) => {
     try {
       setLoading(true);
       const response = await fetch(`/api/users/${userId}?type=profile`);
@@ -150,10 +75,10 @@ export default function NetworkGraph({
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   // ノードを収集する関数
-  const collectNodes = (rootNode: UserNode): UserNode[] => {
+  const collectNodes = useCallback((rootNode: UserNode): UserNode[] => {
     const result: UserNode[] = [];
     const visited = new Set<string>();
 
@@ -175,181 +100,190 @@ export default function NetworkGraph({
 
     traverse(rootNode, 0);
     return result;
-  };
+  }, []);
 
   // ページに基づいてノードをフィルタリングする関数
-  const getNodesForPage = (nodes: UserNode[], page: number): UserNode[] => {
-    const start = (page - 1) * NODES_PER_PAGE;
-    // 中心ノードを常に含める
-    const centralNode = nodes.find((n) => n.id === graphData.id);
-    const otherNodes = nodes
-      .filter((n) => n.id !== graphData.id)
-      .slice(start, start + NODES_PER_PAGE - 1);
+  const getNodesForPage = useCallback(
+    (nodes: UserNode[], page: number): UserNode[] => {
+      const start = (page - 1) * NODES_PER_PAGE;
+      // 中心ノードを常に含める
+      const centralNode = nodes.find((n) => n.id === graphData.id);
+      const otherNodes = nodes
+        .filter((n) => n.id !== graphData.id)
+        .slice(start, start + NODES_PER_PAGE - 1);
 
-    return centralNode ? [centralNode, ...otherNodes] : otherNodes;
-  };
-
-  // ページを変更する関数
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-    renderGraph(getNodesForPage(allNodes, page));
-  };
+      return centralNode ? [centralNode, ...otherNodes] : otherNodes;
+    },
+    [graphData.id],
+  );
 
   // グラフを描画する関数
-  const renderGraph = (nodeSet: UserNode[]) => {
-    if (!networkRef.current) return;
+  const renderGraph = useCallback(
+    (nodeSet: UserNode[]) => {
+      if (!networkRef.current) return;
 
-    import("vis-network").then(({ Network }) => {
-      import("vis-data").then(({ DataSet }) => {
-        // ノードとエッジのデータセットを作成
-        const nodes = new DataSet<Node>();
-        const edges = new DataSet<Edge>();
-        const processedNodes = new Set<string>();
-        const centralUserId = graphData.id; // 中心ユーザーのID
+      import("vis-network").then(({ Network }) => {
+        import("vis-data").then(({ DataSet }) => {
+          // ノードとエッジのデータセットを作成
+          const nodes = new DataSet<Node>();
+          const edges = new DataSet<Edge>();
+          const processedNodes = new Set<string>();
+          const centralUserId = graphData.id; // 中心ユーザーのID
 
-        // ノード集合からグラフを生成
-        nodeSet.forEach((user) => {
-          if (processedNodes.has(user.id)) return;
-          processedNodes.add(user.id);
+          // ノード集合からグラフを生成
+          nodeSet.forEach((user) => {
+            if (processedNodes.has(user.id)) return;
+            processedNodes.add(user.id);
 
-          // ノードを追加
-          nodes.add({
-            id: user.id,
-            label: user.username,
-            shape: "circularImage",
-            image: user.icon || "/default-avatar.png",
-            size: user.id === centralUserId ? 50 : 40 - (user.depth || 0) * 5,
-            borderWidth: 3,
-            borderColor: user.id === centralUserId ? "#4CAF50" : "#2196F3",
-            brokenImage: "/default-avatar.png",
-            depth: user.depth || 0,
-            title: `${user.username}\n@${user.id}`,
-          } as Node);
+            // ノードを追加
+            nodes.add({
+              id: user.id,
+              label: user.username,
+              shape: "circularImage",
+              image: user.icon || "/default-avatar.png",
+              size: user.id === centralUserId ? 50 : 40 - (user.depth || 0) * 5,
+              borderWidth: 3,
+              borderColor: user.id === centralUserId ? "#4CAF50" : "#2196F3",
+              brokenImage: "/default-avatar.png",
+              depth: user.depth || 0,
+              title: `${user.username}\n@${user.id}`,
+            } as Node);
 
-          // フォロー関係のエッジを追加
-          user.following.forEach((targetId) => {
-            // 表示されているノードのみエッジを追加
-            if (nodeSet.some((n) => n.id === targetId)) {
-              const edgeDepth = (user.depth || 0) + 1;
-              const edgeColor =
-                edgeDepth <= 3
-                  ? EDGE_DEPTH_COLORS[
-                      edgeDepth as keyof typeof EDGE_DEPTH_COLORS
-                    ]
-                  : "#666666";
+            // フォロー関係のエッジを追加
+            user.following.forEach((targetId) => {
+              // 表示されているノードのみエッジを追加
+              if (nodeSet.some((n) => n.id === targetId)) {
+                const edgeDepth = (user.depth || 0) + 1;
+                const edgeColor =
+                  edgeDepth <= 3
+                    ? EDGE_DEPTH_COLORS[
+                        edgeDepth as keyof typeof EDGE_DEPTH_COLORS
+                      ]
+                    : "#666666";
 
-              edges.add({
-                from: user.id,
-                to: targetId,
-                arrows: "to",
-                color: { color: edgeColor, opacity: 0.8 },
-                width: Math.max(2.5 - edgeDepth * 0.5, 1),
-                title: `${user.username} → ${targetId}`,
-                edgeDepth: edgeDepth,
-              } as Edge);
+                edges.add({
+                  from: user.id,
+                  to: targetId,
+                  arrows: "to",
+                  color: { color: edgeColor, opacity: 0.8 },
+                  width: Math.max(2.5 - edgeDepth * 0.5, 1),
+                  title: `${user.username} → ${targetId}`,
+                  edgeDepth: edgeDepth,
+                } as Edge);
+              }
+            });
+          });
+
+          // ネットワークの設定
+          const options = {
+            physics: {
+              stabilization: {
+                iterations: 100,
+                fit: true,
+              },
+              barnesHut: {
+                gravitationalConstant: -80000,
+                springConstant: 0.001,
+                springLength: 200,
+                avoidOverlap: 0.5,
+              },
+            },
+            interaction: {
+              navigationButtons: true,
+              keyboard: true,
+              hover: true,
+              tooltipDelay: 200,
+              zoomView: true,
+            },
+            nodes: {
+              font: {
+                size: 16,
+                color: "#ffffff",
+                strokeWidth: 2,
+                strokeColor: "#000000",
+              },
+            },
+            edges: {
+              smooth: {
+                enabled: true,
+                type: "continuous",
+                forceDirection: "none",
+                roundness: 0.5,
+              },
+              font: {
+                size: 10,
+                align: "middle",
+                color: "#ffffff",
+              },
+            },
+            layout: {
+              improvedLayout: true,
+              hierarchical: {
+                enabled: false,
+              },
+            },
+          };
+
+          // 既存のネットワークを破棄
+          if (networkRef.current) {
+            while (networkRef.current.firstChild) {
+              networkRef.current.removeChild(networkRef.current.firstChild);
+            }
+          }
+
+          // ネットワークを作成
+          const network = new Network(
+            networkRef.current!,
+            { nodes, edges },
+            options,
+          );
+
+          // クリックイベントの処理
+          network.on("click", async (params) => {
+            if (params.nodes.length > 0) {
+              const nodeId = params.nodes[0].toString();
+              await fetchUserDetails(nodeId);
+            } else {
+              setSelectedUser(null);
             }
           });
-        });
 
-        // ネットワークの設定
-        const options = {
-          physics: {
-            stabilization: {
-              iterations: 100,
-              fit: true,
-            },
-            barnesHut: {
-              gravitationalConstant: -80000,
-              springConstant: 0.001,
-              springLength: 200,
-              avoidOverlap: 0.5,
-            },
-          },
-          interaction: {
-            navigationButtons: true,
-            keyboard: true,
-            hover: true,
-            tooltipDelay: 200,
-            zoomView: true,
-          },
-          nodes: {
-            font: {
-              size: 16,
-              color: "#ffffff",
-              strokeWidth: 2,
-              strokeColor: "#000000",
-            },
-          },
-          edges: {
-            smooth: {
-              enabled: true,
-              type: "continuous",
-              forceDirection: "none",
-              roundness: 0.5,
-            },
-            font: {
-              size: 10,
-              align: "middle",
-              color: "#ffffff",
-            },
-          },
-          layout: {
-            improvedLayout: true,
-            hierarchical: {
-              enabled: false,
-            },
-          },
-        };
-
-        // 既存のネットワークを破棄
-        if (networkRef.current) {
-          while (networkRef.current.firstChild) {
-            networkRef.current.removeChild(networkRef.current.firstChild);
-          }
-        }
-
-        // ネットワークを作成
-        const network = new Network(
-          networkRef.current!,
-          { nodes, edges },
-          options
-        );
-
-        // クリックイベントの処理
-        network.on("click", async (params) => {
-          if (params.nodes.length > 0) {
-            const nodeId = params.nodes[0].toString();
-            await fetchUserDetails(nodeId);
-          } else {
-            setSelectedUser(null);
-          }
-        });
-
-        // ホバーイベントの処理
-        network.on("hoverNode", () => {
-          if (networkRef.current) {
-            networkRef.current.style.cursor = "pointer";
-          }
-        });
-
-        network.on("blurNode", () => {
-          if (networkRef.current) {
-            networkRef.current.style.cursor = "default";
-          }
-        });
-
-        // 初期ズームレベルとフォーカスを設定
-        setTimeout(() => {
-          network.fit({
-            animation: {
-              duration: 1000,
-              easingFunction: "easeOutQuad",
-            },
+          // ホバーイベントの処理
+          network.on("hoverNode", () => {
+            if (networkRef.current) {
+              networkRef.current.style.cursor = "pointer";
+            }
           });
-        }, 500);
+
+          network.on("blurNode", () => {
+            if (networkRef.current) {
+              networkRef.current.style.cursor = "default";
+            }
+          });
+
+          // 初期ズームレベルとフォーカスを設定
+          setTimeout(() => {
+            network.fit({
+              animation: {
+                duration: 1000,
+                easingFunction: "easeOutQuad",
+              },
+            });
+          }, 500);
+        });
       });
-    });
-  };
+    },
+    [fetchUserDetails, graphData.id],
+  );
+
+  // ページを変更する関数
+  const handlePageChange = useCallback(
+    (page: number) => {
+      setCurrentPage(page);
+      renderGraph(getNodesForPage(allNodes, page));
+    },
+    [allNodes, getNodesForPage, renderGraph],
+  );
 
   useEffect(() => {
     if (typeof window !== "undefined" && networkRef.current) {
@@ -368,7 +302,7 @@ export default function NetworkGraph({
     return () => {
       setSelectedUser(null);
     };
-  }, [graphData]);
+  }, [collectNodes, currentPage, getNodesForPage, graphData, renderGraph]);
 
   // レート値に応じた色を生成
   const getRateColor = (rate: number): string => {
@@ -382,7 +316,7 @@ export default function NetworkGraph({
   // ユーザーウィジェットの表示
   const renderUserWidget = (user: UserDetail) => (
     <Card
-      className={`z-10 bg-gray-950/90 text-white shadow-xl ${isMobile ? "fixed bottom-40 left-4 right-4" : "absolute left-4 top-4 max-w-md"}`}
+      className={`z-10 bg-gray-950/90 text-white shadow-xl ${isMobile ? "fixed inset-x-4 bottom-40" : "absolute left-4 top-4 max-w-md"}`}
     >
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between">
@@ -449,8 +383,8 @@ export default function NetworkGraph({
     <div
       className={`z-10 ${
         isMobile
-          ? "fixed bottom-20 left-4 right-4 flex flex-col gap-2" // bottom-4 から bottom-20 に変更
-          : "absolute bottom-4 left-1/2 flex -translate-x-1/2 transform justify-center gap-3"
+          ? "fixed inset-x-4 bottom-20 flex flex-col gap-2" // bottom-4 から bottom-20 に変更
+          : "absolute bottom-4 left-1/2 flex -translate-x-1/2 justify-center gap-3"
       }`}
     >
       <Button
@@ -526,8 +460,8 @@ export default function NetworkGraph({
         <div
           className={`z-10 bg-gray-900/80 p-2 text-white ${
             isMobile
-              ? "fixed bottom-0 left-0 right-0"
-              : "absolute bottom-4 left-1/2 -translate-x-1/2 transform rounded"
+              ? "fixed inset-x-0 bottom-0"
+              : "absolute bottom-4 left-1/2 -translate-x-1/2 rounded"
           }`}
         >
           <PowerPagination

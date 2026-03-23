@@ -7,7 +7,7 @@ import { NextResponse } from "next/server";
 // ユーザーをミュートする
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -16,7 +16,7 @@ export async function POST(
     }
 
     // 自分自身をミュートできない
-    if (session.user.id === params.id) {
+    if (session.user.id === (await params).id) {
       return NextResponse.json(
         { error: "Cannot mute yourself" },
         { status: 400 }
@@ -25,7 +25,7 @@ export async function POST(
 
     // ミュート対象のユーザーが存在するか確認
     const targetUser = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
     });
 
     if (!targetUser) {
@@ -36,7 +36,7 @@ export async function POST(
     await prisma.mute.create({
       data: {
         muterId: session.user.id,
-        mutedId: params.id,
+        mutedId: (await params).id,
       },
     });
 
@@ -61,7 +61,7 @@ export async function POST(
 // ミュートを解除する
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -74,7 +74,7 @@ export async function DELETE(
       where: {
         muterId_mutedId: {
           muterId: session.user.id,
-          mutedId: params.id,
+          mutedId: (await params).id,
         },
       },
     });

@@ -5,9 +5,10 @@ import prisma from "@/lib/prisma";
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id: groupId } = await params;
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -16,7 +17,7 @@ export async function GET(
     // グループの存在確認とアクセス権限の確認
     const groupChat = await prisma.groupChat.findUnique({
       where: {
-        id: params.id,
+        id: groupId,
       },
       include: {
         members: {
@@ -50,19 +51,19 @@ export async function GET(
     if (!groupChat) {
       return NextResponse.json(
         { error: "グループが見つかりません" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     // ユーザーがグループのメンバーかどうか確認
     const isMember = groupChat.members.some(
-      (member) => member.user.id === session.user.id
+      (member) => member.user.id === session.user.id,
     );
 
     if (!isMember) {
       return NextResponse.json(
         { error: "このグループにアクセスする権限がありません" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -85,16 +86,17 @@ export async function GET(
     console.error("グループチャット取得エラー:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id: groupId } = await params;
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -106,14 +108,14 @@ export async function POST(
     if (!content?.trim()) {
       return NextResponse.json(
         { error: "メッセージを入力してください" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // グループとメンバーシップの確認
     const groupChat = await prisma.groupChat.findUnique({
       where: {
-        id: params.id,
+        id: groupId,
       },
       include: {
         members: true,
@@ -123,25 +125,25 @@ export async function POST(
     if (!groupChat) {
       return NextResponse.json(
         { error: "グループが見つかりません" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     const isMember = groupChat.members.some(
-      (member) => member.userId === session.user.id
+      (member) => member.userId === session.user.id,
     );
 
     if (!isMember) {
       return NextResponse.json(
         { error: "このグループにメッセージを送信する権限がありません" },
-        { status: 403 }
+        { status: 403 },
       );
     }
     // メッセージの作成
     const message = await prisma.groupMessage.create({
       data: {
         content,
-        groupChatId: params.id, // group_id から groupChatId に変更
+        groupChatId: groupId, // group_id から groupChatId に変更
         senderId: session.user.id, // sender_id から senderId に変更
       },
       include: {
@@ -166,7 +168,7 @@ export async function POST(
     console.error("メッセージ送信エラー:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

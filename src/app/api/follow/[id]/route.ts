@@ -8,20 +8,19 @@ import { createRatingHistory, RATING_REASONS } from "@/lib/rating";
 // フォローする
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id: targetUserId } = await params;
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const targetUserId = params.id;
-
     if (session.user.id === targetUserId) {
       return NextResponse.json(
         { error: "Cannot follow yourself" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -68,7 +67,7 @@ export async function POST(
         targetUserId,
         rateBonus,
         newRate,
-        RATING_REASONS.NEW_FOLLOWER
+        RATING_REASONS.NEW_FOLLOWER,
       );
 
       // フォロワー数、フォロー数、レートを更新
@@ -96,7 +95,7 @@ export async function POST(
     if ((error as any).code === "P2002") {
       return NextResponse.json(
         { error: "Already following this user" },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
@@ -107,7 +106,7 @@ export async function POST(
     console.error("[Follow Error]:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -115,15 +114,14 @@ export async function POST(
 // フォロー解除
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id: targetUserId } = await params;
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const targetUserId = params.id;
 
     // トランザクションで全ての操作を実行
     const result = await prisma.$transaction(async (prisma) => {
@@ -161,14 +159,14 @@ export async function DELETE(
     if ((error as any).code === "P2025") {
       return NextResponse.json(
         { error: "Not following this user" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     console.error("[Unfollow Error]:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -227,7 +225,7 @@ export async function GET(req: Request) {
     console.error("[Users Error]:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

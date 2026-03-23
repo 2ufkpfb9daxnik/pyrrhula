@@ -6,14 +6,14 @@ import type { PostDetailResponse } from "@/app/_types/post";
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
 
     const post = await prisma.post.findUnique({
       where: {
-        id: params.id,
+        id: (await params).id,
       },
       include: {
         user: {
@@ -122,7 +122,7 @@ export async function GET(
     const repostInfo = session?.user
       ? await prisma.repost.findFirst({
           where: {
-            postId: params.id,
+            postId: (await params).id,
           },
           orderBy: {
             createdAt: "desc",

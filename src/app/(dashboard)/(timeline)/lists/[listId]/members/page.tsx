@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -52,19 +52,14 @@ interface ApiResponse {
   hasMore: boolean;
 }
 
-interface PageProps {
-  params: {
-    listId: string;
-  };
-}
-
-export default function ListMembersPage({ params }: PageProps) {
-  const { listId } = params;
+export default function ListMembersPage() {
+  const params = useParams<{ listId: string }>();
+  const listId = params?.listId ?? "";
   const [members, setMembers] = useState<Member[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
   const [processingMembers, setProcessingMembers] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
   const [isListAdmin, setIsListAdmin] = useState(false);
   const [showAdminDialog, setShowAdminDialog] = useState(false);
@@ -73,6 +68,7 @@ export default function ListMembersPage({ params }: PageProps) {
   const { data: session } = useSession();
 
   useEffect(() => {
+    if (!listId) return;
     fetchMembers(pagination?.currentPage || 1);
   }, [session, listId]);
 
@@ -103,7 +99,7 @@ export default function ListMembersPage({ params }: PageProps) {
           status: m.status,
           isFollowing: m.isFollowing,
           adminStatus: m.adminStatus,
-        }))
+        })),
       );
       setIsListAdmin(data.isAdmin);
       setPagination({
@@ -117,7 +113,7 @@ export default function ListMembersPage({ params }: PageProps) {
     } catch (error) {
       console.error("Error fetching members:", error);
       toast.error(
-        error instanceof Error ? error.message : "一時的なエラーが発生しました"
+        error instanceof Error ? error.message : "一時的なエラーが発生しました",
       );
     } finally {
       setIsLoading(false);
@@ -126,7 +122,7 @@ export default function ListMembersPage({ params }: PageProps) {
 
   const handleAdminAction = async (
     userId: string,
-    action: "invite" | "approve" | "reject"
+    action: "invite" | "approve" | "reject",
   ) => {
     if (!session || !isListAdmin || processingMembers.has(userId)) return;
 
@@ -141,7 +137,7 @@ export default function ListMembersPage({ params }: PageProps) {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ action }),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -160,7 +156,7 @@ export default function ListMembersPage({ params }: PageProps) {
     } catch (error) {
       console.error("Admin action error:", error);
       toast.error(
-        error instanceof Error ? error.message : "操作に失敗しました"
+        error instanceof Error ? error.message : "操作に失敗しました",
       );
     } finally {
       setProcessingMembers((prev) => {
@@ -182,7 +178,7 @@ export default function ListMembersPage({ params }: PageProps) {
         `/api/lists/${listId}/members?userId=${userId}`,
         {
           method: "DELETE",
-        }
+        },
       );
 
       if (!response.ok) {
@@ -195,7 +191,7 @@ export default function ListMembersPage({ params }: PageProps) {
     } catch (error) {
       console.error("Remove member error:", error);
       toast.error(
-        error instanceof Error ? error.message : "操作に失敗しました"
+        error instanceof Error ? error.message : "操作に失敗しました",
       );
     } finally {
       setProcessingMembers((prev) => {
@@ -227,8 +223,8 @@ export default function ListMembersPage({ params }: PageProps) {
         if (!isFollowing) {
           setMembers((prev) =>
             prev.map((member) =>
-              member.id === userId ? { ...member, isFollowing: true } : member
-            )
+              member.id === userId ? { ...member, isFollowing: true } : member,
+            ),
           );
           toast.success("既にフォロー済みです");
           return;
@@ -244,15 +240,15 @@ export default function ListMembersPage({ params }: PageProps) {
         prev.map((member) =>
           member.id === userId
             ? { ...member, isFollowing: !member.isFollowing }
-            : member
-        )
+            : member,
+        ),
       );
 
       toast.success(isFollowing ? "フォロー解除しました" : "フォローしました");
     } catch (error) {
       console.error("Follow error:", error);
       toast.error(
-        error instanceof Error ? error.message : "操作に失敗しました"
+        error instanceof Error ? error.message : "操作に失敗しました",
       );
     } finally {
       setProcessingMembers((prev) => {

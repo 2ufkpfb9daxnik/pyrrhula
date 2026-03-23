@@ -7,7 +7,7 @@ import type { UserFollowersResponse } from "@/app/_types/follow";
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -20,7 +20,7 @@ export async function GET(
 
     // ユーザーの存在確認
     const user = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
     });
 
     if (!user) {
@@ -30,14 +30,14 @@ export async function GET(
     // 総フォロワー数を取得
     const totalCount = await prisma.follow.count({
       where: {
-        followedId: params.id,
+        followedId: (await params).id,
       },
     });
 
     // フォロワー一覧を取得
     const followers = await prisma.follow.findMany({
       where: {
-        followedId: params.id,
+        followedId: (await params).id,
       },
       take: limit,
       skip: skip,

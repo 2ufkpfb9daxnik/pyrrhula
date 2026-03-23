@@ -8,13 +8,13 @@ import type { ListResponse } from "@/app/_types/list";
 import type { User } from "@/app/_types/user";
 
 type Props = {
-  params: {
+  params: Promise<{
     listId: string;
-  };
+  }>;
 };
 
 export default async function ListPage({ params }: Props) {
-  const { listId } = params;
+  const { listId } = await params;
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id;
 

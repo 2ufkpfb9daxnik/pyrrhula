@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -12,21 +12,24 @@ import { LoaderCircle } from "lucide-react";
 
 type RepostUser = RepostListResponse["users"][0];
 
-export default function RepostListPage({ params }: { params: { id: string } }) {
+export default function RepostListPage() {
   const [users, setUsers] = useState<RepostUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasMore, setHasMore] = useState(false);
   const [cursor, setCursor] = useState<string | undefined>();
+  const params = useParams<{ id: string }>();
+  const postId = params?.id ?? "";
   const router = useRouter();
   const { data: session } = useSession();
 
   useEffect(() => {
+    if (!postId) return;
     fetchReposts();
-  }, [params.id]);
+  }, [postId]);
 
   const fetchReposts = async () => {
     try {
-      const url = `/api/posts/${params.id}/repost${
+      const url = `/api/posts/${postId}/repost${
         cursor ? `?cursor=${cursor}` : ""
       }`;
       const response = await fetch(url);

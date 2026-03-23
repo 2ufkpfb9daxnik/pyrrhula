@@ -7,7 +7,7 @@ import type { UserRepliesResponse } from "@/app/_types/post";
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions); // セッション情報を取得して使用
@@ -17,7 +17,7 @@ export async function GET(
 
     // ユーザーの存在確認
     const user = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
     });
 
     if (!user) {
@@ -27,7 +27,7 @@ export async function GET(
     // 返信した投稿を取得
     const replies = await prisma.post.findMany({
       where: {
-        userId: params.id,
+        userId: (await params).id,
         parentId: { not: null }, // 親投稿が存在する投稿のみ
       },
       take: limit + 1,
@@ -161,7 +161,7 @@ export async function GET(
 
     // 開発環境ではデバッグログを出力
     if (process.env.NODE_ENV === "development") {
-      console.log(`[Debug] User/${params.id}/reply API:`, {
+      console.log(`[Debug] User/${(await params).id}/reply API:`, {
         repliesCount: formattedReplies.length,
         repliesWithQuestions: formattedReplies.filter((p) => p.question).length,
       });

@@ -5,15 +5,14 @@ import prisma from "@/lib/prisma";
 
 export async function POST(
   request: Request,
-  { params }: { params: { listId: string } }
+  { params }: { params: Promise<{ listId: string }> },
 ) {
   try {
+    const { listId } = await params;
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const listId = params.listId;
 
     // リストの存在確認
     const list = await prisma.lists.findUnique({
@@ -37,7 +36,7 @@ export async function POST(
     if (existingFollow) {
       return NextResponse.json(
         { error: "Already following this list" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -54,22 +53,21 @@ export async function POST(
     console.error("Error following list:", error);
     return NextResponse.json(
       { error: "Failed to follow list" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { listId: string } }
+  { params }: { params: Promise<{ listId: string }> },
 ) {
   try {
+    const { listId } = await params;
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const listId = params.listId;
 
     // フォロー関係を削除
     await prisma.list_followers.delete({
@@ -86,7 +84,7 @@ export async function DELETE(
     console.error("Error unfollowing list:", error);
     return NextResponse.json(
       { error: "Failed to unfollow list" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -94,15 +92,14 @@ export async function DELETE(
 // フォロワー一覧を取得
 export async function GET(
   request: Request,
-  { params }: { params: { listId: string } }
+  { params }: { params: Promise<{ listId: string }> },
 ) {
   try {
+    const { listId } = await params;
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const listId = params.listId;
 
     const followers = await prisma.list_followers.findMany({
       where: { list_id: listId },
@@ -123,7 +120,7 @@ export async function GET(
     console.error("Error fetching list followers:", error);
     return NextResponse.json(
       { error: "Failed to fetch list followers" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

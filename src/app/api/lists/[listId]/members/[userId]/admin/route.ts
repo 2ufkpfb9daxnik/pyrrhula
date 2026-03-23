@@ -11,7 +11,7 @@ const actionSchema = z.object({
 
 export async function POST(
   req: Request,
-  { params }: { params: { listId: string; userId: string } }
+  { params }: { params: Promise<{ listId: string; userId: string }> },
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -19,7 +19,7 @@ export async function POST(
       return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
     }
 
-    const { listId, userId } = params;
+    const { listId, userId } = await params;
     const body = await req.json();
     const { action } = actionSchema.parse(body);
 
@@ -40,7 +40,7 @@ export async function POST(
     if (!list) {
       return NextResponse.json(
         { error: "リストが見つかりません" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -48,7 +48,7 @@ export async function POST(
     if (list.creator_id !== session.user.id && !list.list_members.length) {
       return NextResponse.json(
         { error: "管理者権限がありません" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -65,7 +65,7 @@ export async function POST(
     if (!member) {
       return NextResponse.json(
         { error: "メンバーが見つかりません" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -144,7 +144,7 @@ export async function POST(
     }
     return NextResponse.json(
       { error: "管理者操作の処理に失敗しました" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

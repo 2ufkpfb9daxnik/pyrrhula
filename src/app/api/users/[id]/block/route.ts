@@ -7,7 +7,7 @@ import { NextResponse } from "next/server";
 // ユーザーをブロックする
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -16,7 +16,7 @@ export async function POST(
     }
 
     // 自分自身をブロックできない
-    if (session.user.id === params.id) {
+    if (session.user.id === (await params).id) {
       return NextResponse.json(
         { error: "Cannot block yourself" },
         { status: 400 }
@@ -25,7 +25,7 @@ export async function POST(
 
     // ブロック対象のユーザーが存在するか確認
     const targetUser = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
     });
 
     if (!targetUser) {
@@ -38,7 +38,7 @@ export async function POST(
       prisma.block.create({
         data: {
           blockerId: session.user.id,
-          blockedId: params.id,
+          blockedId: (await params).id,
         },
       }),
       // 相互のフォロー関係を解除
@@ -47,10 +47,10 @@ export async function POST(
           OR: [
             {
               followerId: session.user.id,
-              followedId: params.id,
+              followedId: (await params).id,
             },
             {
-              followerId: params.id,
+              followerId: (await params).id,
               followedId: session.user.id,
             },
           ],
@@ -74,7 +74,7 @@ export async function POST(
 // ブロックを解除する
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -87,7 +87,7 @@ export async function DELETE(
       where: {
         blockerId_blockedId: {
           blockerId: session.user.id,
-          blockedId: params.id,
+          blockedId: (await params).id,
         },
       },
     });

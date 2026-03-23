@@ -13,10 +13,11 @@ export const revalidate = 0;
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     console.log("GETリクエスト受信:", { params, url: req.url });
+    const { id: otherUserId } = await params;
 
     const session = await getServerSession(authOptions);
     if (!session?.user) {
@@ -26,7 +27,7 @@ export async function GET(
 
     // 対象ユーザーの存在確認
     const otherUser = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id: otherUserId },
       select: {
         id: true,
         username: true,
@@ -35,10 +36,10 @@ export async function GET(
     });
 
     if (!otherUser) {
-      console.log("ユーザーが見つかりません:", params.id);
+      console.log("ユーザーが見つかりません:", otherUserId);
       return NextResponse.json(
         { error: "ユーザーが見つかりません" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -48,7 +49,7 @@ export async function GET(
         participants: {
           every: {
             userId: {
-              in: [session.user.id, params.id],
+              in: [session.user.id, otherUserId],
             },
           },
         },
@@ -92,17 +93,18 @@ export async function GET(
     console.error("[チャット履歴エラー]:", error);
     return NextResponse.json(
       { error: "サーバーエラーが発生しました" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     console.log("POSTリクエスト受信:", { params });
+    const { id: otherUserId } = await params;
 
     const session = await getServerSession(authOptions);
     if (!session?.user) {
@@ -110,10 +112,10 @@ export async function POST(
     }
 
     // 自分自身へのメッセージを防止
-    if (session.user.id === params.id) {
+    if (session.user.id === otherUserId) {
       return NextResponse.json(
         { error: "自分自身にメッセージを送ることはできません" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -121,14 +123,14 @@ export async function POST(
     if (!body.message?.trim()) {
       return NextResponse.json(
         { error: "メッセージを入力してください" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // ユーザーの存在確認とチャットルームの取得/作成を一つのトランザクションで
     const result = await prisma.$transaction(async (tx) => {
       const otherUser = await tx.user.findUnique({
-        where: { id: params.id },
+        where: { id: otherUserId },
         select: { id: true },
       });
 
@@ -141,7 +143,7 @@ export async function POST(
           participants: {
             every: {
               userId: {
-                in: [session.user.id, params.id],
+                in: [session.user.id, otherUserId],
               },
             },
           },
@@ -153,7 +155,7 @@ export async function POST(
         chatRoom = await tx.chatRoom.create({
           data: {
             participants: {
-              create: [{ userId: session.user.id }, { userId: params.id }],
+              create: [{ userId: session.user.id }, { userId: otherUserId }],
             },
           },
         });
@@ -162,7 +164,7 @@ export async function POST(
       const message = await tx.chat.create({
         data: {
           senderId: session.user.id,
-          receiverId: params.id,
+          receiverId: otherUserId,
           message: body.message.trim(),
           chatRoomId: chatRoom.id,
         },
@@ -178,7 +180,7 @@ export async function POST(
         data: {
           type: "msg",
           senderId: session.user.id,
-          receiverId: params.id,
+          receiverId: otherUserId,
         },
       });
 

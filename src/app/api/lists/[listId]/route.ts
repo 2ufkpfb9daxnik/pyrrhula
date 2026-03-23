@@ -17,14 +17,14 @@ const updateListSchema = z.object({
 // GET: リスト詳細取得
 export async function GET(
   req: Request,
-  { params }: { params: { listId: string } }
+  { params }: { params: Promise<{ listId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
     const userId = session?.user?.id;
 
     const list = await prisma.lists.findUnique({
-      where: { id: params.listId },
+      where: { id: (await params).listId },
       include: {
         User: {
           select: {
@@ -106,7 +106,7 @@ export async function GET(
 // PUT: リスト設定更新
 export async function PUT(
   req: Request,
-  { params }: { params: { listId: string } }
+  { params }: { params: Promise<{ listId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -116,7 +116,7 @@ export async function PUT(
 
     // リストと管理者権限の確認
     const list = await prisma.lists.findUnique({
-      where: { id: params.listId },
+      where: { id: (await params).listId },
       include: {
         list_members: {
           where: {
@@ -147,7 +147,7 @@ export async function PUT(
 
     // リストの更新
     const updatedList = await prisma.lists.update({
-      where: { id: params.listId },
+      where: { id: (await params).listId },
       data: {
         name: validatedData.name,
         description: validatedData.description,

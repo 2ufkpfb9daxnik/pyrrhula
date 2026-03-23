@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -40,12 +40,14 @@ interface GroupChatDetails {
   messages: GroupMessage[];
 }
 
-export default function GroupChatPage({ params }: { params: { id: string } }) {
+export default function GroupChatPage() {
   const [groupChat, setGroupChat] = useState<GroupChatDetails | null>(null);
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const { data: session } = useSession();
+  const params = useParams<{ id: string }>();
+  const routeGroupId = params?.id ?? "";
   const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const optimisticMessageId = useRef<string | null>(null);
@@ -55,9 +57,9 @@ export default function GroupChatPage({ params }: { params: { id: string } }) {
   };
 
   useEffect(() => {
-    if (!session) return;
+    if (!session || !routeGroupId) return;
     fetchGroupChat();
-  }, [session, params.id]);
+  }, [session, routeGroupId]);
 
   useEffect(() => {
     scrollToBottom();
@@ -65,7 +67,7 @@ export default function GroupChatPage({ params }: { params: { id: string } }) {
 
   const fetchGroupChat = async () => {
     try {
-      const response = await fetch(`/api/chat/group/${params.id}`);
+      const response = await fetch(`/api/chat/group/${routeGroupId}`);
       if (!response.ok) {
         if (response.status === 404) {
           toast.error("グループが見つかりません");
@@ -119,7 +121,7 @@ export default function GroupChatPage({ params }: { params: { id: string } }) {
     setNewMessage("");
 
     try {
-      const response = await fetch(`/api/chat/group/${params.id}`, {
+      const response = await fetch(`/api/chat/group/${routeGroupId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: newMessage }),
@@ -150,7 +152,7 @@ export default function GroupChatPage({ params }: { params: { id: string } }) {
           messages: prev.messages.map((msg) =>
             msg.id === tempId
               ? { ...message, createdAt: new Date(message.createdAt) }
-              : msg
+              : msg,
           ),
         };
       });

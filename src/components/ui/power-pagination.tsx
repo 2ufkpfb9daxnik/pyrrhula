@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import { Button } from "@/components/ui/button";
 
 interface PowerPaginationProps {
@@ -74,8 +75,8 @@ export function PowerPagination({
     // 必須ページ：1, currentPage-1, currentPage, currentPage+1, totalPages
     const mustIncludePages = new Set(
       [1, currentPage - 1, currentPage, currentPage + 1, totalPages].filter(
-        (p) => p >= 1 && p <= totalPages
-      )
+        (p) => p >= 1 && p <= totalPages,
+      ),
     );
 
     for (const page of allPages) {
@@ -123,7 +124,7 @@ export function PowerPagination({
 
       {/* ページボタン */}
       {visiblePages.map((page, index) => (
-        <>
+        <Fragment key={`page-group-${page}`}>
           {/* 省略記号を表示（大きな隙間がある場合） */}
           {index > 0 && visiblePages[index] - visiblePages[index - 1] > 1 && (
             <span
@@ -146,7 +147,7 @@ export function PowerPagination({
           >
             {page}
           </Button>
-        </>
+        </Fragment>
       ))}
 
       {/* 次へボタン */}

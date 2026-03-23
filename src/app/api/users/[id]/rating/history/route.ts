@@ -10,10 +10,10 @@ interface RatingHistoryRecord {
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const userId = params.id;
+    const userId = (await params).id;
 
     // 対象ユーザーのレート履歴を取得
     const ratingHistory = await prisma.$queryRaw<RatingHistoryRecord[]>`

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -10,25 +10,24 @@ import { toast } from "sonner";
 import type { FavoriteListResponse } from "@/app/_types/favorite";
 import { LoaderCircle } from "lucide-react";
 
-export default function FavoriteListPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default function FavoriteListPage() {
   const [users, setUsers] = useState<FavoriteListResponse["users"]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasMore, setHasMore] = useState(false);
   const [cursor, setCursor] = useState<string | undefined>();
+  const params = useParams<{ id: string }>();
+  const postId = params?.id ?? "";
   const router = useRouter();
   const { data: session } = useSession();
 
   useEffect(() => {
+    if (!postId) return;
     fetchFavorites();
-  }, [params.id]);
+  }, [postId]);
 
   const fetchFavorites = async () => {
     try {
-      const url = `/api/posts/${params.id}/favorite${
+      const url = `/api/posts/${postId}/favorite${
         cursor ? `?cursor=${cursor}` : ""
       }`;
       const response = await fetch(url);

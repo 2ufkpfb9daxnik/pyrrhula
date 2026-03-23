@@ -6,7 +6,7 @@ import { NextResponse } from "next/server";
 // 単一の通知を取得するGETリクエスト
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -14,7 +14,7 @@ export async function GET(
       return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
     }
 
-    const notificationId = params.id;
+    const notificationId = (await params).id;
 
     const notification = await prisma.notification.findUnique({
       where: { id: notificationId },
@@ -165,7 +165,7 @@ export async function GET(
 // 個別の通知を既読にするPUTリクエスト
 export async function PUT(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // 認証チェック
@@ -174,7 +174,7 @@ export async function PUT(
       return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
     }
 
-    const notificationId = params.id;
+    const notificationId = (await params).id;
 
     // 通知が存在し、かつ現在のユーザーが受信者であることを確認
     const notification = await prisma.notification.findUnique({
@@ -234,7 +234,7 @@ export async function PUT(
 // 通知を削除するDELETEリクエスト
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // 認証チェック
@@ -243,7 +243,7 @@ export async function DELETE(
       return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
     }
 
-    const notificationId = params.id;
+    const notificationId = (await params).id;
 
     // 通知が存在し、かつ現在のユーザーが受信者であることを確認
     const notification = await prisma.notification.findUnique({
@@ -287,7 +287,7 @@ export async function DELETE(
 // 通知をトグル（既読/未読切替）するPATCHリクエスト
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // 認証チェック
@@ -296,7 +296,7 @@ export async function PATCH(
       return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
     }
 
-    const notificationId = params.id;
+    const notificationId = (await params).id;
 
     // 通知が存在し、現在の既読状態を取得
     const notification = await prisma.notification.findUnique({

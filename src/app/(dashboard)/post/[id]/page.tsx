@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { formatDistanceToNow } from "@/lib/formatDistanceToNow";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -26,21 +26,24 @@ interface SiblingPosts {
   } | null;
 }
 
-export default function PostDetailPage({ params }: { params: { id: string } }) {
+export default function PostDetailPage() {
   const [post, setPost] = useState<PostDetailResponse | null>(null);
   const [siblings, setSiblings] = useState<SiblingPosts | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { data: session } = useSession();
+  const params = useParams<{ id: string }>();
+  const postId = params?.id ?? "";
   const router = useRouter();
 
   useEffect(() => {
+    if (!postId) return;
     fetchPost();
     fetchSiblings();
-  }, [params.id]);
+  }, [postId]);
 
   const fetchPost = async () => {
     try {
-      const response = await fetch(`/api/posts/${params.id}`);
+      const response = await fetch(`/api/posts/${postId}`);
       if (!response.ok) {
         throw new Error("投稿の取得に失敗しました");
       }
@@ -56,7 +59,7 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
 
   const fetchSiblings = async () => {
     try {
-      const response = await fetch(`/api/posts/${params.id}/siblings`);
+      const response = await fetch(`/api/posts/${postId}/siblings`);
       if (!response.ok) {
         throw new Error("前後の投稿の取得に失敗しました");
       }

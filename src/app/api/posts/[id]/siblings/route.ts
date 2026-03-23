@@ -3,12 +3,12 @@ import prisma from "@/lib/prisma";
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // 現在の投稿を取得
     const currentPost = await prisma.post.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       select: {
         userId: true,
         createdAt: true,

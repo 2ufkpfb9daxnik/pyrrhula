@@ -8,7 +8,7 @@ import { createRatingHistory, RATING_REASONS } from "@/lib/rating";
 // 拡散した人一覧を取得
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { searchParams } = new URL(req.url);
@@ -17,7 +17,7 @@ export async function GET(
 
     // 投稿の存在確認
     const post = await prisma.post.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
     });
 
     if (!post) {
@@ -27,7 +27,7 @@ export async function GET(
     // 拡散したユーザー一覧を取得
     const reposts = await prisma.repost.findMany({
       where: {
-        postId: params.id,
+        postId: (await params).id,
       },
       take: limit + 1,
       skip: cursor ? 1 : 0,
@@ -76,7 +76,7 @@ export async function GET(
 // 投稿を拡散する
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -86,7 +86,7 @@ export async function POST(
 
     // 投稿の存在確認
     const post = await prisma.post.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
     });
 
     if (!post) {
@@ -98,7 +98,7 @@ export async function POST(
       // 1. 拡散を作成
       const repost = await prisma.repost.create({
         data: {
-          postId: params.id,
+          postId: (await params).id,
           userId: session.user.id,
         },
       });
@@ -109,13 +109,13 @@ export async function POST(
           type: "rep",
           senderId: session.user.id,
           receiverId: post.userId,
-          relatedPostId: params.id,
+          relatedPostId: (await params).id,
         },
       });
 
       // 3. 拡散数を増やす
       await prisma.post.update({
-        where: { id: params.id },
+        where: { id: (await params).id },
         data: {
           reposts: {
             increment: 1,

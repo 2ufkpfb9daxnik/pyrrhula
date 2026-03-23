@@ -5,11 +5,11 @@ import { authOptions } from "@/lib/auth";
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string; questionId: string } }
+  { params }: { params: Promise<{ id: string; questionId: string }> }
 ) {
   try {
-    const targetUserId = params.id;
-    const questionId = params.questionId;
+    const targetUserId = (await params).id;
+    const questionId = (await params).questionId;
 
     // 質問を取得
     const question = await prisma.question.findUnique({
@@ -65,7 +65,7 @@ export async function GET(
 
 export async function PUT(
   req: Request,
-  { params }: { params: { id: string; questionId: string } }
+  { params }: { params: Promise<{ id: string; questionId: string }> }
 ) {
   try {
     // 認証チェック
@@ -75,8 +75,8 @@ export async function PUT(
     }
 
     const userId = session.user.id;
-    const targetUserId = params.id;
-    const questionId = params.questionId;
+    const targetUserId = (await params).id;
+    const questionId = (await params).questionId;
 
     // 管理者権限チェック
     const currentUser = await prisma.user.findUnique({

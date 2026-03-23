@@ -15,7 +15,7 @@ const timelineParamsSchema = z.object({
 
 export async function GET(
   req: Request,
-  { params }: { params: { listId: string } }
+  { params }: { params: Promise<{ listId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -26,7 +26,7 @@ export async function GET(
 
     // リストの存在確認と設定の取得
     const list = await prisma.lists.findUnique({
-      where: { id: params.listId },
+      where: { id: (await params).listId },
       select: {
         include_timeline_posts: true,
         list_members: {
@@ -51,7 +51,7 @@ export async function GET(
       where: {
         OR: [
           // リスト専用の投稿
-          { list_id: params.listId },
+          { list_id: (await params).listId },
           // メンバーの通常の投稿（リストの設定に応じて）
           ...(list.include_timeline_posts
             ? [

@@ -25,7 +25,7 @@ const addMemberSchema = z.object({
 // GET: メンバー一覧取得
 export async function GET(
   req: Request,
-  { params }: { params: { listId: string } }
+  { params }: { params: Promise<{ listId: string }> }
 ) {
   try {
     const { searchParams } = new URL(req.url);
@@ -35,7 +35,7 @@ export async function GET(
 
     const members = await prisma.list_members.findMany({
       where: {
-        list_id: params.listId,
+        list_id: (await params).listId,
         ...(validatedParams.status && { status: validatedParams.status }),
       },
       take: validatedParams.limit + 1,
@@ -92,7 +92,7 @@ export async function GET(
 // POST: メンバー追加
 export async function POST(
   req: Request,
-  { params }: { params: { listId: string } }
+  { params }: { params: Promise<{ listId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -105,7 +105,7 @@ export async function POST(
 
     // リストと管理者権限の確認
     const list = await prisma.lists.findUnique({
-      where: { id: params.listId },
+      where: { id: (await params).listId },
       include: {
         list_members: {
           where: {
@@ -134,7 +134,7 @@ export async function POST(
     // メンバーの追加
     const member = await prisma.list_members.create({
       data: {
-        list_id: params.listId,
+        list_id: (await params).listId,
         user_id: validatedData.userId,
         is_admin: validatedData.isAdmin ?? false,
         status: list.is_managed ? "pending" : "approved",
@@ -175,7 +175,7 @@ export async function POST(
 // DELETE: メンバー削除
 export async function DELETE(
   req: Request,
-  { params }: { params: { listId: string } }
+  { params }: { params: Promise<{ listId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -194,7 +194,7 @@ export async function DELETE(
 
     // リストと管理者権限の確認
     const list = await prisma.lists.findUnique({
-      where: { id: params.listId },
+      where: { id: (await params).listId },
       include: {
         list_members: {
           where: {
@@ -230,7 +230,7 @@ export async function DELETE(
     await prisma.list_members.delete({
       where: {
         list_id_user_id: {
-          list_id: params.listId,
+          list_id: (await params).listId,
           user_id: userId,
         },
       },

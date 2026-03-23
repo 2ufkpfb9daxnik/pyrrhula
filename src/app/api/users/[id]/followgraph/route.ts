@@ -86,10 +86,10 @@ async function getFollowGraph(
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const rootUser = await getFollowGraph(params.id);
+    const rootUser = await getFollowGraph((await params).id);
     if (!rootUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }

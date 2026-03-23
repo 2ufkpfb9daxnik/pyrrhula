@@ -7,7 +7,7 @@ import type { UserRepostsResponse } from "@/app/_types/post";
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -17,7 +17,7 @@ export async function GET(
 
     // ユーザーの存在確認
     const user = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
     });
 
     if (!user) {
@@ -27,7 +27,7 @@ export async function GET(
     // 拡散した投稿を取得
     const repostRelations = await prisma.repost.findMany({
       where: {
-        userId: params.id,
+        userId: (await params).id,
       },
       take: limit + 1,
       skip: cursor ? 1 : 0,
@@ -154,7 +154,7 @@ export async function GET(
 
     // 開発環境ではデバッグログを出力
     if (process.env.NODE_ENV === "development") {
-      console.log(`[Debug] User/${params.id}/repost API:`, {
+      console.log(`[Debug] User/${(await params).id}/repost API:`, {
         repostsCount: response.reposts.length,
         repostsWithQuestions: response.reposts.filter((p) => p.question).length,
       });

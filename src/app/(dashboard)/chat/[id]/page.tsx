@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import type { ChatMessage, ChatHistoryResponse } from "@/app/_types/chat";
 import { Link, LoaderCircle } from "lucide-react";
 
-export default function ChatPage({ params }: { params: { id: string } }) {
+export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [otherUser, setOtherUser] = useState<
     ChatHistoryResponse["otherUser"] | null
@@ -19,6 +19,8 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const { data: session } = useSession();
+  const params = useParams<{ id: string }>();
+  const routeUserId = params?.id ?? "";
   const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const optimisticMessageId = useRef<string | null>(null);
@@ -28,9 +30,9 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   };
 
   useEffect(() => {
-    if (!session) return;
+    if (!session || !routeUserId) return;
     fetchMessages();
-  }, [session, params.id]);
+  }, [session, routeUserId]);
 
   useEffect(() => {
     scrollToBottom();
@@ -38,7 +40,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
 
   const fetchMessages = async () => {
     try {
-      const response = await fetch(`/api/chat/${params.id}`);
+      const response = await fetch(`/api/chat/${routeUserId}`);
       if (!response.ok) {
         if (response.status === 404) {
           toast.error("ユーザーが見つかりません");
@@ -51,7 +53,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
         data.messages.map((msg) => ({
           ...msg,
           createdAt: new Date(msg.createdAt),
-        }))
+        })),
       );
       setOtherUser(data.otherUser);
     } catch (error) {
@@ -83,7 +85,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
     setNewMessage("");
 
     try {
-      const response = await fetch(`/api/chat/${params.id}`, {
+      const response = await fetch(`/api/chat/${routeUserId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: newMessage }),
@@ -105,8 +107,8 @@ export default function ChatPage({ params }: { params: { id: string } }) {
         prev.map((msg) =>
           msg.id === tempId
             ? { ...data, createdAt: new Date(data.createdAt) }
-            : msg
-        )
+            : msg,
+        ),
       );
     } catch (error) {
       console.error("Error sending message:", error);

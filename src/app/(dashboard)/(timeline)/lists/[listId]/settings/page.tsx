@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,24 +17,20 @@ interface ListSettings {
   isAdmin: boolean;
 }
 
-interface PageProps {
-  params: {
-    listId: string;
-  };
-}
-
-export default function ListSettingsPage({ params }: PageProps) {
-  const { listId } = params;
+export default function ListSettingsPage() {
+  const params = useParams<{ listId: string }>();
+  const listId = params?.listId ?? "";
   const router = useRouter();
   const { data: session } = useSession();
   const [settings, setSettings] = useState<ListSettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [originalSettings, setOriginalSettings] = useState<ListSettings | null>(
-    null
+    null,
   );
 
   useEffect(() => {
+    if (!listId) return;
     fetchListSettings();
   }, [listId, session]);
 
@@ -84,7 +80,7 @@ export default function ListSettingsPage({ params }: PageProps) {
       toast.error(
         error instanceof Error
           ? error.message
-          : "リストの設定を取得できませんでした"
+          : "リストの設定を取得できませんでした",
       );
       router.push(`/lists/${listId}`);
     } finally {
@@ -134,7 +130,7 @@ export default function ListSettingsPage({ params }: PageProps) {
       toast.error(
         error instanceof Error
           ? error.message
-          : "リストの設定を更新できませんでした"
+          : "リストの設定を更新できませんでした",
       );
     } finally {
       setIsSaving(false);
@@ -187,7 +183,7 @@ export default function ListSettingsPage({ params }: PageProps) {
             onChange={(e) =>
               setSettings(
                 (prev) =>
-                  prev && { ...prev, description: e.target.value || null }
+                  prev && { ...prev, description: e.target.value || null },
               )
             }
             maxLength={200}
@@ -208,7 +204,7 @@ export default function ListSettingsPage({ params }: PageProps) {
             checked={settings.includeTimelinePosts}
             onCheckedChange={(checked) =>
               setSettings(
-                (prev) => prev && { ...prev, includeTimelinePosts: checked }
+                (prev) => prev && { ...prev, includeTimelinePosts: checked },
               )
             }
           />

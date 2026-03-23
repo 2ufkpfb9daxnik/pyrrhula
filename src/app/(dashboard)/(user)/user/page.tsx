@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { PowerPagination } from "@/components/ui/power-pagination";
 import { formatDistanceToNow } from "@/lib/formatDistanceToNow";
 import { Star, Calendar, Trophy, LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
@@ -32,187 +33,21 @@ interface PaginationInfo {
   hasMore: boolean;
 }
 
-const PowerPagination: React.FC<{
-  currentPage: number;
-  totalPages: number;
-  onPageChange: (page: number) => void;
-}> = ({ currentPage, totalPages, onPageChange }) => {
-  const generatePages = () => {
-    const pages = new Set<number>();
-
-    // 常に1ページ目と最終ページを表示
-    pages.add(1);
-    if (totalPages > 1) {
-      pages.add(totalPages);
-    }
-
-    // 現在のページを追加
-    pages.add(currentPage);
-
-    // 前後のページを必ず表示（存在する場合）
-    if (currentPage > 1) {
-      pages.add(currentPage - 1);
-    }
-    if (currentPage < totalPages) {
-      pages.add(currentPage + 1);
-    }
-
-    // 少し離れたページも表示（前後2-3ページ）
-    if (currentPage > 3) {
-      pages.add(currentPage - 2);
-      pages.add(currentPage - 3);
-    }
-    if (currentPage < totalPages - 2) {
-      pages.add(currentPage + 2);
-      pages.add(currentPage + 3);
-    }
-
-    // 2のべき乗ページを追加
-    let power = 4; // 開始を4（2^2）から
-    while (currentPage - power >= 1) {
-      pages.add(currentPage - power);
-      power *= 2;
-    }
-
-    power = 4; // 開始を4（2^2）から
-    while (currentPage + power <= totalPages) {
-      pages.add(currentPage + power);
-      power *= 2;
-    }
-
-    return Array.from(pages).sort((a, b) => a - b);
-  };
-
-  const pages = generatePages();
-
-  // 省略記号の代わりに表示するための少数のページを選択
-  const selectVisiblePages = (allPages: number[]): number[] => {
-    // ページ数が20以下なら全て表示
-    if (allPages.length <= 20) {
-      return allPages;
-    }
-
-    // 20ページを超える場合は、必須ページとべき乗ページを選択
-    const result: number[] = [];
-
-    // 必須ページ：1, currentPage-1, currentPage, currentPage+1, totalPages
-    const mustIncludePages = new Set(
-      [1, currentPage - 1, currentPage, currentPage + 1, totalPages].filter(
-        (p) => p >= 1 && p <= totalPages
-      )
-    );
-
-    for (const page of allPages) {
-      // 必須ページは常に含める
-      if (mustIncludePages.has(page)) {
-        result.push(page);
-        continue;
-      }
-
-      // 2のべき乗の差があるページを選ぶ（例：128, 64, 32, 16, 8, 4, 2, 1）
-      const distanceToCurrent = Math.abs(page - currentPage);
-      const isPowerOfTwo = (num: number): boolean => {
-        if (num <= 0) return false;
-        return (num & (num - 1)) === 0;
-      };
-
-      if (isPowerOfTwo(distanceToCurrent) || isPowerOfTwo(page)) {
-        result.push(page);
-      }
-      // 現在のページの近くのページは優先して表示（追加のページ）
-      else if (distanceToCurrent <= 5) {
-        result.push(page);
-      }
-    }
-
-    return [...new Set(result)].sort((a, b) => a - b);
-  };
-
-  // 表示するページを選択
-  const visiblePages = selectVisiblePages(pages);
-
-  return (
-    <div className="flex flex-wrap justify-center gap-2 pt-4">
-      {/* 前へボタン */}
-      {currentPage > 1 && (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onPageChange(currentPage - 1)}
-          className="min-w-[40px]"
-        >
-          ←
-        </Button>
-      )}
-
-      {/* ページボタン */}
-      {visiblePages.map((page, index) => (
-        <>
-          {/* 省略記号を表示（大きな隙間がある場合） */}
-          {index > 0 && visiblePages[index] - visiblePages[index - 1] > 1 && (
-            <span
-              key={`ellipsis-${index}`}
-              className="flex items-center px-2 text-gray-500"
-            >
-              ...
-            </span>
-          )}
-          <Button
-            key={`page-${page}`}
-            variant={page === currentPage ? "default" : "outline"}
-            size="sm"
-            onClick={() => onPageChange(page)}
-            className={`min-w-[40px] ${
-              page === currentPage - 1 || page === currentPage + 1
-                ? "border-primary/30"
-                : ""
-            }`}
-          >
-            {page}
-          </Button>
-        </>
-      ))}
-
-      {/* 次へボタン */}
-      {currentPage < totalPages && (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onPageChange(currentPage + 1)}
-          className="min-w-[40px]"
-        >
-          →
-        </Button>
-      )}
-    </div>
-  );
-};
-
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [sortBy, setSortBy] = useState<"rate" | "createdAt">("rate");
   const [isLoading, setIsLoading] = useState(true);
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
   const [processingUsers, setProcessingUsers] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
   const router = useRouter();
   const { data: session } = useSession();
 
-  // コンポーネントがマウントされたとき、または他のページから戻ってきたときに再取得
-  useEffect(() => {
-    fetchUsers(pagination?.currentPage || 1);
-  }, [session]);
-
-  // ソート順が変更されたときは1ページ目から表示
-  useEffect(() => {
-    fetchUsers(1);
-  }, [sortBy]);
-
   // 指数バックオフでリトライする関数
   const fetchUsersWithRetry = async (
     page: number,
-    retryCount = 0
+    retryCount = 0,
   ): Promise<any> => {
     try {
       const controller = new AbortController();
@@ -238,7 +73,7 @@ export default function UsersPage() {
           // 指数バックオフ待機（0.5秒、1秒、2秒...）
           const waitTime = Math.pow(2, retryCount) * 500;
           console.log(
-            `API接続エラー、${waitTime}ms後にリトライします (${retryCount + 1}/4)`
+            `API接続エラー、${waitTime}ms後にリトライします (${retryCount + 1}/4)`,
           );
           await new Promise((resolve) => setTimeout(resolve, waitTime));
           return fetchUsersWithRetry(page, retryCount + 1);
@@ -247,7 +82,7 @@ export default function UsersPage() {
         throw new Error(
           response.status === 504
             ? "サーバーの応答がタイムアウトしました。後でもう一度お試しください。"
-            : "ユーザー情報の取得に失敗しました"
+            : "ユーザー情報の取得に失敗しました",
         );
       }
 
@@ -261,7 +96,7 @@ export default function UsersPage() {
         // タイムアウトの場合も指数バックオフでリトライ
         const waitTime = Math.pow(2, retryCount) * 500;
         console.log(
-          `タイムアウト、${waitTime}ms後にリトライします (${retryCount + 1}/4)`
+          `タイムアウト、${waitTime}ms後にリトライします (${retryCount + 1}/4)`,
         );
         await new Promise((resolve) => setTimeout(resolve, waitTime));
         return fetchUsersWithRetry(page, retryCount + 1);
@@ -271,81 +106,89 @@ export default function UsersPage() {
   };
 
   // APIルートの最適化
-  const fetchUsers = async (page: number) => {
-    try {
-      setIsLoading(true);
+  const fetchUsers = useCallback(
+    async (page: number) => {
+      try {
+        setIsLoading(true);
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-      const params = new URLSearchParams({
-        sort: sortBy,
-        page: page.toString(),
-        limit: "5",
-        includeFollowStatus: session ? "true" : "false",
-      });
+        const params = new URLSearchParams({
+          sort: sortBy,
+          page: page.toString(),
+          limit: "5",
+          includeFollowStatus: session ? "true" : "false",
+        });
 
-      const response = await fetch(`/api/users?${params}`, {
-        signal: controller.signal,
-        next: { revalidate: 60 },
-      });
+        const response = await fetch(`/api/users?${params}`, {
+          signal: controller.signal,
+          next: { revalidate: 60 },
+        });
 
-      clearTimeout(timeoutId);
+        clearTimeout(timeoutId);
 
-      if (!response.ok) {
-        throw new Error(
-          response.status === 504
-            ? "サーバーの応答がタイムアウトしました。後でもう一度お試しください。"
-            : "ユーザー情報の取得に失敗しました"
-        );
-      }
-
-      const data = await response.json();
-
-      // データの整形を確実に行う
-      const formattedUsers = data.users.map((user: any) => ({
-        id: user.id,
-        username: user.username,
-        icon: user.icon,
-        rate: user.rate,
-        postCount: user.postCount,
-        followersCount: user.followersCount,
-        followingCount: user.followingCount,
-        createdAt: user.createdAt,
-        isFollowing: user.isFollowing || false,
-        isFollower: user.isFollower || false,
-        ratingColor: user.ratingColor || "",
-      }));
-
-      setUsers(formattedUsers);
-
-      setPagination({
-        total: data.pagination?.total || 0,
-        pages:
-          data.pagination?.pages ||
-          Math.ceil((data.pagination?.total || 0) / 5),
-        currentPage: page,
-        hasMore: data.pagination?.hasMore || false,
-      });
-    } catch (error) {
-      console.error("Error fetching users:", error);
-
-      // AbortError の場合は特別なメッセージ
-      if (error instanceof Error) {
-        if (error.name === "AbortError") {
-          toast.error(
-            "リクエストがタイムアウトしました。ネットワーク接続を確認してください。"
+        if (!response.ok) {
+          throw new Error(
+            response.status === 504
+              ? "サーバーの応答がタイムアウトしました。後でもう一度お試しください。"
+              : "ユーザー情報の取得に失敗しました",
           );
-        } else {
-          toast.error(error.message);
         }
-      } else {
-        toast.error("一時的なエラーが発生しました");
+
+        const data = await response.json();
+
+        // データの整形を確実に行う
+        const formattedUsers = data.users.map((user: any) => ({
+          id: user.id,
+          username: user.username,
+          icon: user.icon,
+          rate: user.rate,
+          postCount: user.postCount,
+          followersCount: user.followersCount,
+          followingCount: user.followingCount,
+          createdAt: user.createdAt,
+          isFollowing: user.isFollowing || false,
+          isFollower: user.isFollower || false,
+          ratingColor: user.ratingColor || "",
+        }));
+
+        setUsers(formattedUsers);
+
+        setPagination({
+          total: data.pagination?.total || 0,
+          pages:
+            data.pagination?.pages ||
+            Math.ceil((data.pagination?.total || 0) / 5),
+          currentPage: page,
+          hasMore: data.pagination?.hasMore || false,
+        });
+      } catch (error) {
+        console.error("Error fetching users:", error);
+
+        // AbortError の場合は特別なメッセージ
+        if (error instanceof Error) {
+          if (error.name === "AbortError") {
+            toast.error(
+              "リクエストがタイムアウトしました。ネットワーク接続を確認してください。",
+            );
+          } else {
+            toast.error(error.message);
+          }
+        } else {
+          toast.error("一時的なエラーが発生しました");
+        }
+      } finally {
+        setIsLoading(false);
       }
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    },
+    [session, sortBy],
+  );
+
+  // セッション状態やソート条件が変化したタイミングで1ページ目を再取得
+  useEffect(() => {
+    fetchUsers(1);
+  }, [fetchUsers]);
 
   const handleFollow = async (userId: string, isFollowing: boolean) => {
     if (!session) {
@@ -372,7 +215,7 @@ export default function UsersPage() {
       const contentType = response.headers.get("content-type");
       if (contentType && contentType.includes("text/html")) {
         throw new Error(
-          "APIエンドポイントが見つかりません。URLを確認してください。"
+          "APIエンドポイントが見つかりません。URLを確認してください。",
         );
       }
 
@@ -382,8 +225,8 @@ export default function UsersPage() {
         if (!isFollowing) {
           setUsers((prev) =>
             prev.map((user) =>
-              user.id === userId ? { ...user, isFollowing: true } : user
-            )
+              user.id === userId ? { ...user, isFollowing: true } : user,
+            ),
           );
           toast.success("既にフォロー済みです");
           return;
@@ -400,8 +243,8 @@ export default function UsersPage() {
         prev.map((user) =>
           user.id === userId
             ? { ...user, isFollowing: !user.isFollowing }
-            : user
-        )
+            : user,
+        ),
       );
 
       toast.success(isFollowing ? "フォロー解除しました" : "フォローしました");

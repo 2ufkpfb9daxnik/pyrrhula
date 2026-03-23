@@ -9,9 +9,10 @@ import type { UserDetailResponse } from "@/app/_types/users";
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id: targetUserId } = await params;
     const session = await getServerSession(authOptions);
     const { searchParams } = new URL(req.url);
     const type = searchParams.get("type") || "profile";
@@ -21,7 +22,7 @@ export async function GET(
     // プロフィール情報の取得
     if (type === "profile") {
       const user = await prisma.user.findUnique({
-        where: { id: params.id },
+        where: { id: targetUserId },
         select: {
           id: true,
           username: true,
@@ -37,12 +38,12 @@ export async function GET(
 
       // フォロー状態の確認
       let isFollowing = false;
-      if (session?.user && session.user.id !== params.id) {
+      if (session?.user && session.user.id !== targetUserId) {
         const follow = await prisma.follow.findUnique({
           where: {
             followerId_followedId: {
               followerId: session.user.id,
-              followedId: params.id,
+              followedId: targetUserId,
             },
           },
         });
@@ -58,7 +59,7 @@ export async function GET(
     // フォロワー/フォロイーの取得を追加
     if (type === "followers" || type === "following") {
       const users = await prisma.user.findUnique({
-        where: { id: params.id },
+        where: { id: targetUserId },
         select: {
           [type === "followers" ? "followers" : "follows"]: {
             take: limit + 1,
@@ -129,7 +130,7 @@ export async function GET(
     if (type === "posts") {
       const posts = await prisma.post.findMany({
         where: {
-          userId: params.id,
+          userId: targetUserId,
           parentId: null,
         },
         take: limit + 1,
@@ -235,7 +236,7 @@ export async function GET(
 
       // 開発環境では質問情報の有無をログ出力
       if (process.env.NODE_ENV === "development") {
-        console.log(`[Debug] Users/${params.id}/posts API:`, {
+        console.log(`[Debug] Users/${targetUserId}/posts API:`, {
           postsCount: formattedPosts.length,
           postsWithQuestions: formattedPosts.filter((p) => p.question).length,
         });
@@ -253,25 +254,26 @@ export async function GET(
     console.error("[User API Error]:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function PUT(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id: targetUserId } = await params;
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
     }
 
-    if (session.user.id !== params.id) {
+    if (session.user.id !== targetUserId) {
       return NextResponse.json(
         { error: "他のユーザーのプロフィールは編集できません" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -282,7 +284,7 @@ export async function PUT(
     if (!username || username.trim() === "") {
       return NextResponse.json(
         { error: "ユーザー名は必須です" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -306,7 +308,7 @@ export async function PUT(
     }
 
     const updatedUser = await prisma.user.update({
-      where: { id: params.id },
+      where: { id: targetUserId },
       data: updateData,
       select: {
         id: true,
@@ -321,7 +323,7 @@ export async function PUT(
     console.error("[User Update Error]:", error);
     return NextResponse.json(
       { error: "サーバーエラーが発生しました" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

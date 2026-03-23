@@ -4,9 +4,10 @@ import { authOptions } from "@/lib/auth";
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id: targetPostId } = await params;
     // 管理者権限チェック
     const session = await getServerSession(authOptions);
     if (!session?.user?.isAdmin) {
@@ -15,7 +16,7 @@ export async function DELETE(
 
     // 投稿を取得（削除前に投稿者情報が必要）
     const post = await prisma.post.findUnique({
-      where: { id: params.id },
+      where: { id: targetPostId },
       include: { user: true },
     });
 
@@ -27,19 +28,19 @@ export async function DELETE(
     await prisma.$transaction([
       // お気に入りを削除
       prisma.favorite.deleteMany({
-        where: { postId: params.id },
+        where: { postId: targetPostId },
       }),
       // 拡散を削除
       prisma.repost.deleteMany({
-        where: { postId: params.id },
+        where: { postId: targetPostId },
       }),
       // 関連する通知を削除
       prisma.notification.deleteMany({
-        where: { relatedPostId: params.id },
+        where: { relatedPostId: targetPostId },
       }),
       // 投稿を削除
       prisma.post.delete({
-        where: { id: params.id },
+        where: { id: targetPostId },
       }),
       // ユーザーの投稿数を更新
       prisma.user.update({
@@ -48,7 +49,7 @@ export async function DELETE(
       }),
       // 返信の投稿を処理
       prisma.post.updateMany({
-        where: { parentId: params.id },
+        where: { parentId: targetPostId },
         data: { parentId: null },
       }),
     ]);
