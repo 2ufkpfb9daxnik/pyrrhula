@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -79,29 +79,32 @@ const PowerPagination: React.FC<{
   );
 };
 
-export default function FollowingPage({ params }: { params: { id: string } }) {
+export default function FollowingPage() {
   const [following, setFollowing] = useState<Following[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [totalFollowing, setTotalFollowing] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [processingFollowIds, setProcessingFollowIds] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
 
   // 1ページあたりのフォロー中ユーザー数
   const PAGE_SIZE = 5;
 
+  const params = useParams<{ id: string }>();
+  const routeUserId = params?.id ?? "";
   const router = useRouter();
   const { data: session } = useSession();
 
   useEffect(() => {
+    if (!routeUserId) return;
     fetchFollowing(currentPage);
-  }, [params.id, currentPage]);
+  }, [routeUserId, currentPage]);
 
   const fetchFollowing = async (page: number) => {
     setIsLoading(true);
     try {
-      const url = `/api/users/${params.id}/following?page=${page}&limit=${PAGE_SIZE}`;
+      const url = `/api/users/${routeUserId}/following?page=${page}&limit=${PAGE_SIZE}`;
       const response = await fetch(url);
 
       if (!response.ok) {
@@ -118,7 +121,7 @@ export default function FollowingPage({ params }: { params: { id: string } }) {
         // APIがtotalCountを返さない場合の推定値
         const estimatedTotal = Math.max(
           data.followers.length + (page - 1) * PAGE_SIZE,
-          totalFollowing
+          totalFollowing,
         );
         setTotalFollowing(estimatedTotal);
       }
@@ -144,7 +147,7 @@ export default function FollowingPage({ params }: { params: { id: string } }) {
 
   const handleFollowToggle = async (
     userId: string,
-    isCurrentlyFollowing: boolean
+    isCurrentlyFollowing: boolean,
   ) => {
     if (!session) {
       toast.error("ログインが必要です");
@@ -174,13 +177,13 @@ export default function FollowingPage({ params }: { params: { id: string } }) {
         prev.map((user) =>
           user.id === userId
             ? { ...user, isFollowing: !isCurrentlyFollowing }
-            : user
-        )
+            : user,
+        ),
       );
 
       // 自分のプロフィールページを見ている場合でフォロー解除したら、
       // 現在のページを再読み込みして最新情報を取得
-      if (params.id === session.user.id && isCurrentlyFollowing) {
+      if (routeUserId === session.user.id && isCurrentlyFollowing) {
         fetchFollowing(currentPage);
       }
 
@@ -188,10 +191,10 @@ export default function FollowingPage({ params }: { params: { id: string } }) {
     } catch (error) {
       console.error(
         `Error ${isCurrentlyFollowing ? "unfollowing" : "following"} user:`,
-        error
+        error,
       );
       toast.error(
-        `${isCurrentlyFollowing ? "フォロー解除" : "フォロー"}操作に失敗しました`
+        `${isCurrentlyFollowing ? "フォロー解除" : "フォロー"}操作に失敗しました`,
       );
     } finally {
       // 処理中フラグを解除

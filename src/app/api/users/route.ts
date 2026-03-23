@@ -3,15 +3,10 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import type { UserListResponse } from "@/app/_types/users";
-import { calculateRating, getColorFromScore } from "@/lib/rating";
+import { getColorFromScore } from "@/lib/rating";
 import { Prisma } from "@prisma/client";
 
-// エッジランタイムとキャッシュを維持
-export const revalidate = 60; // 1分間キャッシュ
-
-// レート計算のキャッシュを追加
-const CACHE_TTL = 60 * 60 * 1000; // 1時間
-const rateCache = new Map<string, { rate: number; timestamp: number }>();
+export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   try {
@@ -22,7 +17,7 @@ export async function GET(req: Request) {
     const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
     const limit = Math.min(
       50,
-      Math.max(1, parseInt(searchParams.get("limit") || "10"))
+      Math.max(1, parseInt(searchParams.get("limit") || "10")),
     );
     const skip = (page - 1) * limit;
     const search = searchParams.get("search") || ""; // 検索機能を追加
@@ -167,7 +162,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json(
       { error: "Internal server error", message: errorDetails },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

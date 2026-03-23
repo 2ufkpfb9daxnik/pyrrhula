@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -79,30 +79,33 @@ const PowerPagination: React.FC<{
   );
 };
 
-export default function FollowersPage({ params }: { params: { id: string } }) {
+export default function FollowersPage() {
   const [followers, setFollowers] = useState<Follower[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [totalFollowers, setTotalFollowers] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [processingFollowIds, setProcessingFollowIds] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
 
   // 1ページあたりのフォロワー数
   const PAGE_SIZE = 5;
 
+  const params = useParams<{ id: string }>();
+  const routeUserId = params?.id ?? "";
   const router = useRouter();
   const { data: session } = useSession();
 
   useEffect(() => {
+    if (!routeUserId) return;
     fetchFollowers(currentPage);
-  }, [params.id, currentPage]);
+  }, [routeUserId, currentPage]);
 
   const fetchFollowers = async (page: number) => {
     setIsLoading(true);
     try {
       const response = await fetch(
-        `/api/users/${params.id}/followers?page=${page}&limit=${PAGE_SIZE}`
+        `/api/users/${routeUserId}/followers?page=${page}&limit=${PAGE_SIZE}`,
       );
 
       if (!response.ok) {
@@ -120,12 +123,12 @@ export default function FollowersPage({ params }: { params: { id: string } }) {
         // 最後のページの場合は正確にならないが、少なくとも最低限のページネーションは表示される
         const estimatedTotal = Math.max(
           data.followers.length + (page - 1) * PAGE_SIZE,
-          totalFollowers
+          totalFollowers,
         );
         setTotalFollowers(estimatedTotal);
         console.warn(
           "API did not return totalCount, using estimated value:",
-          estimatedTotal
+          estimatedTotal,
         );
       }
 
@@ -169,7 +172,7 @@ export default function FollowersPage({ params }: { params: { id: string } }) {
 
   const handleFollowToggle = async (
     userId: string,
-    isCurrentlyFollowing: boolean
+    isCurrentlyFollowing: boolean,
   ) => {
     if (!session) {
       toast.error("ログインが必要です");
@@ -198,7 +201,7 @@ export default function FollowersPage({ params }: { params: { id: string } }) {
       const contentType = response.headers.get("content-type");
       if (contentType && contentType.includes("text/html")) {
         throw new Error(
-          "APIエンドポイントが見つかりません。URLを確認してください。"
+          "APIエンドポイントが見つかりません。URLを確認してください。",
         );
       }
 
@@ -212,8 +215,8 @@ export default function FollowersPage({ params }: { params: { id: string } }) {
         prev.map((follower) =>
           follower.id === userId
             ? { ...follower, isFollowing: !isCurrentlyFollowing }
-            : follower
-        )
+            : follower,
+        ),
       );
 
       toast.success(`${actionText}しました`);
@@ -293,7 +296,7 @@ export default function FollowersPage({ params }: { params: { id: string } }) {
                       onClick={() =>
                         handleFollowToggle(
                           follower.id,
-                          follower.isFollowing || false
+                          follower.isFollowing || false,
                         )
                       }
                       size="sm"

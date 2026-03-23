@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth/next";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getColorFromScore } from "@/lib/rating"; // calculateRatingからgetColorFromScoreに変更
+import { calculateRating, getColorFromScore } from "@/lib/rating";
 import { authOptions } from "@/lib/auth";
 import type { UserRating } from "@/app/_types/rating";
 // Prisma クライアントから Prisma 名前空間をインポート
@@ -20,7 +20,7 @@ export async function POST(req: Request) {
     if (!Array.isArray(userIds) || userIds.length === 0) {
       return NextResponse.json(
         { error: "Invalid request: userIds must be a non-empty array" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     const limitedUserIds = userIds.slice(0, MAX_BATCH_SIZE);
 
     console.log(
-      `[Batch Rating] リクエスト: ${limitedUserIds.length}件のレーティングを取得`
+      `[Batch Rating] リクエスト: ${limitedUserIds.length}件のレーティングを取得`,
     );
 
     // ユーザー情報とレーティングを取得
@@ -120,7 +120,7 @@ export async function POST(req: Request) {
     for (const user of users) {
       // 最近の投稿数
       const recentPostsItem = recentPostsData.find(
-        (item) => item.userId === user.id
+        (item) => item.userId === user.id,
       );
       const recentPosts = recentPostsItem ? recentPostsItem._count.id : 0;
 
@@ -133,13 +133,13 @@ export async function POST(req: Request) {
 
       // 最近の拡散数
       const recentRepostsItem = recentRepostsData.find(
-        (item) => item.userId === user.id
+        (item) => item.userId === user.id,
       );
       const recentReposts = recentRepostsItem ? recentRepostsItem._count.id : 0;
 
       // お気に入り数
       const favoritesReceivedItem = (favoritesReceivedData as any[]).find(
-        (item) => item.userId === user.id
+        (item) => item.userId === user.id,
       );
       const favoritesReceived = favoritesReceivedItem
         ? Number(favoritesReceivedItem.count)
@@ -155,7 +155,7 @@ export async function POST(req: Request) {
 
       // フォロワー数
       const followersItem = followersData.find(
-        (item) => item.followedId === user.id
+        (item) => item.followedId === user.id,
       );
       const followersCount = followersItem
         ? followersItem._count.followerId
@@ -164,20 +164,20 @@ export async function POST(req: Request) {
       // アカウント年齢（日数）の計算
       const accountAgeDays = Math.floor(
         (Date.now() - new Date(user.createdAt).getTime()) /
-          (1000 * 60 * 60 * 24)
+          (1000 * 60 * 60 * 24),
       );
 
       // レーティング計算式に基づいてスコアを計算
-      const score = Math.floor(
-        recentPosts * 10 + // 直近30日の投稿数 × 10
-          Math.sqrt(totalPosts) * 15 + // 過去の投稿の平方根 × 15
-          recentReposts * 5 + // 直近30日の拡散数 × 5
-          Math.sqrt(totalReposts) * 7 + // 総拡散数の平方根 × 7
-          Math.sqrt(recentFavoritesReceived) * 8 + // 直近30日のお気に入り数の平方根 × 8
-          Math.sqrt(favoritesReceived) * 5 + // 総お気に入り数の平方根 × 5
-          Math.sqrt(followersCount) * 10 + // フォロワー数の平方根 × 10
-          Math.log(accountAgeDays + 1) * 5 // アカウント作成からの日数（対数） × 5
-      );
+      const score = calculateRating({
+        recentPosts,
+        totalPosts,
+        recentReposts,
+        totalReposts,
+        recentFavoritesReceived,
+        favoritesReceived,
+        followersCount,
+        accountAgeDays,
+      });
 
       // レーティングカラーの計算
       const color = getColorFromScore(score); // 計算したスコアに基づいて色を取得
@@ -192,14 +192,14 @@ export async function POST(req: Request) {
     }
 
     console.log(
-      `[Batch Rating] 完了: ${Object.keys(result).length}件のレーティングを返却`
+      `[Batch Rating] 完了: ${Object.keys(result).length}件のレーティングを返却`,
     );
     return NextResponse.json(result);
   } catch (error) {
     console.error("[Batch Rating Error]:", error);
     return NextResponse.json(
       { error: "Failed to fetch batch ratings" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

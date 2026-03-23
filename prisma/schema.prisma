@@ -1,6 +1,6 @@
 generator client {
   provider        = "prisma-client-js"
-  previewFeatures = ["multiSchema", "referentialIntegrity"]
+  previewFeatures = ["multiSchema"]
 }
 
 datasource db {
@@ -45,6 +45,7 @@ model User {
   list_members                         list_members[]
   lists                                lists[]
   repliedPosts                         Post[]                   @relation("UserReplies")
+  ratingHistories                      RatingHistory[]
 
   @@schema("public")
 }

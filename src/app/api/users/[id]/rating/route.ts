@@ -1,13 +1,13 @@
 import { getServerSession } from "next-auth/next";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getColorFromScore } from "@/lib/rating";
+import { calculateRating, getColorFromScore } from "@/lib/rating";
 import { authOptions } from "@/lib/auth";
 import type { UserRating } from "@/app/_types/rating";
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: { id: string } },
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -156,21 +156,21 @@ export async function GET(
     const accountAgeDays = Math.max(
       1,
       Math.floor(
-        (Date.now() - user.createdAt.getTime()) / (1000 * 60 * 60 * 24)
-      )
+        (Date.now() - user.createdAt.getTime()) / (1000 * 60 * 60 * 24),
+      ),
     );
 
     // エンハンストスコアの計算（レート関連機能強化用）
-    const score = Math.floor(
-      recentPosts * 10 + // 最近の投稿に高いウェイト
-        recentReposts * 5 + // 最近の拡散
-        Math.sqrt(totalPosts) * 15 + // 総投稿数（平方根でスケーリング）
-        Math.sqrt(totalReposts) * 7 + // 総拡散数
-        Math.sqrt(recentFavoritesReceived) * 8 + // 最近受けたお気に入り
-        Math.sqrt(favoritesReceived) * 5 + // 総受け取りお気に入り
-        Math.sqrt(followersCount) * 10 + // フォロワー数
-        Math.log(accountAgeDays + 1) * 5 // アカウント年齢ボーナス（対数スケール）
-    );
+    const score = calculateRating({
+      recentPosts,
+      totalPosts,
+      recentReposts,
+      totalReposts,
+      recentFavoritesReceived,
+      favoritesReceived,
+      followersCount,
+      accountAgeDays,
+    });
 
     // スコアから色を決定
     const color = getColorFromScore(score);
@@ -226,7 +226,7 @@ export async function GET(
     console.error("[Rating Error]:", error);
     return NextResponse.json(
       { error: "Failed to fetch rating" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
