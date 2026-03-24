@@ -6,7 +6,7 @@ import { MakePost } from "@/app/_components/makepost";
 import { Search } from "@/app/_components/search";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { LoaderCircle, Plus, RefreshCw } from "lucide-react";
+import { LoaderCircle, Plus } from "lucide-react";
 import type { Post as PostType } from "@/app/_types/post";
 import { toast } from "sonner";
 
@@ -194,7 +194,8 @@ export default function WholePage() {
       params.append("includeReposts", "true");
 
       // APIエンドポイントを /api/posts から /api/whole に変更
-      const response = await fetch(`/api/whole?${params}`,
+      const response = await fetch(
+        `/api/whole?${params}`,
         forceFresh ? { cache: "no-store" } : { next: { revalidate: 0 } },
       );
       if (!response.ok) {
@@ -228,7 +229,7 @@ export default function WholePage() {
     try {
       const response = await fetch(
         `/api/posts/search?q=${encodeURIComponent(query)}&includeReposts=true`,
-        { next: { revalidate: 60 } }
+        { next: { revalidate: 60 } },
       );
       if (!response.ok) {
         throw new Error("検索に失敗しました");
@@ -256,7 +257,7 @@ export default function WholePage() {
   const handleFavoriteSuccess = (
     postId: string,
     newCount: number,
-    isFavorited: boolean
+    isFavorited: boolean,
   ) => {
     setPosts((prev) =>
       prev.map((post) =>
@@ -267,15 +268,15 @@ export default function WholePage() {
               isFavorited,
               favoritedAt: isFavorited ? new Date() : undefined,
             }
-          : post
-      )
+          : post,
+      ),
     );
   };
 
   const handleRepostSuccess = (
     postId: string,
     newCount: number,
-    isReposted: boolean
+    isReposted: boolean,
   ) => {
     setPosts((prev) =>
       prev.map((post) =>
@@ -286,8 +287,8 @@ export default function WholePage() {
               isReposted,
               repostedAt: isReposted ? new Date() : undefined,
             }
-          : post
-      )
+          : post,
+      ),
     );
   };
 
@@ -324,18 +325,6 @@ export default function WholePage() {
 
         <div className="mx-auto max-w-2xl p-4">
           <div className="space-y-4">
-            <div className="flex justify-end">
-              <Button
-                variant="outline"
-                onClick={() => fetchPosts(undefined, true)}
-                disabled={isLoading}
-                className="gap-2"
-              >
-                <RefreshCw className="size-4" />
-                最新を読み込む
-              </Button>
-            </div>
-
             {/* デバッグ情報 (開発中のみ表示) */}
             {process.env.NODE_ENV === "development" && (
               <div className="mb-4 rounded border border-yellow-500 bg-yellow-500/10 p-2 text-xs">
@@ -365,7 +354,7 @@ export default function WholePage() {
 
                     // 通常の投稿は、同じIDの投稿が他の誰かによって拡散されている場合は表示しない
                     const isRepostedByOthers = posts.some(
-                      (p) => p.repostedBy && p.id === post.id
+                      (p) => p.repostedBy && p.id === post.id,
                     );
                     return !isRepostedByOthers;
                   })
