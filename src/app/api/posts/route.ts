@@ -20,6 +20,10 @@ export async function GET(req: Request) {
     const since = searchParams.get("since");
     const includeReposts = searchParams.get("includeReposts") === "true";
     const countOnly = searchParams.get("countOnly") === "true";
+    const timelineCursorDate =
+      includeReposts && cursor && !Number.isNaN(new Date(cursor).getTime())
+        ? new Date(cursor)
+        : undefined;
 
     const followings = await prisma.follow.findMany({
       where: {
@@ -168,10 +172,15 @@ export async function GET(req: Request) {
             gt: new Date(since),
           },
         }),
+        ...(timelineCursorDate && {
+          createdAt: {
+            lt: timelineCursorDate,
+          },
+        }),
       },
-      take: includeReposts ? Math.floor(limit / 2) + 1 : limit + 1,
-      skip: cursor ? 1 : 0,
-      cursor: cursor ? { id: cursor } : undefined,
+      take: includeReposts ? limit + 1 : limit + 1,
+      skip: includeReposts ? 0 : cursor ? 1 : 0,
+      cursor: includeReposts ? undefined : cursor ? { id: cursor } : undefined,
       orderBy: {
         createdAt: "desc",
       },
@@ -264,8 +273,6 @@ export async function GET(req: Request) {
 
     // 拡散された投稿を取得
     if (includeReposts) {
-      const repostCursor = searchParams.get("repostCursor");
-
       const reposts = await prisma.repost.findMany({
         where: {
           userId: { in: followingIds },
@@ -274,10 +281,13 @@ export async function GET(req: Request) {
               gt: new Date(since),
             },
           }),
+          ...(timelineCursorDate && {
+            createdAt: {
+              lt: timelineCursorDate,
+            },
+          }),
         },
-        take: Math.floor(limit / 2) + 1,
-        skip: repostCursor ? 1 : 0,
-        cursor: repostCursor ? { id: repostCursor } : undefined,
+        take: limit + 1,
         orderBy: {
           createdAt: "desc",
         },
@@ -428,7 +438,11 @@ export async function GET(req: Request) {
 
     // 次ページの有無を確認
     const hasMore = allPosts.length > limit;
-    const nextCursor = hasMore ? allPosts[limit - 1].id : undefined;
+    const nextCursor = hasMore
+      ? new Date(
+          allPosts[limit - 1].repostedAt || allPosts[limit - 1].createdAt,
+        ).toISOString()
+      : undefined;
     const postList = hasMore ? allPosts.slice(0, limit) : allPosts;
 
     // レスポンスデータの整形
@@ -460,7 +474,7 @@ export async function GET(req: Request) {
     console.error("[Timeline Error]:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -478,7 +492,7 @@ export async function POST(req: Request) {
     if (!body.content.trim()) {
       return NextResponse.json(
         { error: "Content cannot be empty" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -569,7 +583,7 @@ export async function POST(req: Request) {
       const accountAgeDays = user?.createdAt
         ? Math.floor(
             (Date.now() - new Date(user.createdAt).getTime()) /
-              (1000 * 60 * 60 * 24)
+              (1000 * 60 * 60 * 24),
           )
         : 0;
 
@@ -581,20 +595,20 @@ export async function POST(req: Request) {
           Math.sqrt(recentFavoritesReceived) * 8 +
           Math.sqrt(favoritesReceived) * 5 +
           Math.sqrt(followersCount) * 10 +
-          Math.log(accountAgeDays + 1) * 5
+          Math.log(accountAgeDays + 1) * 5,
       );
 
       console.log(
-        `[Rating] ユーザー: ${session.user.id}, 投稿数: 最近=${recentPosts}、総数=${postCount}`
+        `[Rating] ユーザー: ${session.user.id}, 投稿数: 最近=${recentPosts}、総数=${postCount}`,
       );
       console.log(
-        `[Rating] 拡散数: 最近=${recentReposts}、総数=${totalReposts}`
+        `[Rating] 拡散数: 最近=${recentReposts}、総数=${totalReposts}`,
       );
       console.log(
-        `[Rating] お気に入り: 最近=${recentFavoritesReceived}、総数=${favoritesReceived}`
+        `[Rating] お気に入り: 最近=${recentFavoritesReceived}、総数=${favoritesReceived}`,
       );
       console.log(
-        `[Rating] フォロワー数: ${followersCount}、アカウント年齢(日): ${accountAgeDays}`
+        `[Rating] フォロワー数: ${followersCount}、アカウント年齢(日): ${accountAgeDays}`,
       );
       console.log(`[Rating] 計算されたレート: ${calculatedRate}`);
 
@@ -607,7 +621,7 @@ export async function POST(req: Request) {
           session.user.id,
           delta,
           calculatedRate,
-          RATING_REASONS.POST_CREATED
+          RATING_REASONS.POST_CREATED,
         );
       }
 
@@ -628,7 +642,7 @@ export async function POST(req: Request) {
     console.error("[Create Post Error]:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

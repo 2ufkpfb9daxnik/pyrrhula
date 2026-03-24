@@ -16,6 +16,10 @@ export async function GET(req: Request) {
     const cursor = searchParams.get("cursor");
     const since = searchParams.get("since");
     const includeReposts = searchParams.get("includeReposts") === "true";
+    const timelineCursorDate =
+      includeReposts && cursor && !Number.isNaN(new Date(cursor).getTime())
+        ? new Date(cursor)
+        : undefined;
 
     // 型を明示的に定義して互換性を確保
     type FormattedPost = {
@@ -122,10 +126,15 @@ export async function GET(req: Request) {
             gt: new Date(since),
           },
         }),
+        ...(timelineCursorDate && {
+          createdAt: {
+            lt: timelineCursorDate,
+          },
+        }),
       },
-      take: includeReposts ? Math.floor(limit / 2) + 1 : limit + 1,
-      skip: cursor ? 1 : 0,
-      cursor: cursor ? { id: cursor } : undefined,
+      take: includeReposts ? limit + 1 : limit + 1,
+      skip: includeReposts ? 0 : cursor ? 1 : 0,
+      cursor: includeReposts ? undefined : cursor ? { id: cursor } : undefined,
       orderBy: {
         createdAt: "desc",
       },
@@ -232,7 +241,6 @@ export async function GET(req: Request) {
     // 2. 拡散された投稿を取得（includeRepostsが指定されている場合のみ）
     if (includeReposts) {
       console.log("全体タイムライン: 拡散投稿を取得します...");
-      const repostCursor = searchParams.get("repostCursor");
 
       const reposts = await prisma.repost.findMany({
         where: {
@@ -241,10 +249,13 @@ export async function GET(req: Request) {
               gt: new Date(since),
             },
           }),
+          ...(timelineCursorDate && {
+            createdAt: {
+              lt: timelineCursorDate,
+            },
+          }),
         },
-        take: Math.floor(limit / 2) + 1,
-        skip: repostCursor ? 1 : 0,
-        cursor: repostCursor ? { id: repostCursor } : undefined,
+        take: limit + 1,
         orderBy: {
           createdAt: "desc",
         },
@@ -395,7 +406,11 @@ export async function GET(req: Request) {
 
     // 次ページの有無を確認
     const hasMore = allPosts.length > limit;
-    const nextCursor = hasMore ? allPosts[limit - 1].id : undefined;
+    const nextCursor = hasMore
+      ? new Date(
+          allPosts[limit - 1].repostedAt || allPosts[limit - 1].createdAt,
+        ).toISOString()
+      : undefined;
     const postList = hasMore ? allPosts.slice(0, limit) : allPosts;
 
     // レスポンスデータの整形
@@ -429,7 +444,7 @@ export async function GET(req: Request) {
     console.error("[Whole Timeline Error]:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -448,7 +463,7 @@ export async function POST(req: Request) {
     if (!body.content.trim()) {
       return NextResponse.json(
         { error: "Content cannot be empty" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -555,7 +570,7 @@ export async function POST(req: Request) {
       const accountAgeDays = user?.createdAt
         ? Math.floor(
             (Date.now() - new Date(user.createdAt).getTime()) /
-              (1000 * 60 * 60 * 24)
+              (1000 * 60 * 60 * 24),
           )
         : 0;
 
@@ -568,7 +583,7 @@ export async function POST(req: Request) {
           Math.sqrt(recentFavoritesReceived) * 8 + // 直近30日のお気に入り数の平方根 × 8
           Math.sqrt(favoritesReceived) * 5 + // 総お気に入り数の平方根 × 5
           Math.sqrt(followersCount) * 10 + // フォロワー数の平方根 × 10
-          Math.log(accountAgeDays + 1) * 5 // アカウント作成からの日数（対数） × 5
+          Math.log(accountAgeDays + 1) * 5, // アカウント作成からの日数（対数） × 5
       );
 
       // 4. ユーザー情報を更新
@@ -588,7 +603,7 @@ export async function POST(req: Request) {
     console.error("[Create Post Error]:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
