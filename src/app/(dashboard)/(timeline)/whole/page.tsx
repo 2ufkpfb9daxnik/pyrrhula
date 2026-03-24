@@ -6,8 +6,7 @@ import { MakePost } from "@/app/_components/makepost";
 import { Search } from "@/app/_components/search";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { LoaderCircle, Plus, RefreshCw, Bell } from "lucide-react";
+import { LoaderCircle, Plus, RefreshCw } from "lucide-react";
 import type { Post as PostType } from "@/app/_types/post";
 import { toast } from "sonner";
 
@@ -16,13 +15,8 @@ export default function WholePage() {
   const [hasMore, setHasMore] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | undefined>();
   const [isLoading, setIsLoading] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const postInputRef = useRef<HTMLTextAreaElement>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date());
-  const [newPostsCount, setNewPostsCount] = useState(0);
-  const [autoRefresh, setAutoRefresh] = useState(true);
-  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // プルダウンリフレッシュ用の状態
   const [isPulling, setIsPulling] = useState(false);
@@ -84,7 +78,7 @@ export default function WholePage() {
 
       if (pullDistance > 50) {
         // 十分な距離を引っ張られたら更新する
-        handleShowNewPosts();
+        void fetchPosts(undefined, true);
       }
 
       // リセット
@@ -101,127 +95,12 @@ export default function WholePage() {
       content.removeEventListener("touchmove", handleTouchMove);
       content.removeEventListener("touchend", handleTouchEnd);
     };
-  }, [isPulling, isMobile]);
+  }, [isPulling, isMobile, pullDistance]);
 
   // 初回読み込み
   useEffect(() => {
     fetchPosts();
   }, []);
-
-  // 自動更新の設定
-  useEffect(() => {
-    // ユーザーがページを見ているかどうかの確認
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible" && autoRefresh) {
-        // ページが表示されたら直ちに更新
-        checkForNewPosts(true);
-        // インターバルを再開
-        startAutoRefresh();
-      } else {
-        // ページが非表示になったらインターバルを停止
-        if (refreshIntervalRef.current) {
-          clearInterval(refreshIntervalRef.current);
-          refreshIntervalRef.current = null;
-        }
-      }
-    };
-
-    const startAutoRefresh = () => {
-      if (refreshIntervalRef.current) {
-        clearInterval(refreshIntervalRef.current);
-      }
-
-      // 30秒ごとに新しい投稿をチェック
-      refreshIntervalRef.current = setInterval(() => {
-        checkForNewPosts(false);
-      }, 30000);
-    };
-
-    // 自動更新が有効で、ページが表示されている場合のみインターバルを開始
-    if (autoRefresh && document.visibilityState === "visible") {
-      startAutoRefresh();
-    }
-
-    // イベントリスナーの登録
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    // クリーンアップ関数
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      if (refreshIntervalRef.current) {
-        clearInterval(refreshIntervalRef.current);
-        refreshIntervalRef.current = null;
-      }
-    };
-  }, [autoRefresh, lastUpdateTime]);
-
-  // 新しい投稿があるかチェック
-  const checkForNewPosts = async (fetchImmediately = false) => {
-    try {
-      // APIエンドポイントを /api/posts から /api/whole に変更
-      const response = await fetch(
-        `/api/whole?since=${lastUpdateTime.toISOString()}&includeReposts=true&countOnly=${!fetchImmediately}`,
-        { next: { revalidate: 0 } }
-      );
-
-      if (!response.ok) {
-        throw new Error("新規投稿の確認に失敗しました");
-      }
-
-      const data = await response.json();
-
-      if (fetchImmediately && data.posts && data.posts.length > 0) {
-        // 即時読み込みモード
-        setIsRefreshing(true);
-
-        const newPosts = data.posts
-          .filter(
-            (newPost: any) =>
-              !posts.some((existingPost) => {
-                // リポスト情報も考慮して重複チェック
-                if (!newPost.repostedBy) {
-                  return existingPost.id === newPost.id;
-                }
-                return (
-                  existingPost.id === newPost.id &&
-                  existingPost.repostedBy?.id === newPost.repostedBy?.id
-                );
-              })
-          )
-          .map((post: any) => formatPost(post)); // formatPostでデータを整形
-
-        if (newPosts.length > 0) {
-          // 新しい投稿を既存の投稿リストの先頭に追加
-          setPosts((prevPosts) => [...newPosts, ...prevPosts]);
-          setNewPostsCount(0);
-          setLastUpdateTime(new Date());
-
-          // 通知を表示
-          if (newPosts.length === 1) {
-            toast.success("新しい投稿を表示しました");
-          } else {
-            toast.success(`${newPosts.length}件の新しい投稿を表示しました`);
-          }
-        }
-
-        setIsRefreshing(false);
-      } else if (!fetchImmediately && data.count) {
-        // カウントのみモード - 新着投稿数を表示
-        setNewPostsCount(data.count);
-      }
-    } catch (error) {
-      console.error("Error checking for new posts:", error);
-      if (fetchImmediately) {
-        setIsRefreshing(false);
-        toast.error("更新に失敗しました");
-      }
-    }
-  };
-
-  // 新着投稿を表示するボタンがクリックされたとき
-  const handleShowNewPosts = () => {
-    checkForNewPosts(true);
-  };
 
   // キーボードショートカットの設定
   useEffect(() => {
@@ -251,7 +130,7 @@ export default function WholePage() {
       ) {
         // rキーで最新の投稿を取得
         e.preventDefault();
-        handleShowNewPosts();
+        fetchPosts(undefined, true);
       }
     };
 
@@ -303,50 +182,8 @@ export default function WholePage() {
     };
   };
 
-  // 新しい投稿のみを取得する関数
-  const fetchLatestPosts = async () => {
-    try {
-      const response = await fetch(
-        `/api/whole?since=${lastUpdateTime.toISOString()}&includeReposts=true`,
-        { next: { revalidate: 60 } }
-      );
-      if (!response.ok) {
-        throw new Error("新規投稿の取得に失敗しました");
-      }
-
-      const data = await response.json();
-      if (data.posts.length > 0) {
-        setPosts((prevPosts) => {
-          // 一時的な投稿と重複を除去
-          const uniquePosts = data.posts
-            .map((post: any) => formatPost(post))
-            .filter(
-              (newPost: PostType) =>
-                !newPost.id.startsWith("temp-") &&
-                !prevPosts.some((existingPost) => {
-                  // 通常の投稿の場合はIDで重複チェック
-                  if (!newPost.repostedBy) {
-                    return existingPost.id === newPost.id;
-                  }
-                  // 拡散の場合は投稿ID + 拡散者IDで重複チェック
-                  return (
-                    existingPost.id === newPost.id &&
-                    existingPost.repostedBy?.id === newPost.repostedBy?.id
-                  );
-                })
-            );
-
-          return [...uniquePosts, ...prevPosts];
-        });
-        setLastUpdateTime(new Date());
-      }
-    } catch (error) {
-      console.error("Error fetching new posts:", error);
-    }
-  };
-
   // 投稿取得
-  const fetchPosts = async (cursor?: string) => {
+  const fetchPosts = async (cursor?: string, forceFresh = false) => {
     try {
       setIsLoading(true);
       const params = new URLSearchParams();
@@ -357,9 +194,9 @@ export default function WholePage() {
       params.append("includeReposts", "true");
 
       // APIエンドポイントを /api/posts から /api/whole に変更
-      const response = await fetch(`/api/whole?${params}`, {
-        next: { revalidate: 0 },
-      });
+      const response = await fetch(`/api/whole?${params}`,
+        forceFresh ? { cache: "no-store" } : { next: { revalidate: 0 } },
+      );
       if (!response.ok) {
         throw new Error("投稿の取得に失敗しました");
       }
@@ -379,8 +216,6 @@ export default function WholePage() {
 
       setHasMore(data.hasMore);
       setNextCursor(data.nextCursor);
-      setLastUpdateTime(new Date());
-      setNewPostsCount(0);
     } catch (error) {
       console.error("Error fetching posts:", error);
       toast.error("投稿の取得に失敗しました");
@@ -411,8 +246,11 @@ export default function WholePage() {
       const filtered = prev.filter((p) => !p.id.startsWith("temp-"));
       return [newPost, ...filtered];
     });
-    // 新しい投稿を作成したら、最終更新時刻も更新
-    setLastUpdateTime(new Date());
+
+    // 実投稿が返ったタイミングで最新状態を取得
+    if (!newPost.id.startsWith("temp-")) {
+      void fetchPosts(undefined, true);
+    }
   };
 
   const handleFavoriteSuccess = (
@@ -486,34 +324,17 @@ export default function WholePage() {
 
         <div className="mx-auto max-w-2xl p-4">
           <div className="space-y-4">
-            {/* 新しい投稿のお知らせボタン */}
-            {newPostsCount > 0 && (
-              <div className="sticky top-0 z-10 animate-pulse">
-                <Button
-                  onClick={handleShowNewPosts}
-                  variant="default"
-                  className="mx-auto flex w-full max-w-sm items-center justify-center gap-2 rounded-full py-2"
-                >
-                  <Bell className="size-4" />
-                  {newPostsCount}件の新しい投稿を表示
-                </Button>
-              </div>
-            )}
-
-            {/* 自動更新の切り替えスイッチ - デスクトップのみ表示 */}
-            {!isMobile && (
-              <div className="flex items-center justify-end">
-                <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-400">
-                  <span>自動更新</span>
-                  <input
-                    type="checkbox"
-                    checked={autoRefresh}
-                    onChange={() => setAutoRefresh(!autoRefresh)}
-                    className="size-4 rounded border-gray-600 bg-gray-800 accent-primary"
-                  />
-                </label>
-              </div>
-            )}
+            <div className="flex justify-end">
+              <Button
+                variant="outline"
+                onClick={() => fetchPosts(undefined, true)}
+                disabled={isLoading}
+                className="gap-2"
+              >
+                <RefreshCw className="size-4" />
+                最新を読み込む
+              </Button>
+            </div>
 
             {/* デバッグ情報 (開発中のみ表示) */}
             {process.env.NODE_ENV === "development" && (

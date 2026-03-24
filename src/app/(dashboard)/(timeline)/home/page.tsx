@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
@@ -9,7 +9,6 @@ import type { Post } from "@/app/_types/post";
 import { Post as PostComponent } from "@/app/_components/post";
 import { MakePost } from "@/app/_components/makepost";
 import { Search } from "@/app/_components/search";
-import { useInterval } from "@/app/_hooks/useInterval";
 import { Plus, RefreshCw } from "lucide-react";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -29,62 +28,10 @@ export default function HomePage() {
   const { data: session } = useSession();
   const router = useRouter();
   const [parentPost, setParentPost] = useState<Post | null>(null);
-  const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date());
   const [hasMore, setHasMore] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | undefined>();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const postInputRef = useRef<HTMLTextAreaElement>(null);
-
-  // 60秒ごとにタイムラインを更新
-  useInterval(() => {
-    if (session) {
-      fetchLatestPosts();
-    }
-  }, 60000);
-
-  // 新しい投稿のみを取得する関数
-  const fetchLatestPosts = async () => {
-    try {
-      const response = await fetch(
-        `/api/posts?since=${lastUpdateTime.toISOString()}&includeReposts=true`,
-        { next: { revalidate: 60 } }
-      );
-      if (!response.ok) {
-        throw new Error("Failed to fetch new posts");
-      }
-
-      const data = await response.json();
-      if (data.posts.length > 0) {
-        setPosts((prevPosts) => {
-          // 一時的な投稿と重複を除去
-          const uniquePosts = data.posts
-            .map((post: any) => formatPost(post))
-            .filter(
-              (newPost: Post) =>
-                !newPost.id.startsWith("temp-") &&
-                !prevPosts.some(
-                  (existingPost) => existingPost.id === newPost.id
-                )
-            );
-
-          return [...uniquePosts, ...prevPosts];
-        });
-        setLastUpdateTime(new Date());
-      }
-    } catch (error) {
-      console.error("Error fetching new posts:", error);
-    }
-  };
-
-  // 初回読み込み時の動作
-  useEffect(() => {
-    if (!session) return;
-
-    fetchUserInfo();
-    fetchPosts().then(() => {
-      setLastUpdateTime(new Date());
-    });
-  }, [session]);
 
   // キーボードショートカット
   useEffect(() => {
@@ -118,7 +65,7 @@ export default function HomePage() {
     }
   };
 
-  const fetchUserInfo = async () => {
+  const fetchUserInfo = useCallback(async () => {
     if (!session?.user?.id) return;
 
     try {
@@ -134,7 +81,7 @@ export default function HomePage() {
     } catch (error) {
       console.error("Error fetching user info:", error);
     }
-  };
+  }, [session?.user?.id]);
 
   // APIレスポンスの投稿データをフォーマットするヘルパー関数
   const formatPost = (post: any): Post => {
@@ -180,7 +127,7 @@ export default function HomePage() {
     };
   };
 
-  const fetchPosts = async (cursor?: string) => {
+  const fetchPosts = useCallback(async (cursor?: string, forceFresh = false) => {
     try {
       setIsLoading(true);
       const params = new URLSearchParams();
@@ -192,9 +139,11 @@ export default function HomePage() {
       // 拡散ユーザー情報も取得
       params.append("includeRepostedByUser", "true");
 
-      const response = await fetch(`/api/posts?${params}`, {
-        next: { revalidate: 60 }, // 60秒間キャッシュ
-      });
+      const response = await fetch(`/api/posts?${params}`, forceFresh
+        ? { cache: "no-store" }
+        : {
+            next: { revalidate: 60 }, // 60秒間キャッシュ
+          });
 
       if (!response.ok) {
         throw new Error("Failed to fetch timeline");
@@ -229,7 +178,15 @@ export default function HomePage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  // 初回読み込み時の動作
+  useEffect(() => {
+    if (!session) return;
+
+    fetchUserInfo();
+    fetchPosts();
+  }, [fetchPosts, fetchUserInfo, session]);
 
   const handleSearch = async (query: string) => {
     try {
@@ -274,6 +231,11 @@ export default function HomePage() {
       const filtered = prev.filter((p) => !p.id.startsWith("temp-"));
       return [newPost, ...filtered];
     });
+
+    // サーバー保存が完了した投稿を受け取ったら、最新状態を即時再取得する
+    if (!newPost.id.startsWith("temp-")) {
+      void fetchPosts(undefined, true);
+    }
   };
 
   const handleFavoriteSuccess = (

@@ -16,6 +16,8 @@ export async function GET(req: Request) {
     const cursor = searchParams.get("cursor");
     const since = searchParams.get("since");
     const includeReposts = searchParams.get("includeReposts") === "true";
+    const regularTake = includeReposts ? Math.floor(limit / 2) + 1 : limit + 1;
+    const repostTake = Math.floor(limit / 2) + 1;
     const timelineCursorDate =
       includeReposts && cursor && !Number.isNaN(new Date(cursor).getTime())
         ? new Date(cursor)
@@ -132,7 +134,7 @@ export async function GET(req: Request) {
           },
         }),
       },
-      take: includeReposts ? limit + 1 : limit + 1,
+      take: regularTake,
       skip: includeReposts ? 0 : cursor ? 1 : 0,
       cursor: includeReposts ? undefined : cursor ? { id: cursor } : undefined,
       orderBy: {
@@ -255,7 +257,7 @@ export async function GET(req: Request) {
             },
           }),
         },
-        take: limit + 1,
+        take: repostTake,
         orderBy: {
           createdAt: "desc",
         },
@@ -467,83 +469,70 @@ export async function POST(req: Request) {
       );
     }
 
-    // トランザクションを使用して、投稿作成と統計更新を原子的に実行
-    const result = await prisma.$transaction(async (prisma) => {
-      // 1. 投稿を作成
-      const post = await prisma.post.create({
-        data: {
-          content: body.content.trim(),
-          userId: session.user.id,
-          images: body.images || [],
-          ...(body.parentId && { parentId: body.parentId }),
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              username: true,
-              icon: true,
-            },
+    // まず投稿だけ確定し、後続の統計更新失敗で投稿が失われないようにする
+    const post = await prisma.post.create({
+      data: {
+        content: body.content.trim(),
+        userId: session.user.id,
+        images: body.images || [],
+        ...(body.parentId && { parentId: body.parentId }),
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            icon: true,
           },
         },
-      });
+      },
+    });
 
-      // 2. 統計情報の取得と更新
+    try {
       const [
-        postCount, // 総投稿数
-        recentPosts, // 過去30日の投稿数
-        recentReposts, // 過去30日の拡散数
-        totalReposts, // 総拡散数
-        recentFavoritesReceived, // 過去30日に受け取ったお気に入り
-        favoritesReceived, // 受け取ったお気に入りの合計
-        followersCount, // フォロワー数
-        user, // ユーザー情報（アカウント作成日を取得するため）
+        postCount,
+        recentPosts,
+        recentReposts,
+        totalReposts,
+        recentFavoritesReceived,
+        favoritesReceived,
+        followersCount,
+        user,
       ] = await Promise.all([
-        // 総投稿数
         prisma.post.count({
           where: { userId: session.user.id },
         }),
-
-        // 過去30日の投稿数
         prisma.post.count({
           where: {
             userId: session.user.id,
             createdAt: {
-              gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 過去30日
+              gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
             },
           },
         }),
-
-        // 過去30日の拡散数
         prisma.repost.count({
           where: {
             userId: session.user.id,
             createdAt: {
-              gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 過去30日
+              gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
             },
           },
         }),
-
-        // 総拡散数
         prisma.repost.count({
           where: {
             userId: session.user.id,
           },
         }),
-
-        // 過去30日に受け取ったお気に入り
         prisma.favorite.count({
           where: {
             post: {
               userId: session.user.id,
             },
             createdAt: {
-              gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 過去30日
+              gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
             },
           },
         }),
-
-        // 受け取ったお気に入りの合計
         prisma.favorite.count({
           where: {
             post: {
@@ -551,22 +540,17 @@ export async function POST(req: Request) {
             },
           },
         }),
-
-        // フォロワー数
         prisma.follow.count({
           where: {
             followedId: session.user.id,
           },
         }),
-
-        // ユーザー情報を取得（アカウント作成日を取得）
         prisma.user.findUnique({
           where: { id: session.user.id },
           select: { createdAt: true },
         }),
       ]);
 
-      // アカウント年齢（日数）を計算
       const accountAgeDays = user?.createdAt
         ? Math.floor(
             (Date.now() - new Date(user.createdAt).getTime()) /
@@ -574,19 +558,17 @@ export async function POST(req: Request) {
           )
         : 0;
 
-      // 3. レーティングの計算 - 新しい計算式に基づく
       const calculatedRate = Math.floor(
-        recentPosts * 10 + // 直近30日の投稿数 × 10
-          Math.sqrt(postCount) * 15 + // 総投稿数の平方根 × 15
-          recentReposts * 5 + // 直近30日の拡散数 × 5
-          Math.sqrt(totalReposts) * 7 + // 総拡散数の平方根 × 7
-          Math.sqrt(recentFavoritesReceived) * 8 + // 直近30日のお気に入り数の平方根 × 8
-          Math.sqrt(favoritesReceived) * 5 + // 総お気に入り数の平方根 × 5
-          Math.sqrt(followersCount) * 10 + // フォロワー数の平方根 × 10
-          Math.log(accountAgeDays + 1) * 5, // アカウント作成からの日数（対数） × 5
+        recentPosts * 10 +
+          Math.sqrt(postCount) * 15 +
+          recentReposts * 5 +
+          Math.sqrt(totalReposts) * 7 +
+          Math.sqrt(recentFavoritesReceived) * 8 +
+          Math.sqrt(favoritesReceived) * 5 +
+          Math.sqrt(followersCount) * 10 +
+          Math.log(accountAgeDays + 1) * 5,
       );
 
-      // 4. ユーザー情報を更新
       await prisma.user.update({
         where: { id: session.user.id },
         data: {
@@ -594,11 +576,11 @@ export async function POST(req: Request) {
           rate: calculatedRate,
         },
       });
+    } catch (statsError) {
+      console.error("[Whole Post Stats Update Error]:", statsError);
+    }
 
-      return post;
-    });
-
-    return NextResponse.json(result, { status: 201 });
+    return NextResponse.json(post, { status: 201 });
   } catch (error) {
     console.error("[Create Post Error]:", error);
     return NextResponse.json(

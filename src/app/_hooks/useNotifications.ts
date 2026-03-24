@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import type {
   NotificationsResponse,
@@ -42,19 +42,6 @@ export function useNotifications() {
       console.error("Failed to check notifications:", error);
     }
   }, [session]);
-
-  // 10分ごとにポーリング
-  useEffect(() => {
-    if (!session?.user) return;
-
-    // 初回チェック
-    checkNotifications();
-
-    // ポーリングの設定
-    const interval = setInterval(checkNotifications, 600000);
-
-    return () => clearInterval(interval);
-  }, [session, checkNotifications]);
 
   // 通知を既読にするメソッド
   const markAsRead = useCallback(async () => {

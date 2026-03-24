@@ -20,6 +20,8 @@ export async function GET(req: Request) {
     const since = searchParams.get("since");
     const includeReposts = searchParams.get("includeReposts") === "true";
     const countOnly = searchParams.get("countOnly") === "true";
+    const regularTake = includeReposts ? Math.floor(limit / 2) + 1 : limit + 1;
+    const repostTake = Math.floor(limit / 2) + 1;
     const timelineCursorDate =
       includeReposts && cursor && !Number.isNaN(new Date(cursor).getTime())
         ? new Date(cursor)
@@ -178,7 +180,7 @@ export async function GET(req: Request) {
           },
         }),
       },
-      take: includeReposts ? limit + 1 : limit + 1,
+      take: regularTake,
       skip: includeReposts ? 0 : cursor ? 1 : 0,
       cursor: includeReposts ? undefined : cursor ? { id: cursor } : undefined,
       orderBy: {
@@ -287,7 +289,7 @@ export async function GET(req: Request) {
             },
           }),
         },
-        take: limit + 1,
+        take: repostTake,
         orderBy: {
           createdAt: "desc",
         },
@@ -496,28 +498,27 @@ export async function POST(req: Request) {
       );
     }
 
-    // トランザクションを使用して、投稿作成と統計更新を原子的に実行
-    const result = await prisma.$transaction(async (prisma) => {
-      // 1. 投稿を作成
-      const post = await prisma.post.create({
-        data: {
-          content: body.content.trim(),
-          userId: session.user.id,
-          images: body.images || [],
-          ...(body.parentId && { parentId: body.parentId }),
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              username: true,
-              icon: true,
-            },
+    // まず投稿だけを確定して、失敗時に投稿自体が消えないようにする
+    const post = await prisma.post.create({
+      data: {
+        content: body.content.trim(),
+        userId: session.user.id,
+        images: body.images || [],
+        ...(body.parentId && { parentId: body.parentId }),
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            icon: true,
           },
         },
-      });
+      },
+    });
 
-      // 2. 統計情報の取得と更新
+    // 統計更新はベストエフォート。失敗しても投稿作成は成功扱いにする
+    try {
       const [
         postCount,
         recentPosts,
@@ -598,25 +599,9 @@ export async function POST(req: Request) {
           Math.log(accountAgeDays + 1) * 5,
       );
 
-      console.log(
-        `[Rating] ユーザー: ${session.user.id}, 投稿数: 最近=${recentPosts}、総数=${postCount}`,
-      );
-      console.log(
-        `[Rating] 拡散数: 最近=${recentReposts}、総数=${totalReposts}`,
-      );
-      console.log(
-        `[Rating] お気に入り: 最近=${recentFavoritesReceived}、総数=${favoritesReceived}`,
-      );
-      console.log(
-        `[Rating] フォロワー数: ${followersCount}、アカウント年齢(日): ${accountAgeDays}`,
-      );
-      console.log(`[Rating] 計算されたレート: ${calculatedRate}`);
-
-      // レート変動を記録
       if (user) {
         const previousRate = user.rate;
         const delta = calculatedRate - previousRate;
-
         await createRatingHistory(
           session.user.id,
           delta,
@@ -625,7 +610,6 @@ export async function POST(req: Request) {
         );
       }
 
-      // 4. ユーザー情報を更新
       await prisma.user.update({
         where: { id: session.user.id },
         data: {
@@ -633,11 +617,11 @@ export async function POST(req: Request) {
           rate: calculatedRate,
         },
       });
+    } catch (statsError) {
+      console.error("[Post Stats Update Error]:", statsError);
+    }
 
-      return post;
-    });
-
-    return NextResponse.json(result, { status: 201 });
+    return NextResponse.json(post, { status: 201 });
   } catch (error) {
     console.error("[Create Post Error]:", error);
     return NextResponse.json(
