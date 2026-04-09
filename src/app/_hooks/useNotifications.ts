@@ -10,7 +10,7 @@ import type {
 export function useNotifications() {
   const [hasUnread, setHasUnread] = useState(false);
   const [lastNotification, setLastNotification] = useState<Notification | null>(
-    null
+    null,
   );
   const { data: session } = useSession();
 
@@ -29,7 +29,7 @@ export function useNotifications() {
 
         // 未読通知があるかどうかをチェック
         const hasAnyUnread = data.notifications.some(
-          (notification) => notification.isRead === false
+          (notification) => notification.isRead === false,
         );
 
         // 未読通知があればハイライト表示

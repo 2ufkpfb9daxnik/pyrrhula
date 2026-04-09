@@ -8,7 +8,7 @@ import { createRatingHistory, RATING_REASONS } from "@/lib/rating";
 // お気に入りした人一覧を取得
 export async function GET(
   req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { searchParams } = new URL(req.url);
@@ -68,7 +68,7 @@ export async function GET(
     console.error("[Favorite List Error]:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -76,104 +76,90 @@ export async function GET(
 // 投稿をお気に入りする
 export async function POST(
   req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user) {
+    const currentUserId = session?.user?.id;
+    if (!session?.user || !currentUserId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const { id: postId } = await params;
+    console.log(`[Favorite] postId=${postId} currentUserId=${currentUserId}`);
 
     // 投稿の存在確認
     const post = await prisma.post.findUnique({
-      where: { id: (await params).id },
+      where: { id: postId },
     });
 
     if (!post) {
       return NextResponse.json({ error: "Post not found" }, { status: 404 });
     }
 
-    // トランザクションでお気に入りと通知を作成し、カウントとレートを更新
-    const result = await prisma.$transaction(async (prisma) => {
-      // 1. お気に入りを作成
-      const favorite = await prisma.favorite.create({
-        data: {
-          postId: (await params).id,
-          userId: session.user.id,
-        },
+    // トランザクションは短く保つ: お気に入り作成と投稿カウント増分のみ
+    const result = await prisma.$transaction(async (tx) => {
+      const favorite = await tx.favorite.create({
+        data: { postId, userId: currentUserId },
       });
 
-      // 2. 通知を作成
-      await prisma.notification.create({
-        data: {
-          type: "fav",
-          senderId: session.user.id,
-          receiverId: post.userId,
-          relatedPostId: (await params).id,
-        },
+      await tx.post.update({
+        where: { id: postId },
+        data: { favorites: { increment: 1 } },
       });
 
-      // 3. お気に入り数を増やす
-      await prisma.post.update({
-        where: { id: (await params).id },
-        data: {
-          favorites: {
-            increment: 1,
+      return favorite;
+    });
+
+    // トランザクション外で通知とレート更新を行う（重い集計をここで実行）
+    try {
+      if (post.userId !== currentUserId) {
+        await prisma.notification.create({
+          data: {
+            type: "fav",
+            senderId: currentUserId,
+            receiverId: post.userId,
+            relatedPostId: postId,
           },
-        },
-      });
+        });
+      }
 
-      // 4. レート計算に必要な情報を取得
       const [recentFavorites, totalFavorites, user] = await Promise.all([
-        // 過去30日のお気に入り数
         prisma.favorite.count({
           where: {
-            userId: session.user.id,
+            userId: currentUserId,
             createdAt: {
               gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
             },
           },
         }),
-        // 総お気に入り数
-        prisma.favorite.count({
-          where: {
-            userId: session.user.id,
-          },
-        }),
-        // ユーザー情報
+        prisma.favorite.count({ where: { userId: currentUserId } }),
         prisma.user.findUnique({
-          where: { id: session.user.id },
+          where: { id: currentUserId },
           select: { rate: true },
         }),
       ]);
 
-      // 5. レート計算
       const favoriteBonus = Math.floor(
-        Math.sqrt(recentFavorites) * 8 + Math.sqrt(totalFavorites) * 5
+        Math.sqrt(recentFavorites) * 8 + Math.sqrt(totalFavorites) * 5,
       );
       const newRate = (user?.rate || 0) + favoriteBonus;
 
-      // 6. レート履歴を記録
       if (user) {
-        const delta = favoriteBonus;
         await createRatingHistory(
-          session.user.id,
-          delta,
+          currentUserId,
+          favoriteBonus,
           newRate,
-          RATING_REASONS.POST_FAVORITED
+          RATING_REASONS.POST_FAVORITED,
         );
       }
 
-      // 7. ユーザーのレートを更新
       await prisma.user.update({
-        where: { id: session.user.id },
-        data: {
-          rate: newRate,
-        },
+        where: { id: currentUserId },
+        data: { rate: newRate },
       });
-
-      return favorite;
-    });
+    } catch (postProcessError) {
+      console.error("[Favorite post-process error]:", postProcessError);
+    }
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
@@ -183,9 +169,12 @@ export async function POST(
     }
 
     console.error("[Favorite Error]:", error);
+    if (error instanceof Error) {
+      console.error(error.stack);
+    }
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

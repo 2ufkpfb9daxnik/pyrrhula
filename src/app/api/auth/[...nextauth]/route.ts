@@ -43,7 +43,7 @@ const handler = NextAuth({
           });
           console.log(
             "ユーザー検索結果:",
-            user ? "見つかりました" : "見つかりません"
+            user ? "見つかりました" : "見つかりません",
           );
 
           if (!user) {
@@ -96,6 +96,7 @@ const handler = NextAuth({
       if (user) {
         console.log("初回ログイントークン生成:", user.id);
         token.id = user.id;
+        token.sub = user.id;
         token.isAdmin = user.isAdmin;
         token.username = user.username;
         token.icon = user.icon;
@@ -109,9 +110,9 @@ const handler = NextAuth({
       console.log("セッション生成開始:", { hasToken: !!token });
 
       if (token) {
-        session.user.id = token.id as string;
+        session.user.id = (token.id ?? token.sub) as string;
         session.user.isAdmin = token.isAdmin as boolean;
-        session.user.username = token.username as string;
+        session.user.username = (token.username ?? token.name) as string;
         session.user.icon = token.icon as string | null;
         session.user.rate = token.rate as number;
         session.user.postCount = token.postCount as number;

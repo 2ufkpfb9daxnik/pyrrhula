@@ -127,58 +127,64 @@ export default function HomePage() {
     };
   };
 
-  const fetchPosts = useCallback(async (cursor?: string, forceFresh = false) => {
-    try {
-      setIsLoading(true);
-      const params = new URLSearchParams();
-      if (cursor) {
-        params.append("cursor", cursor);
+  const fetchPosts = useCallback(
+    async (cursor?: string, forceFresh = false) => {
+      try {
+        setIsLoading(true);
+        const params = new URLSearchParams();
+        if (cursor) {
+          params.append("cursor", cursor);
+        }
+        // 拡散も含めるパラメータを追加
+        params.append("includeReposts", "true");
+        // 拡散ユーザー情報も取得
+        params.append("includeRepostedByUser", "true");
+
+        const response = await fetch(
+          `/api/posts?${params}`,
+          forceFresh
+            ? { cache: "no-store" }
+            : {
+                next: { revalidate: 60 }, // 60秒間キャッシュ
+              },
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch timeline");
+        }
+
+        const data = await response.json();
+
+        // デバッグ: APIレスポンスを確認
+        console.log("API Response:", data.posts.slice(0, 2));
+
+        if (cursor) {
+          // 追加読み込みの場合は既存の投稿に追加
+          setPosts((prev) => [
+            ...prev,
+            ...data.posts.map((post: any) => formatPost(post)),
+          ]);
+        } else {
+          // 初回読み込みの場合は置き換え
+          setPosts(data.posts.map((post: any) => formatPost(post)));
+        }
+
+        // デバッグ: フォーマット後の投稿を確認
+        console.log(
+          "Formatted posts:",
+          data.posts.map((post: any) => formatPost(post)).slice(0, 2),
+        );
+
+        setHasMore(data.hasMore);
+        setNextCursor(data.nextCursor);
+      } catch (error) {
+        console.error("Error fetching timeline:", error);
+      } finally {
+        setIsLoading(false);
       }
-      // 拡散も含めるパラメータを追加
-      params.append("includeReposts", "true");
-      // 拡散ユーザー情報も取得
-      params.append("includeRepostedByUser", "true");
-
-      const response = await fetch(`/api/posts?${params}`, forceFresh
-        ? { cache: "no-store" }
-        : {
-            next: { revalidate: 60 }, // 60秒間キャッシュ
-          });
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch timeline");
-      }
-
-      const data = await response.json();
-
-      // デバッグ: APIレスポンスを確認
-      console.log("API Response:", data.posts.slice(0, 2));
-
-      if (cursor) {
-        // 追加読み込みの場合は既存の投稿に追加
-        setPosts((prev) => [
-          ...prev,
-          ...data.posts.map((post: any) => formatPost(post)),
-        ]);
-      } else {
-        // 初回読み込みの場合は置き換え
-        setPosts(data.posts.map((post: any) => formatPost(post)));
-      }
-
-      // デバッグ: フォーマット後の投稿を確認
-      console.log(
-        "Formatted posts:",
-        data.posts.map((post: any) => formatPost(post)).slice(0, 2)
-      );
-
-      setHasMore(data.hasMore);
-      setNextCursor(data.nextCursor);
-    } catch (error) {
-      console.error("Error fetching timeline:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+    },
+    [],
+  );
 
   // 初回読み込み時の動作
   useEffect(() => {
@@ -194,7 +200,7 @@ export default function HomePage() {
       // typeパラメータを追加して投稿検索を指定
       const response = await fetch(
         `/api/search?type=posts&q=${encodeURIComponent(query)}`,
-        { next: { revalidate: 0 } } // キャッシュを無効化
+        { next: { revalidate: 0 } }, // キャッシュを無効化
       );
 
       if (!response.ok) {
@@ -241,7 +247,7 @@ export default function HomePage() {
   const handleFavoriteSuccess = (
     postId: string,
     newCount: number,
-    isFavorited: boolean
+    isFavorited: boolean,
   ) => {
     setPosts((prev) =>
       prev.map((post) =>
@@ -252,15 +258,15 @@ export default function HomePage() {
               isFavorited,
               favoritedAt: isFavorited ? new Date().toISOString() : undefined,
             }
-          : post
-      )
+          : post,
+      ),
     );
   };
 
   const handleRepostSuccess = (
     postId: string,
     newCount: number,
-    isReposted: boolean
+    isReposted: boolean,
   ) => {
     setPosts((prev) =>
       prev.map((post) =>
@@ -271,8 +277,8 @@ export default function HomePage() {
               isReposted,
               repostedAt: isReposted ? new Date().toISOString() : undefined,
             }
-          : post
-      )
+          : post,
+      ),
     );
   };
 
@@ -356,7 +362,7 @@ export default function HomePage() {
 
                     // 通常の投稿は、同じIDの投稿が他の誰かによって拡散されている場合は表示しない
                     const isRepostedByOthers = posts.some(
-                      (p) => p.repostedBy && p.id === post.id
+                      (p) => p.repostedBy && p.id === post.id,
                     );
                     return !isRepostedByOthers;
                   })

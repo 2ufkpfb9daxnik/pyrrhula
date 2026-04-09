@@ -43,7 +43,7 @@ export const authOptions: NextAuthOptions = {
 
         const isValidPassword = await compare(
           credentials.password,
-          user.password
+          user.password,
         );
 
         if (!isValidPassword) {
@@ -63,6 +63,7 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
+        token.sub = user.id;
         if ("username" in user) {
           token.username = user.username;
         }
@@ -81,8 +82,8 @@ export const authOptions: NextAuthOptions = {
     }) {
       if (token) {
         if (session.user) {
-          session.user.id = token.id;
-          session.user.username = token.username;
+          session.user.id = token.id ?? token.sub;
+          session.user.username = token.username ?? token.name;
           session.user.isAdmin = token.isAdmin;
         }
       }
