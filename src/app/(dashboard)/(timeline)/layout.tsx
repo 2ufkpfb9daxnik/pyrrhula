@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { Navigation } from "@/app/_components/navigation";
 import { MakePost } from "@/app/_components/makepost";
 import { Search } from "@/app/_components/search";
+import { TimelineJump } from "@/app/_components/TimelineJump";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import {
   Users,
@@ -213,6 +214,7 @@ export default function TimelineLayout({ children }: { children: ReactNode }) {
           />
 
           <Search onSearch={handleSearch} />
+          <TimelineJump />
         </div>
       )}
 

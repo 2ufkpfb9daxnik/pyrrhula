@@ -129,7 +129,7 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
         ? async () => {
             onFavoriteSuccess(favorites + (isFavorited ? -1 : 1), !isFavorited);
           }
-        : undefined
+        : undefined,
     );
   };
 
@@ -149,7 +149,7 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
         ? async () => {
             onRepostSuccess(reposts + (isReposted ? -1 : 1), !isReposted);
           }
-        : undefined
+        : undefined,
     );
   };
 
@@ -174,13 +174,14 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
 
     if (post.question) {
       router.push(
-        `/question/${post.question.targetUserId}/${post.question.id}`
+        `/question/${post.question.targetUserId}/${post.question.id}`,
       );
     }
   };
 
   return (
     <div
+      data-created-at={new Date(post.createdAt).toISOString()}
       className="cursor-pointer border-b border-gray-700 p-4 transition-colors hover:bg-gray-900/50"
       onClick={handlePostClick}
     >
