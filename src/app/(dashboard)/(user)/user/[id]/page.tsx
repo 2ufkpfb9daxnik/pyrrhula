@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { formatDistanceToNow } from "@/lib/formatDistanceToNow";
@@ -27,6 +27,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { LoaderCircle } from "lucide-react";
 import { linkify } from "@/lib/linkify";
+import { useInView } from "react-intersection-observer";
 
 interface UserDetail {
   id: string;
@@ -67,6 +68,10 @@ export default function UserProfilePage() {
   const [hasMore, setHasMore] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const hasEnteredLoadMoreRef = useRef(false);
+  const { ref: loadMoreRef, inView: isLoadMoreInView } = useInView({
+    rootMargin: "0px 0px",
+  });
 
   useEffect(() => {
     if (!userId) return;
@@ -77,6 +82,27 @@ export default function UserProfilePage() {
     setNextCursor(null);
     fetchUserContent(activeTab);
   }, [userId, activeTab]);
+
+  useEffect(() => {
+    const entered = isLoadMoreInView && !hasEnteredLoadMoreRef.current;
+    if (
+      entered &&
+      hasMore &&
+      nextCursor &&
+      !isLoadingMore &&
+      !isContentLoading
+    ) {
+      void fetchUserContent(activeTab, nextCursor);
+    }
+    hasEnteredLoadMoreRef.current = isLoadMoreInView;
+  }, [
+    isLoadMoreInView,
+    hasMore,
+    nextCursor,
+    isLoadingMore,
+    isContentLoading,
+    activeTab,
+  ]);
 
   const fetchRatingHistory = async () => {
     try {
@@ -111,7 +137,7 @@ export default function UserProfilePage() {
 
   const fetchUserContent = async (
     type: "posts" | "reposts" | "favorites" | "replies",
-    cursor: string | null = null
+    cursor: string | null = null,
   ) => {
     try {
       // 初回読み込みの場合は投稿をクリア、追加読み込みの場合はクリアしない
@@ -130,13 +156,13 @@ export default function UserProfilePage() {
           endpoint = `/api/users/${userId}?type=posts${cursor ? `&cursor=${cursor}` : ""}`;
           break;
         case "reposts":
-          endpoint = `/api/users/${userId}/repost${cursor ? `?cursor=${cursor}` : ""}`;
+          endpoint = `/api/users/${userId}/repost${cursor ? `?cursor=${cursor}&limit=10` : "?limit=10"}`;
           break;
         case "favorites":
-          endpoint = `/api/users/${userId}/favorite${cursor ? `?cursor=${cursor}` : ""}`;
+          endpoint = `/api/users/${userId}/favorite${cursor ? `?cursor=${cursor}&limit=10` : "?limit=10"}`;
           break;
         case "replies":
-          endpoint = `/api/users/${userId}/reply${cursor ? `?cursor=${cursor}` : ""}`;
+          endpoint = `/api/users/${userId}/reply${cursor ? `?cursor=${cursor}&limit=10` : "?limit=10"}`;
           break;
       }
 
@@ -247,20 +273,13 @@ export default function UserProfilePage() {
               : type === "favorites"
                 ? "お気に入りの投稿"
                 : "返信"
-        }の取得に失敗しました`
+        }の取得に失敗しました`,
       );
       if (!cursor) setPosts([]);
       setHasMore(false);
       setNextCursor(null);
     } finally {
       cursor ? setIsLoadingMore(false) : setIsContentLoading(false);
-    }
-  };
-
-  // さらに読み込むボタンのハンドラ
-  const handleLoadMore = () => {
-    if (nextCursor && !isLoadingMore) {
-      fetchUserContent(activeTab, nextCursor);
     }
   };
 
@@ -287,7 +306,7 @@ export default function UserProfilePage() {
       const contentType = response.headers.get("content-type");
       if (contentType && contentType.includes("text/html")) {
         throw new Error(
-          "APIエンドポイントが見つかりません。URLを確認してください。"
+          "APIエンドポイントが見つかりません。URLを確認してください。",
         );
       }
 
@@ -301,7 +320,7 @@ export default function UserProfilePage() {
               prev && {
                 ...prev,
                 followersCount: prev.followersCount + 1,
-              }
+              },
           );
           toast.success("既にフォロー済みです");
           return;
@@ -320,11 +339,11 @@ export default function UserProfilePage() {
           prev && {
             ...prev,
             followersCount: prev.followersCount + (currentlyFollowing ? -1 : 1),
-          }
+          },
       );
 
       toast.success(
-        currentlyFollowing ? "フォロー解除しました" : "フォローしました"
+        currentlyFollowing ? "フォロー解除しました" : "フォローしました",
       );
     } catch (error) {
       console.error("Follow error:", error);
@@ -572,27 +591,16 @@ export default function UserProfilePage() {
             />
           ))}
 
-          {/* もっと読み込むボタン */}
+          {/* 自動読み込み用センサー */}
           {hasMore && (
-            <div className="mt-6 flex justify-center">
-              <Button
-                variant="outline"
-                onClick={handleLoadMore}
-                disabled={isLoadingMore}
-                className="w-full max-w-xs"
-              >
-                {isLoadingMore ? (
-                  <div className="flex items-center gap-2">
-                    <LoaderCircle className="size-4 animate-spin" />
-                    読み込み中...
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <RefreshCw className="size-4" />
-                    もっと読み込む
-                  </div>
-                )}
-              </Button>
+            <div ref={loadMoreRef} className="mt-6 flex justify-center py-2">
+              {isLoadingMore ? (
+                <LoaderCircle className="size-5 animate-spin text-gray-500" />
+              ) : (
+                <span className="text-sm text-gray-500">
+                  下へスクロールして読み込み
+                </span>
+              )}
             </div>
           )}
         </div>

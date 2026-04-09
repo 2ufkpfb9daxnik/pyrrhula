@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -9,28 +9,48 @@ import { formatDistanceToNow } from "@/lib/formatDistanceToNow";
 import { toast } from "sonner";
 import type { RepostListResponse } from "@/app/_types/repost";
 import { LoaderCircle } from "lucide-react";
+import { useInView } from "react-intersection-observer";
 
 type RepostUser = RepostListResponse["users"][0];
 
 export default function RepostListPage() {
   const [users, setUsers] = useState<RepostUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [cursor, setCursor] = useState<string | undefined>();
+  const hasEnteredLoadMoreRef = useRef(false);
   const params = useParams<{ id: string }>();
   const postId = params?.id ?? "";
   const router = useRouter();
   const { data: session } = useSession();
+  const { ref: loadMoreRef, inView: isLoadMoreInView } = useInView({
+    rootMargin: "0px 0px",
+  });
 
   useEffect(() => {
     if (!postId) return;
-    fetchReposts();
+    void fetchReposts();
   }, [postId]);
 
-  const fetchReposts = async () => {
+  useEffect(() => {
+    const entered = isLoadMoreInView && !hasEnteredLoadMoreRef.current;
+    if (entered && hasMore && cursor && !isLoading && !isFetchingMore) {
+      void fetchReposts(cursor);
+    }
+    hasEnteredLoadMoreRef.current = isLoadMoreInView;
+  }, [isLoadMoreInView, hasMore, cursor, isLoading, isFetchingMore]);
+
+  const fetchReposts = async (cursorParam?: string) => {
     try {
+      if (cursorParam) {
+        setIsFetchingMore(true);
+      } else {
+        setIsLoading(true);
+      }
+
       const url = `/api/posts/${postId}/repost${
-        cursor ? `?cursor=${cursor}` : ""
+        cursorParam ? `?cursor=${cursorParam}&limit=10` : "?limit=10"
       }`;
       const response = await fetch(url);
 
@@ -39,20 +59,18 @@ export default function RepostListPage() {
       }
 
       const data: RepostListResponse = await response.json();
-      setUsers((prev) => (cursor ? [...prev, ...data.users] : data.users));
+      setUsers((prev) => (cursorParam ? [...prev, ...data.users] : data.users));
       setHasMore(data.hasMore);
       setCursor(data.nextCursor);
     } catch (error) {
       console.error("Error fetching reposts:", error);
       toast.error("拡散したユーザーの取得に失敗しました");
     } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleLoadMore = () => {
-    if (!isLoading && hasMore) {
-      fetchReposts();
+      if (cursorParam) {
+        setIsFetchingMore(false);
+      } else {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -112,18 +130,15 @@ export default function RepostListPage() {
           ))}
 
           {hasMore && (
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={handleLoadMore}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <LoaderCircle className="animate-spin"></LoaderCircle>
+            <div ref={loadMoreRef} className="flex justify-center py-2">
+              {isFetchingMore ? (
+                <LoaderCircle className="size-5 animate-spin text-gray-500" />
               ) : (
-                "もっと見る"
+                <span className="text-sm text-gray-500">
+                  下へスクロールして読み込み
+                </span>
               )}
-            </Button>
+            </div>
           )}
         </div>
       )}

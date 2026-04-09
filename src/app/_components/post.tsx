@@ -182,12 +182,12 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
   return (
     <div
       data-created-at={new Date(post.createdAt).toISOString()}
-      className="cursor-pointer border-b border-gray-700 p-4 transition-colors hover:bg-gray-900/50"
+      className="cursor-pointer border-b border-gray-700 px-3 py-2.5 transition-colors hover:bg-gray-900/50"
       onClick={handlePostClick}
     >
       {post.repostedBy && (
-        <div className="mb-2 flex items-center text-sm text-gray-500">
-          <RefreshCw className="mr-2 size-3.5" />
+        <div className="mb-1.5 flex items-center text-xs text-gray-500">
+          <RefreshCw className="mr-1.5 size-3" />
           <Link
             href={`/user/${post.repostedBy.id}`}
             className="hover:underline"
@@ -199,13 +199,13 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
       )}
 
       {post.parent && post.parent.user && (
-        <div className="mb-2 text-sm text-gray-500">
+        <div className="mb-1.5 text-xs text-gray-500">
           返信先: @{post.parent.user.username}
         </div>
       )}
 
-      <div className="flex flex-col space-y-3">
-        <div className="flex items-start space-x-3">
+      <div className="flex flex-col space-y-2.5">
+        <div className="flex items-start space-x-2.5">
           <Button
             variant="ghost"
             className="p-0 hover:bg-transparent"
@@ -214,7 +214,7 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
               handleUserClick();
             }}
           >
-            <Avatar>
+            <Avatar className="size-9">
               <AvatarImage
                 src={post.user.icon ?? undefined}
                 alt={post.user.username}
@@ -226,7 +226,7 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
           <div className="flex flex-col">
             <Button
               variant="ghost"
-              className={`h-auto w-full justify-start p-0 text-base font-bold hover:underline ${
+              className={`h-auto w-full justify-start p-0 text-sm font-bold hover:underline ${
                 rating?.color ?? "text-gray-300"
               }`}
               onClick={(e) => {
@@ -237,7 +237,7 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
               {post.user.username}
             </Button>
 
-            <div className="flex items-center space-x-2 text-sm">
+            <div className="flex items-center space-x-1.5 text-xs">
               <span className="text-gray-500">@{post.user.id}</span>
               <span className="text-gray-500">·</span>
               <span className="text-gray-500">
@@ -266,7 +266,7 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
         </div>
 
         {/* 投稿本文 - Q:部分を除去して表示 */}
-        <p className="whitespace-pre-wrap break-words">
+        <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
           {linkify(formatPostContent(post.content))}
         </p>
 
@@ -312,19 +312,21 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
         {/* 質問カード - 回答状態を表示するように改善 */}
         {post.question && (
           <div
-            className="mt-3 cursor-pointer rounded-lg border border-blue-600/30 bg-blue-950/20 p-3 transition-colors hover:bg-blue-900/20"
+            className="mt-2.5 cursor-pointer rounded-lg border border-blue-600/30 bg-blue-950/20 p-2.5 transition-colors hover:bg-blue-900/20"
             onClick={handleQuestionCardClick}
             role="button"
             aria-label="質問の詳細を見る"
           >
-            <div className="mb-2 flex items-center justify-between">
-              <div className="flex items-center text-sm">
-                <HelpCircle className="mr-2 size-4 text-blue-400" />
+            <div className="mb-1.5 flex items-center justify-between">
+              <div className="flex items-center text-xs">
+                <HelpCircle className="mr-1.5 size-3.5 text-blue-400" />
                 <span className="font-medium text-blue-400">質問</span>
               </div>
             </div>
 
-            <p className="mb-2 text-sm font-medium">{post.question.question}</p>
+            <p className="mb-1.5 text-sm font-medium">
+              {post.question.question}
+            </p>
             <div className="flex items-center justify-between text-xs text-gray-400">
               <span>{post.question.targetUser?.username}さんへの質問</span>
             </div>
@@ -338,7 +340,7 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
           alt="拡大画像"
         />
 
-        <div className="mt-3 flex items-center space-x-6">
+        <div className="mt-1.5 flex items-center space-x-2">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -346,8 +348,9 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
                 size="sm"
                 onClick={handleReply}
                 disabled={!session}
+                className="h-8 px-2 text-xs"
               >
-                <MessageCircle className="mr-1 size-4" />
+                <MessageCircle className="mr-1 size-3.5" />
                 <span>{post._count?.replies ?? 0}</span>
               </Button>
             </TooltipTrigger>
@@ -363,9 +366,10 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
                 size="sm"
                 onClick={handleRepost}
                 disabled={isRepostLoading || !session}
+                className="h-8 px-2 text-xs"
               >
                 <RefreshCw
-                  className={`mr-1 size-4 ${isReposted ? "text-green-500" : ""}`}
+                  className={`mr-1 size-3.5 ${isReposted ? "text-green-500" : ""}`}
                 />
                 <span>{reposts}</span>
               </Button>
@@ -382,9 +386,10 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
                 size="sm"
                 onClick={handleFavorite}
                 disabled={isFavoriteLoading || !session}
+                className="h-8 px-2 text-xs"
               >
                 <Star
-                  className={`mr-1 size-4 ${
+                  className={`mr-1 size-3.5 ${
                     isFavorited ? "fill-yellow-500 text-yellow-500" : ""
                   }`}
                 />

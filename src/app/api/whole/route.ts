@@ -4,7 +4,8 @@ import { authOptions } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import type { TimelineResponse, CreatePostRequest } from "@/app/_types/post";
 
-const limit = 50;
+const DEFAULT_LIMIT = 20;
+const MAX_LIMIT = 50;
 
 export async function GET(req: Request) {
   try {
@@ -15,6 +16,10 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const cursor = searchParams.get("cursor");
     const since = searchParams.get("since");
+    const requestedLimit = Number(searchParams.get("limit"));
+    const limit = Number.isFinite(requestedLimit)
+      ? Math.min(MAX_LIMIT, Math.max(1, requestedLimit))
+      : DEFAULT_LIMIT;
     const includeReposts = searchParams.get("includeReposts") === "true";
     const regularTake = includeReposts ? Math.floor(limit / 2) + 1 : limit + 1;
     const repostTake = Math.floor(limit / 2) + 1;

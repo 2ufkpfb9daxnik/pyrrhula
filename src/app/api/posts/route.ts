@@ -5,7 +5,8 @@ import { NextResponse } from "next/server";
 import type { CreatePostRequest } from "@/app/_types/post";
 import { createRatingHistory, RATING_REASONS } from "@/lib/rating";
 
-const limit = 50;
+const DEFAULT_LIMIT = 20;
+const MAX_LIMIT = 50;
 
 // 投稿一覧を取得
 export async function GET(req: Request) {
@@ -18,6 +19,10 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const cursor = searchParams.get("cursor");
     const since = searchParams.get("since");
+    const requestedLimit = Number(searchParams.get("limit"));
+    const limit = Number.isFinite(requestedLimit)
+      ? Math.min(MAX_LIMIT, Math.max(1, requestedLimit))
+      : DEFAULT_LIMIT;
     const includeReposts = searchParams.get("includeReposts") === "true";
     const countOnly = searchParams.get("countOnly") === "true";
     const regularTake = includeReposts ? Math.floor(limit / 2) + 1 : limit + 1;

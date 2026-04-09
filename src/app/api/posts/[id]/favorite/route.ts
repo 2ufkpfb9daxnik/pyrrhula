@@ -13,7 +13,10 @@ export async function GET(
   try {
     const { searchParams } = new URL(req.url);
     const cursor = searchParams.get("cursor");
-    const limit = 20;
+    const requestedLimit = Number(searchParams.get("limit"));
+    const limit = Number.isFinite(requestedLimit)
+      ? Math.min(50, Math.max(1, requestedLimit))
+      : 20;
 
     // 投稿の存在確認
     const post = await prisma.post.findUnique({

@@ -6,9 +6,10 @@ import { MakePost } from "@/app/_components/makepost";
 import { Search } from "@/app/_components/search";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { LoaderCircle, Plus, RefreshCw } from "lucide-react";
+import { LoaderCircle, Plus } from "lucide-react";
 import type { Post as PostType } from "@/app/_types/post";
 import { toast } from "sonner";
+import { useInView } from "react-intersection-observer";
 
 export default function WholePage() {
   const [posts, setPosts] = useState<PostType[]>([]);
@@ -17,6 +18,10 @@ export default function WholePage() {
   const [isLoading, setIsLoading] = useState(false);
   const postInputRef = useRef<HTMLTextAreaElement>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const hasEnteredLoadMoreRef = useRef(false);
+  const { ref: loadMoreRef, inView: isLoadMoreInView } = useInView({
+    rootMargin: "0px 0px",
+  });
 
   // プルダウンリフレッシュ用の状態
   const [isPulling, setIsPulling] = useState(false);
@@ -101,6 +106,14 @@ export default function WholePage() {
   useEffect(() => {
     fetchPosts();
   }, []);
+
+  useEffect(() => {
+    const entered = isLoadMoreInView && !hasEnteredLoadMoreRef.current;
+    if (entered && hasMore && nextCursor && !isLoading) {
+      void fetchPosts(nextCursor);
+    }
+    hasEnteredLoadMoreRef.current = isLoadMoreInView;
+  }, [isLoadMoreInView, hasMore, nextCursor, isLoading]);
 
   // キーボードショートカットの設定
   useEffect(() => {
@@ -191,6 +204,7 @@ export default function WholePage() {
         params.append("cursor", cursor);
       }
 
+      params.append("limit", "10");
       params.append("includeReposts", "true");
 
       // APIエンドポイントを /api/posts から /api/whole に変更
@@ -378,27 +392,16 @@ export default function WholePage() {
               </>
             )}
 
-            {/* もっと読み込むボタン */}
+            {/* 自動読み込み用センサー */}
             {hasMore && (
-              <div className="flex justify-center py-4">
-                <Button
-                  variant="outline"
-                  onClick={() => fetchPosts(nextCursor)}
-                  disabled={isLoading}
-                  className="w-full max-w-xs"
-                >
-                  {isLoading ? (
-                    <div className="flex items-center gap-2">
-                      <LoaderCircle className="size-4 animate-spin" />
-                      読み込み中...
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <RefreshCw className="size-4" />
-                      もっと読み込む
-                    </div>
-                  )}
-                </Button>
+              <div ref={loadMoreRef} className="flex justify-center py-4">
+                {isLoading ? (
+                  <LoaderCircle className="size-5 animate-spin text-gray-500" />
+                ) : (
+                  <span className="text-sm text-gray-500">
+                    下へスクロールして読み込み
+                  </span>
+                )}
               </div>
             )}
           </div>

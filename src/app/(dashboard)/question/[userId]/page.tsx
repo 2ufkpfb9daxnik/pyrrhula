@@ -6,7 +6,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useInterval } from "@/app/_hooks/useInterval";
-import { Plus, RefreshCw, LoaderCircle } from "lucide-react";
+import { Plus, LoaderCircle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { useInView } from "react-intersection-observer";
 
 // 質問の型定義
 interface QuestionSender {
@@ -87,7 +88,7 @@ const QuestionItem = ({
             answer,
             createPost: true,
           }),
-        }
+        },
       );
 
       // より詳細なデバッグ情報
@@ -109,7 +110,7 @@ const QuestionItem = ({
       toast.error(
         error instanceof Error
           ? error.message
-          : "回答の送信中にエラーが発生しました"
+          : "回答の送信中にエラーが発生しました",
       );
     } finally {
       setIsSubmitting(false);
@@ -117,7 +118,7 @@ const QuestionItem = ({
   };
 
   const handleQuestionClick = (
-    event: React.MouseEvent<HTMLDivElement, MouseEvent>
+    event: React.MouseEvent<HTMLDivElement, MouseEvent>,
   ) => {
     // Prevent navigation if clicking on a link or button
     if (
@@ -293,7 +294,7 @@ const AskQuestion = ({
       toast.error(
         error instanceof Error
           ? error.message
-          : "質問の送信中にエラーが発生しました"
+          : "質問の送信中にエラーが発生しました",
       );
     } finally {
       setIsSubmitting(false);
@@ -374,7 +375,11 @@ export default function QuestionPage() {
   const [nextCursor, setNextCursor] = useState<string | undefined>();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const questionInputRef = useRef<HTMLTextAreaElement>(null);
+  const hasEnteredLoadMoreRef = useRef(false);
   const [activeTab, setActiveTab] = useState("all");
+  const { ref: loadMoreRef, inView: isLoadMoreInView } = useInView({
+    rootMargin: "0px 0px",
+  });
 
   // 更新間隔は質問では長めに設定（ログインしている場合のみ）
   useInterval(() => {
@@ -410,7 +415,7 @@ export default function QuestionPage() {
           // 既存の質問と比較して新しいものだけを取得
           const existingIds = new Set(prev.map((q) => q.id));
           const newQuestions = data.questions.filter(
-            (q) => !existingIds.has(q.id)
+            (q) => !existingIds.has(q.id),
           );
 
           if (newQuestions.length > 0) {
@@ -433,6 +438,14 @@ export default function QuestionPage() {
       setIsLoading(false);
     });
   }, [userId, activeTab]);
+
+  useEffect(() => {
+    const entered = isLoadMoreInView && !hasEnteredLoadMoreRef.current;
+    if (entered && hasMore && nextCursor && !isLoading) {
+      void fetchQuestions(nextCursor);
+    }
+    hasEnteredLoadMoreRef.current = isLoadMoreInView;
+  }, [isLoadMoreInView, hasMore, nextCursor, isLoading]);
 
   // キーボードショートカット - ログイン時のみ有効
   useEffect(() => {
@@ -488,7 +501,7 @@ export default function QuestionPage() {
       setError(
         error instanceof Error
           ? error.message
-          : "ユーザー情報の取得に失敗しました"
+          : "ユーザー情報の取得に失敗しました",
       );
       return null;
     }
@@ -502,6 +515,7 @@ export default function QuestionPage() {
       if (cursor) {
         params.append("cursor", cursor);
       }
+      params.append("limit", "10");
 
       // タブに応じて質問をフィルタリング
       if (activeTab === "answered") {
@@ -536,7 +550,7 @@ export default function QuestionPage() {
       setError(
         error instanceof Error
           ? error.message
-          : "質問の読み込み中にエラーが発生しました"
+          : "質問の読み込み中にエラーが発生しました",
       );
       return null;
     }
@@ -552,8 +566,8 @@ export default function QuestionPage() {
               answeredAt: new Date().toISOString(),
               status: "approved",
             }
-          : q
-      )
+          : q,
+      ),
     );
   };
 
@@ -693,27 +707,16 @@ export default function QuestionPage() {
               </>
             )}
 
-            {/* もっと読み込むボタン */}
+            {/* 自動読み込み用センサー */}
             {hasMore && (
-              <div className="flex justify-center py-4">
-                <Button
-                  variant="outline"
-                  onClick={() => fetchQuestions(nextCursor)}
-                  disabled={isLoading}
-                  className="w-full max-w-xs"
-                >
-                  {isLoading ? (
-                    <div className="flex items-center gap-2">
-                      <LoaderCircle className="size-4 animate-spin" />
-                      読み込み中...
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <RefreshCw className="size-4" />
-                      もっと読み込む
-                    </div>
-                  )}
-                </Button>
+              <div ref={loadMoreRef} className="flex justify-center py-4">
+                {isLoading ? (
+                  <LoaderCircle className="size-5 animate-spin text-gray-500" />
+                ) : (
+                  <span className="text-sm text-gray-500">
+                    下へスクロールして読み込み
+                  </span>
+                )}
               </div>
             )}
           </div>

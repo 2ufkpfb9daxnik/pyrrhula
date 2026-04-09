@@ -33,7 +33,10 @@ export async function GET(req: Request) {
     // ページネーションのパラメータ
     const { searchParams } = new URL(req.url);
     const cursor = searchParams.get("cursor");
-    const limit = 20;
+    const requestedLimit = Number(searchParams.get("limit"));
+    const limit = Number.isFinite(requestedLimit)
+      ? Math.min(50, Math.max(1, requestedLimit))
+      : 20;
 
     // 通知を取得
     const notifications = await prisma.notification.findMany({
@@ -93,7 +96,7 @@ export async function GET(req: Request) {
 
     // 質問通知の処理
     const questionNotifications = notificationList.filter(
-      (n) => n.type === "anon_q" && n.relatedPostId
+      (n) => n.type === "anon_q" && n.relatedPostId,
     );
 
     const questionIds = questionNotifications
@@ -128,7 +131,7 @@ export async function GET(req: Request) {
           acc[q.id] = q;
           return acc;
         },
-        {}
+        {},
       );
     }
 
@@ -205,7 +208,7 @@ export async function GET(req: Request) {
         }
 
         return baseNotification;
-      }
+      },
     );
 
     const response: NotificationsResponse = {
@@ -219,14 +222,14 @@ export async function GET(req: Request) {
     console.error("[通知取得エラー]:", error);
     return NextResponse.json(
       { error: "サーバーエラーが発生しました" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function PUT(
   req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -244,14 +247,14 @@ export async function PUT(
     if (!notification) {
       return NextResponse.json(
         { error: "通知が見つかりません" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     if (notification.receiverId !== session.user.id) {
       return NextResponse.json(
         { error: "この通知を更新する権限がありません" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -265,7 +268,7 @@ export async function PUT(
     console.error("[通知既読更新エラー]:", error);
     return NextResponse.json(
       { error: "サーバーエラーが発生しました" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -295,7 +298,7 @@ export async function PATCH(req: Request) {
     console.error("[全通知既読更新エラー]:", error);
     return NextResponse.json(
       { error: "サーバーエラーが発生しました" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

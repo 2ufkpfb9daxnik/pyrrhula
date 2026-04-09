@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -19,6 +19,7 @@ import {
   Shield,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useInView } from "react-intersection-observer";
 
 // 通知の型定義を更新
 interface Notification {
@@ -71,19 +72,35 @@ export default function NotificationPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [hasMore, setHasMore] = useState(false);
   const [cursor, setCursor] = useState<string | undefined>();
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const hasEnteredLoadMoreRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const { data: session } = useSession();
+  const { ref: loadMoreRef, inView: isLoadMoreInView } = useInView({
+    rootMargin: "0px 0px",
+  });
 
   useEffect(() => {
-    fetchNotifications();
+    void fetchNotifications();
     markAllNotificationsAsRead();
   }, []);
 
-  const fetchNotifications = async () => {
+  useEffect(() => {
+    const entered = isLoadMoreInView && !hasEnteredLoadMoreRef.current;
+    if (entered && hasMore && cursor && !isLoading && !isFetchingMore) {
+      void fetchNotifications(cursor);
+    }
+    hasEnteredLoadMoreRef.current = isLoadMoreInView;
+  }, [isLoadMoreInView, hasMore, cursor, isLoading, isFetchingMore]);
+
+  const fetchNotifications = async (cursorParam?: string) => {
     try {
+      if (cursorParam) {
+        setIsFetchingMore(true);
+      }
       setError(null);
-      const url = `/api/notifications${cursor ? `?cursor=${cursor}` : ""}`;
+      const url = `/api/notifications${cursorParam ? `?cursor=${cursorParam}&limit=10` : "?limit=10"}`;
       const response = await fetch(url);
 
       if (!response.ok) {
@@ -94,7 +111,7 @@ export default function NotificationPage() {
       const data: NotificationsResponse = await response.json();
 
       setNotifications((prev) =>
-        cursor ? [...prev, ...data.notifications] : data.notifications
+        cursorParam ? [...prev, ...data.notifications] : data.notifications,
       );
       setHasMore(data.hasMore);
       setCursor(data.nextCursor);
@@ -104,7 +121,11 @@ export default function NotificationPage() {
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
-      setIsLoading(false);
+      if (cursorParam) {
+        setIsFetchingMore(false);
+      } else {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -123,7 +144,7 @@ export default function NotificationPage() {
       }
 
       setNotifications((prev) =>
-        prev.map((notification) => ({ ...notification, isRead: true }))
+        prev.map((notification) => ({ ...notification, isRead: true })),
       );
     } catch (error) {
       console.error("既読処理エラー:", error);
@@ -146,8 +167,8 @@ export default function NotificationPage() {
         prev.map((notification) =>
           notification.id === id
             ? { ...notification, isRead: true }
-            : notification
-        )
+            : notification,
+        ),
       );
     } catch (error) {
       console.error("個別既読処理エラー:", error);
@@ -241,7 +262,7 @@ export default function NotificationPage() {
             notification.question?.id +
             ", targetUserId: " +
             notification.question?.targetUserId +
-            ")"
+            ")",
         );
       }
 
@@ -394,13 +415,15 @@ export default function NotificationPage() {
         ))}
 
         {hasMore && (
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={fetchNotifications}
-          >
-            さらに読み込む
-          </Button>
+          <div ref={loadMoreRef} className="flex justify-center py-2">
+            {isFetchingMore ? (
+              <LoaderCircle className="size-5 animate-spin text-gray-500" />
+            ) : (
+              <span className="text-sm text-gray-500">
+                下へスクロールして読み込み
+              </span>
+            )}
+          </div>
         )}
       </div>
     </div>

@@ -1,11 +1,10 @@
 "use client";
 
-import { useMemo, useEffect } from "react";
+import { useMemo, useEffect, useRef } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useInView } from "react-intersection-observer";
 import { LoaderCircle } from "lucide-react";
 import { PostList } from "@/app/_components/PostList";
-import { Button } from "@/components/ui/button";
 
 interface ListTimelineProps {
   listId: string;
@@ -13,6 +12,7 @@ interface ListTimelineProps {
 
 export function ListTimeline({ listId }: ListTimelineProps) {
   const { ref, inView } = useInView();
+  const hasEnteredLoadMoreRef = useRef(false);
 
   const {
     data,
@@ -26,9 +26,10 @@ export function ListTimeline({ listId }: ListTimelineProps) {
     queryFn: async ({ pageParam }) => {
       const searchParams = new URLSearchParams();
       if (pageParam) searchParams.set("cursor", pageParam);
+      searchParams.set("limit", "10");
 
       const res = await fetch(
-        `/api/lists/${listId}/timeline?${searchParams.toString()}`
+        `/api/lists/${listId}/timeline?${searchParams.toString()}`,
       );
       if (!res.ok) throw new Error("タイムラインの取得に失敗しました");
       return res.json();
@@ -44,9 +45,11 @@ export function ListTimeline({ listId }: ListTimelineProps) {
 
   // 無限スクロールの設定
   useEffect(() => {
-    if (inView && hasNextPage && !isFetchingNextPage) {
+    const entered = inView && !hasEnteredLoadMoreRef.current;
+    if (entered && hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
     }
+    hasEnteredLoadMoreRef.current = inView;
   }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   if (isLoading) {
@@ -81,15 +84,7 @@ export function ListTimeline({ listId }: ListTimelineProps) {
         <div ref={ref} className="py-4 text-center">
           {isFetchingNextPage ? (
             <LoaderCircle className="size-6 animate-spin text-primary" />
-          ) : (
-            <Button
-              variant="ghost"
-              onClick={() => fetchNextPage()}
-              disabled={isFetchingNextPage}
-            >
-              もっと読み込む
-            </Button>
-          )}
+          ) : null}
         </div>
       )}
     </div>
