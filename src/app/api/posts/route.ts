@@ -25,8 +25,9 @@ export async function GET(req: Request) {
       : DEFAULT_LIMIT;
     const includeReposts = searchParams.get("includeReposts") === "true";
     const countOnly = searchParams.get("countOnly") === "true";
-    const regularTake = includeReposts ? Math.floor(limit / 2) + 1 : limit + 1;
-    const repostTake = Math.floor(limit / 2) + 1;
+    // Repostが少ない/古いときにカーソルが過去へ飛ばないよう、両方から十分な候補を取得してから統合する
+    const regularTake = limit + 1;
+    const repostTake = limit + 1;
     const timelineCursorDate =
       includeReposts && cursor && !Number.isNaN(new Date(cursor).getTime())
         ? new Date(cursor)
