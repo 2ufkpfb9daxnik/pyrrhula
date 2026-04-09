@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useParams, useRouter } from "next/navigation";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import ChatClosedOverlay from "@/app/_components/ChatClosedOverlay";
+import { CHAT_CLOSED } from "@/config/chatClosed";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -155,6 +157,7 @@ export default function ChatPage() {
 
   return (
     <div className="mx-auto flex h-screen max-w-4xl flex-col">
+      {CHAT_CLOSED && <ChatClosedOverlay />}
       {/* ヘッダー - 固定位置 */}
       <div className="sticky top-0 z-10 border-b border-gray-800 bg-black p-4">
         <div className="flex items-center space-x-4">

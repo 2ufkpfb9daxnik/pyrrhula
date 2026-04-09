@@ -13,6 +13,8 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { CreateGroupChatModal } from "@/app/_components/groupchat";
+import ChatClosedOverlay from "@/app/_components/ChatClosedOverlay";
+import { CHAT_CLOSED } from "@/config/chatClosed";
 import { LoaderCircle } from "lucide-react";
 import Link from "next/link";
 
@@ -127,7 +129,7 @@ export default function ChatPage() {
 
     return Array.from(latestChatsMap.values()).sort(
       (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
   };
 
@@ -160,6 +162,7 @@ export default function ChatPage() {
   }
   return (
     <div className="container mx-auto p-4">
+      {CHAT_CLOSED && <ChatClosedOverlay />}
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">チャット</h1>
         <CreateGroupChatModal onGroupCreated={fetchGroupChats} />
@@ -250,7 +253,7 @@ export default function ChatPage() {
                       </p>
                       <p className="mt-1 text-xs text-gray-400">
                         {formatDistanceToNow(
-                          new Date(group.lastMessage.createdAt)
+                          new Date(group.lastMessage.createdAt),
                         )}
                       </p>
                     </>

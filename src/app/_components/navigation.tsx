@@ -112,6 +112,8 @@ export function Navigation({ isMobile = false }: NavigationProps) {
         </Button>
       </div>
 
+      {/* チャットは閉鎖のためナビから一時的に除外 */}
+      {/**
       <Button
         variant="ghost"
         size="icon"
@@ -121,6 +123,7 @@ export function Navigation({ isMobile = false }: NavigationProps) {
       >
         <MessageCircle className="size-6" />
       </Button>
+      */}
 
       <Button
         variant="ghost"
