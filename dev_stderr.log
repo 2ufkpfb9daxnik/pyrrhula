@@ -1,0 +1,35 @@
+ ⨯ Error: Cannot find module './chunks/vendor-chunks/next.js'
+Require stack:
+- D:\pyrrhula\.next\server\webpack-runtime.js
+- D:\pyrrhula\.next\server\app\api\auth\[...nextauth]\route.js
+- D:\pyrrhula\node_modules\next\dist\server\require.js
+- D:\pyrrhula\node_modules\next\dist\server\load-components.js
+- D:\pyrrhula\node_modules\next\dist\build\utils.js
+- D:\pyrrhula\node_modules\next\dist\build\swc\options.js
+- D:\pyrrhula\node_modules\next\dist\build\swc\index.js
+- D:\pyrrhula\node_modules\next\dist\build\analysis\parse-module.js
+- D:\pyrrhula\node_modules\next\dist\build\analysis\get-page-static-info.js
+- D:\pyrrhula\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- D:\pyrrhula\node_modules\next\dist\server\lib\router-server.js
+- D:\pyrrhula\node_modules\next\dist\server\lib\start-server.js
+    at t.f.require (D:\pyrrhula\.next\server\webpack-runtime.js:1:1509)
+    at <unknown> (D:\pyrrhula\.next\server\webpack-runtime.js:1:916)
+    at Array.reduce (<anonymous>)
+    at t.e (D:\pyrrhula\.next\server\webpack-runtime.js:1:895)
+    at Array.map (<anonymous>)
+    at t.X (D:\pyrrhula\.next\server\webpack-runtime.js:1:1268)
+    at <unknown> (D:\pyrrhula\.next\server\app\api\auth\[...nextauth]\route.js:262:47)
+    at Object.<anonymous> (D:\pyrrhula\.next\server\app\api\auth\[...nextauth]\route.js:265:3) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array],
+  page: '/api/auth/session'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'D:\pyrrhula\.next\server\app-paths-manifest.json'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'D:\\pyrrhula\\.next\\server\\app-paths-manifest.json',
+  page: '/api/whole'
+}
+ ⨯ SyntaxError: Unexpected end of JSON input
+    at JSON.parse (<anonymous>)

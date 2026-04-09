@@ -1,0 +1,104 @@
+
+> pyrrhula@0.1.0 dev
+> next dev
+
+   ▲ Next.js 15.3.3
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.68.60:3000
+   - Environments: .env.local, .env
+   - Experiments (use with caution):
+     ✓ forceSwcTransforms
+
+ ✓ Starting...
+ ✓ Ready in 1583ms
+ ✓ Compiled /middleware in 225ms (207 modules)
+認証スキップ: /api/whole
+認証スキップ: /api/whole
+ ○ Compiling /api/whole ...
+認証スキップ: /api/whole
+ ✓ Compiled /api/whole in 884ms (590 modules)
+全体タイムライン: 拡散投稿を取得します...
+全体タイムライン: 拡散投稿を取得します...
+全体タイムライン: 2件の拡散を取得しました
+ GET /api/whole?limit=1&includeReposts=true 200 in 982ms
+認証スキップ: /api/whole
+全体タイムライン: 2件の拡散を取得しました
+全体タイムライン: 拡散投稿を取得します...
+全体タイムライン: 11件の拡散を取得しました
+ GET /api/whole?limit=10&includeReposts=true 200 in 458ms
+認証スキップ: /api/whole
+全体タイムライン: 拡散投稿を取得します...
+全体タイムライン: 11件の拡散を取得しました
+ GET /api/whole?limit=10&includeReposts=true 200 in 373ms
+認証スキップ: /api/whole
+全体タイムライン: 拡散投稿を取得します...
+全体タイムライン: 11件の拡散を取得しました
+ GET /api/whole?limit=10&includeReposts=true 200 in 366ms
+認証スキップ: /api/whole
+全体タイムライン: 拡散投稿を取得します...
+全体タイムライン: 11件の拡散を取得しました
+ GET /api/whole?limit=10&includeReposts=true 200 in 360ms
+認証スキップ: /api/whole
+全体タイムライン: 拡散投稿を取得します...
+全体タイムライン: 11件の拡散を取得しました
+ GET /api/whole?limit=10&includeReposts=true 200 in 362ms
+認証スキップ: /api/whole
+全体タイムライン: 拡散投稿を取得します...
+全体タイムライン: 21件の拡散を取得しました
+ GET /api/whole?limit=20&includeReposts=true 200 in 467ms
+認証スキップ: /api/whole
+全体タイムライン: 拡散投稿を取得します...
+全体タイムライン: 21件の拡散を取得しました
+ GET /api/whole?limit=20&includeReposts=true 200 in 475ms
+認証スキップ: /api/whole
+全体タイムライン: 拡散投稿を取得します...
+全体タイムライン: 21件の拡散を取得しました
+ GET /api/whole?limit=20&includeReposts=true 200 in 488ms
+認証スキップ: /api/whole
+全体タイムライン: 拡散投稿を取得します...
+全体タイムライン: 21件の拡散を取得しました
+ GET /api/whole?limit=20&includeReposts=true 200 in 507ms
+認証スキップ: /api/whole
+全体タイムライン: 拡散投稿を取得します...
+全体タイムライン: 21件の拡散を取得しました
+ GET /api/whole?limit=20&includeReposts=true 200 in 549ms
+認証スキップ: /api/auth/session
+ ○ Compiling /api/auth/[...nextauth] ...
+ ✓ Compiled /api/auth/[...nextauth] in 1442ms (594 modules)
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 9.6s (910 modules)
+ GET /api/auth/session 500 in 13796ms
+ ✓ Compiled in 297ms (54 modules)
+認証スキップ: /api/whole
+ ✓ Compiled /api/whole in 460ms (356 modules)
+ GET /api/whole?limit=1&includeReposts=true 200 in 1093ms
+ ✓ Compiled in 268ms (54 modules)
+認証スキップ: /api/whole
+ ✓ Compiled /api/whole in 216ms (356 modules)
+ GET /api/whole?limit=1&includeReposts=true 200 in 868ms
+認証スキップ: /api/whole
+ GET /api/whole?limit=10&includeReposts=true 200 in 349ms
+認証スキップ: /api/whole
+ GET /api/whole?limit=10&includeReposts=true 200 in 337ms
+認証スキップ: /api/whole
+ GET /api/whole?limit=10&includeReposts=true 200 in 333ms
+認証スキップ: /api/whole
+ GET /api/whole?limit=10&includeReposts=true 200 in 334ms
+認証スキップ: /api/whole
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 730ms (922 modules)
+ GET /api/whole?limit=10&includeReposts=true 500 in 4780ms
+認証スキップ: /api/whole
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 4.5s (1462 modules)
+ GET /api/whole?limit=20&includeReposts=true 404 in 4891ms
+認証スキップ: /api/whole
+ ✓ Compiled in 328ms (673 modules)
+ GET /api/whole?limit=20&includeReposts=true 200 in 793ms
+認証スキップ: /api/whole
+ GET /api/whole?limit=20&includeReposts=true 200 in 399ms
+認証スキップ: /api/whole
+ GET /api/whole?limit=20&includeReposts=true 200 in 400ms
+認証スキップ: /api/whole
+ GET /api/whole?limit=20&includeReposts=true 200 in 412ms
+[?25h

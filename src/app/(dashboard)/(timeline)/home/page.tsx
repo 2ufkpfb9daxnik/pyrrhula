@@ -161,9 +161,6 @@ export default function HomePage() {
 
         const data = await response.json();
 
-        // デバッグ: APIレスポンスを確認
-        console.log("API Response:", data.posts.slice(0, 2));
-
         if (cursor) {
           // 追加読み込みの場合は既存の投稿に追加
           setPosts((prev) => [
@@ -174,12 +171,6 @@ export default function HomePage() {
           // 初回読み込みの場合は置き換え
           setPosts(data.posts.map((post: any) => formatPost(post)));
         }
-
-        // デバッグ: フォーマット後の投稿を確認
-        console.log(
-          "Formatted posts:",
-          data.posts.map((post: any) => formatPost(post)).slice(0, 2),
-        );
 
         setHasMore(data.hasMore);
         setNextCursor(data.nextCursor);

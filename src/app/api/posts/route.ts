@@ -8,10 +8,34 @@ import { createRatingHistory, RATING_REASONS } from "@/lib/rating";
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
 
+type TimingEntry = {
+  name: string;
+  dur: number;
+};
+
+const buildServerTimingHeader = (timings: TimingEntry[]): string =>
+  timings.map((t) => `${t.name};dur=${t.dur.toFixed(1)}`).join(", ");
+
+const timed = async <T>(
+  timings: TimingEntry[],
+  name: string,
+  fn: () => Promise<T>,
+): Promise<T> => {
+  const start = performance.now();
+  const result = await fn();
+  timings.push({ name, dur: performance.now() - start });
+  return result;
+};
+
 // 投稿一覧を取得
 export async function GET(req: Request) {
+  const timings: TimingEntry[] = [];
+  const totalStart = performance.now();
+
   try {
-    const session = await getServerSession(authOptions);
+    const session = await timed(timings, "session", () =>
+      getServerSession(authOptions),
+    );
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -25,7 +49,6 @@ export async function GET(req: Request) {
       : DEFAULT_LIMIT;
     const includeReposts = searchParams.get("includeReposts") === "true";
     const countOnly = searchParams.get("countOnly") === "true";
-    // Repostが少ない/古いときにカーソルが過去へ飛ばないよう、両方から十分な候補を取得してから統合する
     const regularTake = limit + 1;
     const repostTake = limit + 1;
     const timelineCursorDate =
@@ -33,24 +56,23 @@ export async function GET(req: Request) {
         ? new Date(cursor)
         : undefined;
 
-    const followings = await prisma.follow.findMany({
-      where: {
-        followerId: session.user.id,
-      },
-      select: {
-        followedId: true,
-      },
-    });
+    const followings = await timed(timings, "followings", () =>
+      prisma.follow.findMany({
+        where: {
+          followerId: session.user.id,
+        },
+        select: {
+          followedId: true,
+        },
+      }),
+    );
 
     const followingIds = followings.map((f) => f.followedId);
-    followingIds.push(session.user.id); // 自分のIDも含める
+    followingIds.push(session.user.id);
 
-    // カウントのみが要求された場合（自動更新用）
     if (countOnly && since) {
       const sinceDate = new Date(since);
-
-      // 通常投稿のカウント
-      const postsCount = await prisma.post.count({
+      const postsCountPromise = prisma.post.count({
         where: {
           userId: { in: followingIds },
           createdAt: {
@@ -58,28 +80,33 @@ export async function GET(req: Request) {
           },
         },
       });
-
-      // リポストのカウント（includeRepostsが有効な場合のみ）
-      let repostsCount = 0;
-      if (includeReposts) {
-        repostsCount = await prisma.repost.count({
-          where: {
-            userId: { in: followingIds },
-            createdAt: {
-              gt: sinceDate,
+      const repostsCountPromise = includeReposts
+        ? prisma.repost.count({
+            where: {
+              userId: { in: followingIds },
+              createdAt: {
+                gt: sinceDate,
+              },
             },
-          },
-        });
-      }
+          })
+        : Promise.resolve(0);
 
-      // 新しい投稿の合計数を返す
-      return NextResponse.json({
+      const [postsCount, repostsCount] = await timed(timings, "countOnly", () =>
+        Promise.all([postsCountPromise, repostsCountPromise]),
+      );
+
+      const countResponse = NextResponse.json({
         count: postsCount + repostsCount,
         timestamp: new Date(),
       });
+      timings.push({ name: "total", dur: performance.now() - totalStart });
+      countResponse.headers.set(
+        "Server-Timing",
+        buildServerTimingHeader(timings),
+      );
+      return countResponse;
     }
 
-    // 型を明示的に定義して互換性を確保
     type FormattedPost = {
       id: string;
       content: string;
@@ -102,11 +129,7 @@ export async function GET(req: Request) {
       } | null;
       _count: {
         replies: number;
-        favoritedBy?: number;
-        repostedBy?: number;
       };
-      favoritedBy: { userId: string }[];
-      userRepostedData: { userId: string; createdAt?: Date }[];
       isReposted: boolean;
       isFavorited: boolean;
       repostedAt?: Date;
@@ -127,7 +150,6 @@ export async function GET(req: Request) {
       };
     };
 
-    // API応答用の型
     type ApiResponsePost = {
       id: string;
       content: string;
@@ -171,8 +193,7 @@ export async function GET(req: Request) {
       };
     };
 
-    // 通常の投稿を取得
-    const regularPosts = await prisma.post.findMany({
+    const regularPostsPromise = prisma.post.findMany({
       where: {
         userId: { in: followingIds },
         ...(since && {
@@ -221,17 +242,7 @@ export async function GET(req: Request) {
         _count: {
           select: {
             replies: true,
-            favoritedBy: true,
-            repostedBy: true,
           },
-        },
-        favoritedBy: {
-          where: { userId: session.user.id },
-          select: { userId: true },
-        },
-        repostedBy: {
-          where: { userId: session.user.id },
-          select: { userId: true, createdAt: true },
         },
         Question: {
           take: 1,
@@ -251,6 +262,93 @@ export async function GET(req: Request) {
       },
     });
 
+    const repostsPromise = includeReposts
+      ? prisma.repost.findMany({
+          where: {
+            userId: { in: followingIds },
+            ...(since && {
+              createdAt: {
+                gt: new Date(since),
+              },
+            }),
+            ...(timelineCursorDate && {
+              createdAt: {
+                lt: timelineCursorDate,
+              },
+            }),
+          },
+          take: repostTake,
+          orderBy: {
+            createdAt: "desc",
+          },
+          select: {
+            id: true,
+            createdAt: true,
+            user: {
+              select: {
+                id: true,
+                username: true,
+                icon: true,
+              },
+            },
+            post: {
+              select: {
+                id: true,
+                content: true,
+                createdAt: true,
+                favorites: true,
+                reposts: true,
+                images: true,
+                user: {
+                  select: {
+                    id: true,
+                    username: true,
+                    icon: true,
+                  },
+                },
+                parent: {
+                  select: {
+                    id: true,
+                    content: true,
+                    user: {
+                      select: {
+                        id: true,
+                        username: true,
+                      },
+                    },
+                  },
+                },
+                _count: {
+                  select: {
+                    replies: true,
+                  },
+                },
+                Question: {
+                  take: 1,
+                  select: {
+                    id: true,
+                    question: true,
+                    answer: true,
+                    targetUserId: true,
+                    User_Question_targetUserIdToUser: {
+                      select: {
+                        username: true,
+                        icon: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        })
+      : Promise.resolve([] as any[]);
+
+    const [regularPosts, reposts] = await timed(timings, "timelineDb", () =>
+      Promise.all([regularPostsPromise, repostsPromise]),
+    );
+
+    const formatStart = performance.now();
     let allPosts: FormattedPost[] = regularPosts.map((post) => {
       const question =
         post.Question && post.Question.length > 0
@@ -269,116 +367,16 @@ export async function GET(req: Request) {
 
       return {
         ...post,
-        isReposted: post.repostedBy.length > 0,
-        isFavorited: post.favoritedBy.length > 0,
-        repostedAt:
-          post.repostedBy.length > 0 ? post.repostedBy[0].createdAt : undefined,
+        isReposted: false,
+        isFavorited: false,
+        repostedAt: undefined,
         parent: post.parent || null,
-        userRepostedData: post.repostedBy,
         question,
       };
     });
 
-    // 拡散された投稿を取得
     if (includeReposts) {
-      const reposts = await prisma.repost.findMany({
-        where: {
-          userId: { in: followingIds },
-          ...(since && {
-            createdAt: {
-              gt: new Date(since),
-            },
-          }),
-          ...(timelineCursorDate && {
-            createdAt: {
-              lt: timelineCursorDate,
-            },
-          }),
-        },
-        take: repostTake,
-        orderBy: {
-          createdAt: "desc",
-        },
-        select: {
-          id: true,
-          createdAt: true,
-          user: {
-            select: {
-              id: true,
-              username: true,
-              icon: true,
-            },
-          },
-          post: {
-            select: {
-              id: true,
-              content: true,
-              createdAt: true,
-              favorites: true,
-              reposts: true,
-              images: true,
-              user: {
-                select: {
-                  id: true,
-                  username: true,
-                  icon: true,
-                },
-              },
-              parent: {
-                select: {
-                  id: true,
-                  content: true,
-                  user: {
-                    select: {
-                      id: true,
-                      username: true,
-                    },
-                  },
-                },
-              },
-              _count: {
-                select: {
-                  replies: true,
-                  favoritedBy: true,
-                  repostedBy: true,
-                },
-              },
-              favoritedBy: {
-                where: { userId: session.user.id },
-                select: { userId: true },
-              },
-              repostedBy: {
-                where: { userId: session.user.id },
-                select: { userId: true, createdAt: true },
-              },
-              Question: {
-                take: 1,
-                select: {
-                  id: true,
-                  question: true,
-                  answer: true,
-                  targetUserId: true,
-                  User_Question_targetUserIdToUser: {
-                    select: {
-                      username: true,
-                      icon: true,
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      });
-
-      // 拡散情報をフォーマット
       const repostedPosts: FormattedPost[] = reposts.map((repost) => {
-        const repostingUserInfo = {
-          id: repost.user.id,
-          username: repost.user.username,
-          icon: repost.user.icon,
-        };
-
         const question =
           repost.post.Question && repost.post.Question.length > 0
             ? {
@@ -407,20 +405,20 @@ export async function GET(req: Request) {
           user: repost.post.user,
           parent: repost.post.parent || null,
           _count: repost.post._count,
-          favoritedBy: repost.post.favoritedBy,
-          userRepostedData: repost.post.repostedBy,
           repostedAt: repost.createdAt,
-          isReposted: repost.post.repostedBy.length > 0,
-          isFavorited: repost.post.favoritedBy.length > 0,
-          repostedByInfo: repostingUserInfo,
+          isReposted: false,
+          isFavorited: false,
+          repostedByInfo: {
+            id: repost.user.id,
+            username: repost.user.username,
+            icon: repost.user.icon,
+          },
           question,
         };
       });
 
-      // 通常の投稿と拡散を結合
       allPosts = [...allPosts, ...repostedPosts];
 
-      // 重複を除去（同じ投稿が通常の投稿と拡散で2回表示されないようにする）部分を修正
       const seenIds = new Set<string>();
       allPosts = allPosts.filter((post) => {
         const postKey = post.repostedByInfo
@@ -428,7 +426,6 @@ export async function GET(req: Request) {
           : post.id;
 
         if (seenIds.has(postKey)) {
-          console.log(`重複を検出: ${postKey}`);
           return false;
         }
 
@@ -436,15 +433,14 @@ export async function GET(req: Request) {
         return true;
       });
 
-      // 日付でソート
       allPosts.sort((a, b) => {
         const dateA = a.repostedAt || a.createdAt;
         const dateB = b.repostedAt || b.createdAt;
         return new Date(dateB).getTime() - new Date(dateA).getTime();
       });
     }
+    timings.push({ name: "format", dur: performance.now() - formatStart });
 
-    // 次ページの有無を確認
     const hasMore = allPosts.length > limit;
     const nextCursor = hasMore
       ? new Date(
@@ -453,7 +449,33 @@ export async function GET(req: Request) {
       : undefined;
     const postList = hasMore ? allPosts.slice(0, limit) : allPosts;
 
-    // レスポンスデータの整形
+    const postIds = postList.map((post) => post.id);
+    let favoritedPostIds = new Set<string>();
+    let repostedPostIds = new Set<string>();
+
+    if (postIds.length > 0) {
+      const [favorites, reposts] = await timed(timings, "reactionFlags", () =>
+        prisma.$transaction([
+          prisma.favorite.findMany({
+            where: {
+              userId: session.user.id,
+              postId: { in: postIds },
+            },
+            select: { postId: true },
+          }),
+          prisma.repost.findMany({
+            where: {
+              userId: session.user.id,
+              postId: { in: postIds },
+            },
+            select: { postId: true },
+          }),
+        ]),
+      );
+      favoritedPostIds = new Set(favorites.map((f) => f.postId));
+      repostedPostIds = new Set(reposts.map((r) => r.postId));
+    }
+
     const formattedPosts: ApiResponsePost[] = postList.map((post) => ({
       id: post.id,
       content: post.content,
@@ -466,18 +488,21 @@ export async function GET(req: Request) {
       _count: {
         replies: post._count.replies,
       },
-      isFavorited: post.isFavorited,
-      isReposted: post.isReposted,
+      isFavorited: favoritedPostIds.has(post.id),
+      isReposted: repostedPostIds.has(post.id),
       repostedAt: post.repostedAt,
       repostedBy: post.repostedByInfo,
       question: post.question,
     }));
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       posts: formattedPosts,
       hasMore,
       ...(nextCursor && { nextCursor }),
     });
+    timings.push({ name: "total", dur: performance.now() - totalStart });
+    response.headers.set("Server-Timing", buildServerTimingHeader(timings));
+    return response;
   } catch (error) {
     console.error("[Timeline Error]:", error);
     return NextResponse.json(
