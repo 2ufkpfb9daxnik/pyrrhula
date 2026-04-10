@@ -51,12 +51,17 @@ export function useRealtimeTimeline({
       return;
     }
 
+    // チャンネルごとのリトライカウンタ。クロージャ内に閉じており
+    // cleanup で stopped=true にすることで古いコールバックの副作用を防ぐ。
     let retryCount = 0;
     let stopped = false;
 
     const channel = supabase.channel(channelName);
 
     const handleInsert = () => {
+      if (stopped) return;
+      // autoUpdateRef / onAutoUpdateRef は毎レンダーで更新されるため
+      // 依存配列に追加しなくても常に最新値を参照できる
       if (autoUpdateRef.current && onAutoUpdateRef.current) {
         onAutoUpdateRef.current();
       } else {

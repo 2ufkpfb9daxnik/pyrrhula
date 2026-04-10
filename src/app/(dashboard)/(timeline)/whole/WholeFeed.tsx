@@ -134,7 +134,9 @@ export function WholeFeed({
   const isAutoUpdate = settings.updateMode === "auto";
 
   const handleAutoUpdate = useCallback(() => {
-    void fetchPosts(undefined, true);
+    fetchPosts(undefined, true).catch((err) => {
+      console.error("Auto-update failed:", err);
+    });
   }, [fetchPosts]);
 
   const { hasNewPosts, clearNewPosts } = useRealtimeTimeline({
