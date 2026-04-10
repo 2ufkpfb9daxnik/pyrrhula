@@ -42,7 +42,7 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/home");
+      router.push("/whole");
       router.refresh();
     } catch (err) {
       console.error("ログインエラー:", err);

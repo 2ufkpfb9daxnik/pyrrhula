@@ -10,6 +10,7 @@ import type { Post as PostType } from "@/app/_types/post";
 import { toast } from "sonner";
 import { useInView } from "react-intersection-observer";
 import { useRealtimeTimeline } from "@/app/_hooks/useRealtimeTimeline";
+import { useTimelineSettings } from "@/app/_hooks/useTimelineSettings";
 
 interface WholeFeedProps {
   initialPostsRaw: any[];
@@ -129,9 +130,20 @@ export function WholeFeed({
   );
 
   // Supabase Realtime による新着投稿・拡散の検知
+  const { settings } = useTimelineSettings();
+  const isAutoUpdate = settings.updateMode === "auto";
+
+  const handleAutoUpdate = useCallback(() => {
+    fetchPosts(undefined, true).catch((err) => {
+      console.error("Auto-update failed:", err);
+    });
+  }, [fetchPosts]);
+
   const { hasNewPosts, clearNewPosts } = useRealtimeTimeline({
     channelName: "whole-timeline",
     includeReposts: true,
+    autoUpdate: isAutoUpdate,
+    onAutoUpdate: handleAutoUpdate,
   });
 
   const handleNewPostsBannerClick = useCallback(() => {

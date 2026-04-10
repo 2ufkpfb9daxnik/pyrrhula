@@ -7,13 +7,21 @@ import { Navigation } from "@/app/_components/navigation";
 import { MakePost } from "@/app/_components/makepost";
 import { Search } from "@/app/_components/search";
 import { TimelineJump } from "@/app/_components/TimelineJump";
+import { TimelineSettingsPanel } from "@/app/_components/TimelineSettingsPanel";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Users,
   Globe,
   LayoutList,
   ListChecks,
   Star,
+  Settings,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -33,6 +41,7 @@ interface List {
 }
 
 type TabType =
+  | "settings"
   | "following"
   | "global"
   | "lists"
@@ -43,7 +52,8 @@ export default function TimelineLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { data: session } = useSession();
-  const [activeTab, setActiveTab] = useState<TabType>("following");
+  const [activeTab, setActiveTab] = useState<TabType>("global");
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [userLists, setUserLists] = useState<List[]>([]);
   const [followedLists, setFollowedLists] = useState<List[]>([]);
@@ -121,7 +131,10 @@ export default function TimelineLayout({ children }: { children: ReactNode }) {
   }, [fetchFollowedLists, fetchUserInfo, fetchUserLists, session?.user?.id]);
 
   const handleTabChange = (value: TabType) => {
-    if (value === "following") {
+    if (value === "settings") {
+      setIsSettingsOpen(true);
+      return;
+    } else if (value === "following") {
       router.push("/home");
     } else if (value === "global") {
       router.push("/whole");
@@ -235,6 +248,18 @@ export default function TimelineLayout({ children }: { children: ReactNode }) {
                 style={{ scrollBehavior: "smooth" }}
               >
                 <div className="flex items-center">
+                  {/* 設定タブ（一番左） */}
+                  <button
+                    className={cn(
+                      "relative flex min-w-[80px] items-center justify-center py-3 font-medium transition-colors",
+                      "text-gray-500 hover:text-gray-300",
+                    )}
+                    onClick={() => handleTabChange("settings")}
+                  >
+                    <Settings className="mr-1 size-4" />
+                    設定
+                  </button>
+
                   {/* メインナビゲーション */}
                   <button
                     className={cn(
@@ -353,6 +378,16 @@ export default function TimelineLayout({ children }: { children: ReactNode }) {
           </div>
         </div>
       </div>
+
+      {/* 設定ダイアログ */}
+      <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>タイムライン設定</DialogTitle>
+          </DialogHeader>
+          <TimelineSettingsPanel />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
