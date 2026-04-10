@@ -16,6 +16,7 @@ import { LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useInView } from "react-intersection-observer";
 import { useRealtimeTimeline } from "@/app/_hooks/useRealtimeTimeline";
+import { useTimelineSettings } from "@/app/_hooks/useTimelineSettings";
 
 interface UserInfo {
   icon: string | null;
@@ -201,8 +202,17 @@ export default function HomePage() {
   }, [isLoadMoreInView, hasMore, nextCursor, isLoading, fetchPosts]);
 
   // Supabase Realtime による新着投稿の検知
+  const { settings } = useTimelineSettings();
+  const isAutoUpdate = settings.updateMode === "auto";
+
+  const handleAutoUpdate = useCallback(() => {
+    void fetchPosts(undefined, true);
+  }, [fetchPosts]);
+
   const { hasNewPosts, clearNewPosts } = useRealtimeTimeline({
     channelName: "home-timeline",
+    autoUpdate: isAutoUpdate,
+    onAutoUpdate: handleAutoUpdate,
   });
 
   const handleNewPostsBannerClick = useCallback(() => {

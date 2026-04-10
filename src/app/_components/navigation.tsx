@@ -33,7 +33,7 @@ export function Navigation({ isMobile = false }: NavigationProps) {
   };
 
   const handleHomeClick = () => {
-    router.push("/home");
+    router.push("/whole");
   };
 
   const handleNotificationClick = () => {
