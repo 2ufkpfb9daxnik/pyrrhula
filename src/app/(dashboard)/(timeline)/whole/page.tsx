@@ -1,435 +1,226 @@
-"use client";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
+import prisma from "@/lib/prisma";
+import { WholeFeed } from "./WholeFeed";
 
-import { useState, useEffect, useRef } from "react";
-import { Post } from "@/app/_components/post";
-import { MakePost } from "@/app/_components/makepost";
-import { Search } from "@/app/_components/search";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { LoaderCircle, Plus } from "lucide-react";
-import type { Post as PostType } from "@/app/_types/post";
-import { toast } from "sonner";
-import { useInView } from "react-intersection-observer";
+const DEFAULT_LIMIT = 10;
 
-export default function WholePage() {
-  const [posts, setPosts] = useState<PostType[]>([]);
-  const [hasMore, setHasMore] = useState(false);
-  const [nextCursor, setNextCursor] = useState<string | undefined>();
-  const [isLoading, setIsLoading] = useState(false);
-  const postInputRef = useRef<HTMLTextAreaElement>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const hasEnteredLoadMoreRef = useRef(false);
-  const { ref: loadMoreRef, inView: isLoadMoreInView } = useInView({
-    rootMargin: "0px 0px",
+async function getInitialPosts(userId?: string) {
+  const take = DEFAULT_LIMIT + 1;
+
+  const [regularPosts, reposts] = await Promise.all([
+    prisma.post.findMany({
+      take,
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        content: true,
+        createdAt: true,
+        favorites: true,
+        reposts: true,
+        images: true,
+        user: { select: { id: true, username: true, icon: true } },
+        parent: {
+          select: {
+            id: true,
+            content: true,
+            user: { select: { id: true, username: true } },
+          },
+        },
+        _count: { select: { replies: true } },
+        Question: {
+          take: 1,
+          select: {
+            id: true,
+            question: true,
+            answer: true,
+            targetUserId: true,
+            User_Question_targetUserIdToUser: {
+              select: { username: true, icon: true },
+            },
+          },
+        },
+      },
+    }),
+    prisma.repost.findMany({
+      take,
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        createdAt: true,
+        user: { select: { id: true, username: true, icon: true } },
+        post: {
+          select: {
+            id: true,
+            content: true,
+            createdAt: true,
+            favorites: true,
+            reposts: true,
+            images: true,
+            user: { select: { id: true, username: true, icon: true } },
+            parent: {
+              select: {
+                id: true,
+                content: true,
+                user: { select: { id: true, username: true } },
+              },
+            },
+            _count: { select: { replies: true } },
+            Question: {
+              take: 1,
+              select: {
+                id: true,
+                question: true,
+                answer: true,
+                targetUserId: true,
+                User_Question_targetUserIdToUser: {
+                  select: { username: true, icon: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    }),
+  ]);
+
+  type FormattedPost = {
+    id: string;
+    content: string;
+    createdAt: Date;
+    favorites: number;
+    reposts: number;
+    images: string[];
+    user: { id: string; username: string; icon: string | null };
+    parent: {
+      id: string;
+      content: string;
+      user?: { id: string; username: string };
+    } | null;
+    _count: { replies: number };
+    isReposted: boolean;
+    isFavorited: boolean;
+    repostedAt?: Date;
+    repostedByInfo?: { id: string; username: string; icon: string | null };
+    question?: {
+      id: string;
+      question: string;
+      answer: string | null;
+      targetUserId: string;
+      targetUser: { username: string; icon: string | null };
+    };
+  };
+
+  const toQuestion = (q: any) =>
+    q
+      ? {
+          id: q.id,
+          question: q.question,
+          answer: q.answer,
+          targetUserId: q.targetUserId,
+          targetUser: {
+            username: q.User_Question_targetUserIdToUser.username,
+            icon: q.User_Question_targetUserIdToUser.icon,
+          },
+        }
+      : undefined;
+
+  let allPosts: FormattedPost[] = regularPosts.map((post) => ({
+    ...post,
+    isReposted: false,
+    isFavorited: false,
+    repostedAt: undefined,
+    parent: post.parent || null,
+    question:
+      post.Question && post.Question.length > 0
+        ? toQuestion(post.Question[0])
+        : undefined,
+  }));
+
+  const repostedPosts: FormattedPost[] = reposts.map((repost) => ({
+    ...repost.post,
+    images: repost.post.images || [],
+    parent: repost.post.parent || null,
+    repostedAt: repost.createdAt,
+    isReposted: false,
+    isFavorited: false,
+    repostedByInfo: {
+      id: repost.user.id,
+      username: repost.user.username,
+      icon: repost.user.icon,
+    },
+    question:
+      repost.post.Question && repost.post.Question.length > 0
+        ? toQuestion(repost.post.Question[0])
+        : undefined,
+  }));
+
+  allPosts = [...allPosts, ...repostedPosts];
+  allPosts.sort((a, b) => {
+    const dateA = a.repostedAt || a.createdAt;
+    const dateB = b.repostedAt || b.createdAt;
+    return new Date(dateB).getTime() - new Date(dateA).getTime();
   });
 
-  // プルダウンリフレッシュ用の状態
-  const [isPulling, setIsPulling] = useState(false);
-  const [pullDistance, setPullDistance] = useState(0);
-  const touchStartRef = useRef(0);
-  const contentRef = useRef<HTMLDivElement>(null);
-  const [isMobile, setIsMobile] = useState(false);
+  const hasMore = allPosts.length > DEFAULT_LIMIT;
+  const postList = hasMore ? allPosts.slice(0, DEFAULT_LIMIT) : allPosts;
+  const nextCursor = hasMore
+    ? new Date(
+        postList[DEFAULT_LIMIT - 1].repostedAt ||
+          postList[DEFAULT_LIMIT - 1].createdAt,
+      ).toISOString()
+    : undefined;
 
-  // モバイル/デスクトップの判定
-  useEffect(() => {
-    const checkIfMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
+  const postIds = postList.map((p) => p.id);
+  let favoritedPostIds = new Set<string>();
+  let repostedPostIds = new Set<string>();
 
-    checkIfMobile();
-    window.addEventListener("resize", checkIfMobile);
-
-    return () => {
-      window.removeEventListener("resize", checkIfMobile);
-    };
-  }, []);
-
-  // プルダウンリフレッシュの実装
-  useEffect(() => {
-    // モバイルでのみ有効化
-    if (!isMobile || !contentRef.current) return;
-
-    const content = contentRef.current;
-
-    const handleTouchStart = (e: TouchEvent) => {
-      // スクロール位置がトップにある場合のみプルダウンを有効化
-      if (window.scrollY <= 0) {
-        touchStartRef.current = e.touches[0].clientY;
-        setIsPulling(true);
-      }
-    };
-
-    const handleTouchMove = (e: TouchEvent) => {
-      if (!isPulling) return;
-
-      const touchY = e.touches[0].clientY;
-      const distance = touchY - touchStartRef.current;
-
-      // 下方向へのスワイプ時のみ処理（上方向は無視）
-      if (distance > 0) {
-        // 引っ張る感覚を出すために減衰させる
-        const dampedDistance = Math.min(distance * 0.5, 100);
-        setPullDistance(dampedDistance);
-
-        // スクロールを防止
-        if (dampedDistance > 5) {
-          e.preventDefault();
-        }
-      }
-    };
-
-    const handleTouchEnd = () => {
-      if (!isPulling) return;
-
-      if (pullDistance > 50) {
-        // 十分な距離を引っ張られたら更新する
-        void fetchPosts(undefined, true);
-      }
-
-      // リセット
-      setPullDistance(0);
-      setIsPulling(false);
-    };
-
-    content.addEventListener("touchstart", handleTouchStart, { passive: true });
-    content.addEventListener("touchmove", handleTouchMove, { passive: false });
-    content.addEventListener("touchend", handleTouchEnd);
-
-    return () => {
-      content.removeEventListener("touchstart", handleTouchStart);
-      content.removeEventListener("touchmove", handleTouchMove);
-      content.removeEventListener("touchend", handleTouchEnd);
-    };
-  }, [isPulling, isMobile, pullDistance]);
-
-  // 初回読み込み
-  useEffect(() => {
-    fetchPosts();
-  }, []);
-
-  useEffect(() => {
-    const entered = isLoadMoreInView && !hasEnteredLoadMoreRef.current;
-    if (entered && hasMore && nextCursor && !isLoading) {
-      void fetchPosts(nextCursor);
-    }
-    hasEnteredLoadMoreRef.current = isLoadMoreInView;
-  }, [isLoadMoreInView, hasMore, nextCursor, isLoading]);
-
-  // キーボードショートカットの設定
-  useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
-      if (
-        e.key === "n" &&
-        !e.ctrlKey &&
-        !e.metaKey &&
-        document.activeElement?.tagName !== "TEXTAREA" &&
-        document.activeElement?.tagName !== "INPUT"
-      ) {
-        e.preventDefault();
-        if (window.innerWidth < 768) {
-          setIsDialogOpen(true);
-          setTimeout(() => {
-            postInputRef.current?.focus();
-          }, 100);
-        } else {
-          postInputRef.current?.focus();
-        }
-      } else if (
-        e.key === "r" &&
-        !e.ctrlKey &&
-        !e.metaKey &&
-        document.activeElement?.tagName !== "TEXTAREA" &&
-        document.activeElement?.tagName !== "INPUT"
-      ) {
-        // rキーで最新の投稿を取得
-        e.preventDefault();
-        fetchPosts(undefined, true);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyPress);
-    return () => window.removeEventListener("keydown", handleKeyPress);
-  }, []);
-
-  // APIレスポンスの投稿データをフォーマットするヘルパー関数
-  const formatPost = (post: any): PostType => {
-    // repostedByUserIdが存在する場合、repostedByオブジェクトを構築
-    let repostedBy = undefined;
-
-    if (post.repostedBy) {
-      // すでにrepostedByオブジェクトが存在する場合はそのまま使用
-      repostedBy = post.repostedBy;
-    } else if (post.repostedByUserId && post.repostedByUser) {
-      // repostedByUserIdとrepostedByUserが存在する場合は構築
-      repostedBy = {
-        id: post.repostedByUser.id || post.repostedByUserId,
-        username: post.repostedByUser.username || "",
-        icon: post.repostedByUser.icon || null,
-      };
-    } else if (post.repostedByUserId) {
-      // repostedByUserIdのみ存在する場合は最低限の情報を設定
-      repostedBy = {
-        id: post.repostedByUserId,
-        username: "ユーザー", // プレースホルダー
-        icon: null,
-      };
-    }
-
-    return {
-      ...post,
-      createdAt: new Date(post.createdAt),
-      repostedAt: post.repostedAt ? new Date(post.repostedAt) : undefined,
-      favoritedAt: post.favoritedAt ? new Date(post.favoritedAt) : undefined,
-      // 拡散された投稿であれば、repostedByを設定
-      repostedBy: repostedBy,
-      // 元の投稿がある場合はoriginalPostを設定
-      originalPost: post.originalPost
-        ? {
-            ...post.originalPost,
-            createdAt: new Date(post.originalPost.createdAt),
-            user: post.originalPost.user,
-          }
-        : undefined,
-      // 画像配列の確保
-      images: post.images || [],
-    };
-  };
-
-  // 投稿取得
-  const fetchPosts = async (cursor?: string, forceFresh = false) => {
-    try {
-      setIsLoading(true);
-      const params = new URLSearchParams();
-      if (cursor) {
-        params.append("cursor", cursor);
-      }
-
-      params.append("limit", "10");
-      params.append("includeReposts", "true");
-
-      // APIエンドポイントを /api/posts から /api/whole に変更
-      const response = await fetch(
-        `/api/whole?${params}`,
-        forceFresh ? { cache: "no-store" } : { next: { revalidate: 0 } },
-      );
-      if (!response.ok) {
-        throw new Error("投稿の取得に失敗しました");
-      }
-
-      const data = await response.json();
-
-      if (cursor) {
-        // 追加読み込み
-        setPosts((prev) => [
-          ...prev,
-          ...data.posts.map((post: any) => formatPost(post)),
-        ]);
-      } else {
-        // 初回読み込み
-        setPosts(data.posts.map((post: any) => formatPost(post)));
-      }
-
-      setHasMore(data.hasMore);
-      setNextCursor(data.nextCursor);
-    } catch (error) {
-      console.error("Error fetching posts:", error);
-      toast.error("投稿の取得に失敗しました");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSearch = async (query: string) => {
-    try {
-      const response = await fetch(
-        `/api/posts/search?q=${encodeURIComponent(query)}&includeReposts=true`,
-        { next: { revalidate: 60 } },
-      );
-      if (!response.ok) {
-        throw new Error("検索に失敗しました");
-      }
-      const data = await response.json();
-      setPosts(data.posts.map((post: any) => formatPost(post)));
-    } catch (error) {
-      console.error("Error searching posts:", error);
-    }
-  };
-
-  // 投稿作成成功時のハンドラ
-  const handlePostCreated = (newPost: PostType) => {
-    setPosts((prev) => {
-      const filtered = prev.filter((p) => !p.id.startsWith("temp-"));
-      return [newPost, ...filtered];
-    });
-
-    // 実投稿が返ったタイミングで最新状態を取得
-    if (!newPost.id.startsWith("temp-")) {
-      void fetchPosts(undefined, true);
-    }
-  };
-
-  const handleFavoriteSuccess = (
-    postId: string,
-    newCount: number,
-    isFavorited: boolean,
-  ) => {
-    setPosts((prev) =>
-      prev.map((post) =>
-        post.id === postId
-          ? {
-              ...post,
-              favorites: newCount,
-              isFavorited,
-              favoritedAt: isFavorited ? new Date() : undefined,
-            }
-          : post,
-      ),
-    );
-  };
-
-  const handleRepostSuccess = (
-    postId: string,
-    newCount: number,
-    isReposted: boolean,
-  ) => {
-    setPosts((prev) =>
-      prev.map((post) =>
-        post.id === postId
-          ? {
-              ...post,
-              reposts: newCount,
-              isReposted,
-              repostedAt: isReposted ? new Date() : undefined,
-            }
-          : post,
-      ),
-    );
-  };
-
-  if (isLoading && posts.length === 0) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <LoaderCircle className="size-20 animate-spin text-gray-500" />
-      </div>
-    );
+  if (userId && postIds.length > 0) {
+    const [favorites, userReposts] = await prisma.$transaction([
+      prisma.favorite.findMany({
+        where: { userId, postId: { in: postIds } },
+        select: { postId: true },
+      }),
+      prisma.repost.findMany({
+        where: { userId, postId: { in: postIds } },
+        select: { postId: true },
+      }),
+    ]);
+    favoritedPostIds = new Set(favorites.map((f) => f.postId));
+    repostedPostIds = new Set(userReposts.map((r) => r.postId));
   }
 
-  // プルダウンインジケーターのスタイル
-  const pullRefreshStyle = {
-    height: `${pullDistance}px`,
-    opacity: pullDistance > 10 ? Math.min(pullDistance / 50, 1) : 0,
-    transition: isPulling ? "none" : "all 0.3s ease",
-  };
+  const formattedPosts = postList.map((post) => ({
+    id: post.id,
+    content: post.content,
+    createdAt: post.createdAt.toISOString(),
+    favorites: post.favorites,
+    reposts: post.reposts,
+    images: post.images || [],
+    user: post.user,
+    parent: post.parent || null,
+    _count: { replies: post._count.replies },
+    isFavorited: favoritedPostIds.has(post.id),
+    isReposted: repostedPostIds.has(post.id),
+    repostedAt: post.repostedAt?.toISOString(),
+    repostedBy: post.repostedByInfo,
+    question: post.question,
+  }));
+
+  return { posts: formattedPosts, hasMore, nextCursor };
+}
+
+export default async function WholePage() {
+  const session = await getServerSession(authOptions);
+  const { posts, hasMore, nextCursor } = await getInitialPosts(
+    session?.user?.id,
+  );
 
   return (
-    <>
-      <div className="hidden md:block md:w-80"></div>
-      <div className="flex-1 pb-16 md:pb-0">
-        {/* プルダウン時のローディングインジケーター */}
-        {isMobile && (
-          <div
-            className="flex items-center justify-center overflow-hidden py-2"
-            style={pullRefreshStyle}
-          >
-            <LoaderCircle
-              className={`size-8 ${pullDistance > 50 ? "animate-spin" : ""} text-gray-400`}
-            />
-          </div>
-        )}
-
-        <div className="mx-auto max-w-2xl p-4">
-          <div className="space-y-4">
-            {/* デバッグ情報 (開発中のみ表示) */}
-            {process.env.NODE_ENV === "development" && (
-              <div className="mb-4 rounded border border-yellow-500 bg-yellow-500/10 p-2 text-xs">
-                <p>デバッグ情報: {posts.length}件の投稿</p>
-                <p>拡散投稿: {posts.filter((p) => p.repostedBy).length}件</p>
-                <details>
-                  <summary>詳細データ (一部)</summary>
-                  <pre>{JSON.stringify(posts.slice(0, 2), null, 2)}</pre>
-                </details>
-              </div>
-            )}
-
-            {posts.length === 0 ? (
-              <div className="rounded-lg border border-gray-800 p-8 text-center">
-                <p className="text-gray-500">
-                  表示できる投稿がありません。
-                  <br />
-                  まだ投稿がないか、サーバーに接続できない可能性があります。
-                </p>
-              </div>
-            ) : (
-              <>
-                {posts
-                  .filter((post) => {
-                    // 拡散された投稿（repostedByあり）はそのまま表示
-                    if (post.repostedBy) return true;
-
-                    // 通常の投稿は、同じIDの投稿が他の誰かによって拡散されている場合は表示しない
-                    const isRepostedByOthers = posts.some(
-                      (p) => p.repostedBy && p.id === post.id,
-                    );
-                    return !isRepostedByOthers;
-                  })
-                  .map((post) => (
-                    <Post
-                      key={
-                        post.id +
-                        (post.repostedBy
-                          ? `-repost-${post.repostedBy.id}`
-                          : post.repostedAt?.toString() || "")
-                      }
-                      post={post}
-                      onRepostSuccess={(newCount, isReposted) =>
-                        handleRepostSuccess(post.id, newCount, isReposted)
-                      }
-                      onFavoriteSuccess={(newCount, isFavorited) =>
-                        handleFavoriteSuccess(post.id, newCount, isFavorited)
-                      }
-                    />
-                  ))}
-              </>
-            )}
-
-            {/* 自動読み込み用センサー */}
-            {hasMore && (
-              <div ref={loadMoreRef} className="flex justify-center py-4">
-                {isLoading ? (
-                  <LoaderCircle className="size-5 animate-spin text-gray-500" />
-                ) : (
-                  <span className="text-sm text-gray-500">
-                    下へスクロールして読み込み
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* モバイル用投稿ボタン */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogTrigger asChild>
-          <Button
-            className="fixed bottom-20 right-4 size-14 rounded-full p-0 shadow-lg md:hidden"
-            variant="default"
-          >
-            <Plus className="size-6" />
-          </Button>
-        </DialogTrigger>
-        <DialogContent className="w-[calc(100%-32px)] max-w-[425px]">
-          <div className="pt-6">
-            <MakePost
-              onPostCreated={(post) => {
-                handlePostCreated(post);
-                setIsDialogOpen(false);
-              }}
-              inputRef={postInputRef}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
+    <WholeFeed
+      initialPostsRaw={posts}
+      initialHasMore={hasMore}
+      initialNextCursor={nextCursor}
+    />
   );
 }
