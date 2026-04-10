@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useInView } from "react-intersection-observer";
+import { useRealtimeTimeline } from "@/app/_hooks/useRealtimeTimeline";
 
 interface UserInfo {
   icon: string | null;
@@ -199,6 +200,16 @@ export default function HomePage() {
     hasEnteredLoadMoreRef.current = isLoadMoreInView;
   }, [isLoadMoreInView, hasMore, nextCursor, isLoading, fetchPosts]);
 
+  // Supabase Realtime による新着投稿の検知
+  const { hasNewPosts, clearNewPosts } = useRealtimeTimeline({
+    channelName: "home-timeline",
+  });
+
+  const handleNewPostsBannerClick = useCallback(() => {
+    clearNewPosts();
+    void fetchPosts(undefined, true);
+  }, [clearNewPosts, fetchPosts]);
+
   const handleSearch = async (query: string) => {
     try {
       // エンドポイントを/api/posts/searchから/api/searchに変更
@@ -317,6 +328,18 @@ export default function HomePage() {
 
   return (
     <>
+      {/* 新着投稿バナー */}
+      {hasNewPosts && (
+        <div className="sticky top-0 z-30 flex justify-center px-4 py-2">
+          <button
+            onClick={handleNewPostsBannerClick}
+            className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-lg transition-transform hover:scale-105"
+          >
+            ↑ 新しい投稿があります
+          </button>
+        </div>
+      )}
+
       {/* メインコンテンツ */}
       <div className="flex flex-1 justify-center pb-16 md:pb-0">
         <div className="w-full max-w-2xl p-4">

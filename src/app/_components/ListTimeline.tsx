@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useEffect, useRef } from "react";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useMemo, useEffect, useRef, useCallback } from "react";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useInView } from "react-intersection-observer";
 import { LoaderCircle } from "lucide-react";
 import { PostList } from "@/app/_components/PostList";
+import { useRealtimeTimeline } from "@/app/_hooks/useRealtimeTimeline";
 
 interface ListTimelineProps {
   listId: string;
@@ -13,6 +14,7 @@ interface ListTimelineProps {
 export function ListTimeline({ listId }: ListTimelineProps) {
   const { ref, inView } = useInView();
   const hasEnteredLoadMoreRef = useRef(false);
+  const queryClient = useQueryClient();
 
   const {
     data,
@@ -21,6 +23,7 @@ export function ListTimeline({ listId }: ListTimelineProps) {
     isFetchingNextPage,
     isLoading,
     isError,
+    refetch,
   } = useInfiniteQuery({
     queryKey: ["listTimeline", listId],
     queryFn: async ({ pageParam }) => {
@@ -37,6 +40,18 @@ export function ListTimeline({ listId }: ListTimelineProps) {
     initialPageParam: undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
   });
+
+  // Supabase Realtime による新着投稿の検知（リスト固有チャンネル）
+  const { hasNewPosts, clearNewPosts } = useRealtimeTimeline({
+    channelName: `list-timeline-${listId}`,
+  });
+
+  const handleNewPostsBannerClick = useCallback(async () => {
+    clearNewPosts();
+    await queryClient.invalidateQueries({
+      queryKey: ["listTimeline", listId],
+    });
+  }, [clearNewPosts, queryClient, listId]);
 
   const posts = useMemo(() => {
     if (!data) return [];
@@ -78,6 +93,18 @@ export function ListTimeline({ listId }: ListTimelineProps) {
 
   return (
     <div>
+      {/* 新着投稿バナー */}
+      {hasNewPosts && (
+        <div className="sticky top-0 z-30 flex justify-center px-4 py-2">
+          <button
+            onClick={handleNewPostsBannerClick}
+            className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-lg transition-transform hover:scale-105"
+          >
+            ↑ 新しい投稿があります
+          </button>
+        </div>
+      )}
+
       <PostList posts={posts} />
 
       {hasNextPage && (
