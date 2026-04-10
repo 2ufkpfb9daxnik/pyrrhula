@@ -9,6 +9,7 @@ import { LoaderCircle, Plus } from "lucide-react";
 import type { Post as PostType } from "@/app/_types/post";
 import { toast } from "sonner";
 import { useInView } from "react-intersection-observer";
+import { useRealtimeTimeline } from "@/app/_hooks/useRealtimeTimeline";
 
 interface WholeFeedProps {
   initialPostsRaw: any[];
@@ -126,6 +127,17 @@ export function WholeFeed({
     },
     [],
   );
+
+  // Supabase Realtime による新着投稿・拡散の検知
+  const { hasNewPosts, clearNewPosts } = useRealtimeTimeline({
+    channelName: "whole-timeline",
+    includeReposts: true,
+  });
+
+  const handleNewPostsBannerClick = useCallback(() => {
+    clearNewPosts();
+    void fetchPosts(undefined, true);
+  }, [clearNewPosts, fetchPosts]);
 
   // モバイル/デスクトップの判定
   useEffect(() => {
@@ -300,6 +312,18 @@ export function WholeFeed({
 
   return (
     <div ref={contentRef}>
+      {/* 新着投稿バナー */}
+      {hasNewPosts && (
+        <div className="sticky top-0 z-30 flex justify-center px-4 py-2">
+          <button
+            onClick={handleNewPostsBannerClick}
+            className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-lg transition-transform hover:scale-105"
+          >
+            ↑ 新しい投稿があります
+          </button>
+        </div>
+      )}
+
       {/* プルダウン時のローディングインジケーター */}
       {isMobile && (
         <div
