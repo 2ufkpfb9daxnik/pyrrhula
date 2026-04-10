@@ -14,6 +14,7 @@ const nextConfig = {
   output: "standalone",
   async headers() {
     return [
+      // 特定のAPIルートのキャッシュ設定（ワイルドカードより先に定義）
       {
         source: "/api/users",
         headers: [
@@ -23,6 +24,7 @@ const nextConfig = {
           },
         ],
       },
+      // その他すべてのAPIルートはキャッシュしない
       {
         source: "/api/:path*",
         headers: [
@@ -35,7 +37,16 @@ const nextConfig = {
     ];
   },
   images: {
-    domains: ["avatars.githubusercontent.com"],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "avatars.githubusercontent.com",
+      },
+      {
+        protocol: "https",
+        hostname: "**.supabase.co",
+      },
+    ],
   },
 };
 
