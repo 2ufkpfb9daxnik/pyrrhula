@@ -446,7 +446,7 @@ export default function HomePage() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogTrigger asChild>
           <Button
-            className="fixed bottom-20 right-4 size-14 rounded-full p-0 shadow-lg md:hidden"
+            className="fixed bottom-20 right-4 z-[45] size-14 rounded-full p-0 shadow-lg md:hidden"
             variant="default"
           >
             <Plus className="size-6" />
@@ -457,7 +457,9 @@ export default function HomePage() {
             <MakePost
               onPostCreated={(post) => {
                 handlePostCreated(post);
-                setIsDialogOpen(false);
+                if (post.id.startsWith("temp-")) {
+                  setIsDialogOpen(false);
+                }
               }}
               inputRef={postInputRef}
               replyTo={
