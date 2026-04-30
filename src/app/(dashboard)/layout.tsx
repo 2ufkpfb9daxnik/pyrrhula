@@ -14,7 +14,7 @@ export default function DashboardLayout({
       </div>
 
       {/* モバイル向けの固定ナビゲーションバー（画面下部） */}
-      <div className="fixed inset-x-0 bottom-0 z-[100] border-t border-gray-800 bg-gray-950 md:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-800 bg-gray-950 md:hidden">
         <Navigation />
       </div>
 
