@@ -21,9 +21,15 @@ interface MakePostProps {
   onPostCreated: (post: Post) => void;
   replyTo?: ReplyToPost | undefined;
   inputRef?: React.RefObject<HTMLTextAreaElement>;
+  noBorder?: boolean;
 }
 
-export function MakePost({ onPostCreated, replyTo, inputRef }: MakePostProps) {
+export function MakePost({
+  onPostCreated,
+  replyTo,
+  inputRef,
+  noBorder = false,
+}: MakePostProps) {
   const [content, setContent] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
@@ -57,7 +63,7 @@ export function MakePost({ onPostCreated, replyTo, inputRef }: MakePostProps) {
   // メンションされたユーザーの通知を作成
   const createMentionNotifications = async (
     postId: string,
-    content: string
+    content: string,
   ) => {
     const mentions = content.match(MENTION_PATTERN);
     if (!mentions) return;
@@ -169,7 +175,7 @@ export function MakePost({ onPostCreated, replyTo, inputRef }: MakePostProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="mb-8">
+    <form onSubmit={handleSubmit} className={noBorder ? "mb-0" : "mb-8"}>
       {replyTo && (
         <div className="mb-2 text-sm text-gray-500">
           返信: @{replyTo.user?.username ?? replyTo.username}{" "}
@@ -183,7 +189,11 @@ export function MakePost({ onPostCreated, replyTo, inputRef }: MakePostProps) {
         value={content}
         onChange={(e) => setContent(e.target.value)}
         onKeyDown={handleKeyDown}
-        className="min-h-24 resize-none border-gray-800 bg-transparent"
+        className={
+          noBorder
+            ? "min-h-72 resize-none rounded-none border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+            : "min-h-24 resize-none border-gray-800 bg-transparent"
+        }
       />
       <div className="flex items-center justify-between">
         <span className="text-sm text-gray-500">
