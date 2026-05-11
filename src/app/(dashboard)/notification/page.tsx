@@ -352,6 +352,14 @@ export default function NotificationPage() {
                 : "border-blue-800 bg-gray-900/60"
             } cursor-pointer bg-gray-900 p-4 transition-colors hover:bg-gray-800/50`}
             onClick={() => handleNotificationClick(notification)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                handleNotificationClick(notification);
+              }
+            }}
+            role="button"
+            tabIndex={0}
           >
             <div className="flex items-start space-x-4">
               {notification.sender ? (

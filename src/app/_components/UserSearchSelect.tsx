@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -72,10 +71,7 @@ export function UserSearchSelect({
 
   // debounceの時間をさらに調整
   useEffect(() => {
-    if (!searchQuery.trim()) {
-      setSearchResults([]);
-      return;
-    }
+    if (!searchQuery.trim()) return;
 
     const timeoutId = setTimeout(() => {
       searchUsers(searchQuery);
@@ -83,6 +79,13 @@ export function UserSearchSelect({
 
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
+
+  const handleQueryChange = (value: string) => {
+    setSearchQuery(value);
+    if (!value.trim()) {
+      setSearchResults([]);
+    }
+  };
 
   const handleUserRemove = (id: string) => {
     const updatedUsers = selectedUsers.filter((user) => user.id !== id);
@@ -118,7 +121,7 @@ export function UserSearchSelect({
       <div className="relative">
         <Input
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(e) => handleQueryChange(e.target.value)}
           placeholder="ユーザー名/IDで検索"
           className="w-full"
         />
@@ -136,6 +139,14 @@ export function UserSearchSelect({
                 key={user.id}
                 className="flex cursor-pointer items-center justify-between rounded-lg p-2 hover:bg-gray-100"
                 onClick={() => handleUserSelect(user)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    handleUserSelect(user);
+                  }
+                }}
+                role="button"
+                tabIndex={0}
               >
                 <div className="flex items-center gap-2">
                   <Avatar className="size-8">

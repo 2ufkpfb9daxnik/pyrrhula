@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useSession } from "next-auth/react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import ChatClosedOverlay from "@/app/_components/ChatClosedOverlay";
 import { CHAT_CLOSED } from "@/config/chatClosed";
@@ -42,6 +42,10 @@ interface GroupChatDetails {
   messages: GroupMessage[];
 }
 
+type GroupMessageApi = Omit<GroupMessage, "createdAt"> & {
+  createdAt: string;
+};
+
 export default function GroupChatPage() {
   const [groupChat, setGroupChat] = useState<GroupChatDetails | null>(null);
   const [newMessage, setNewMessage] = useState("");
@@ -50,9 +54,8 @@ export default function GroupChatPage() {
   const { data: session } = useSession();
   const params = useParams<{ id: string }>();
   const routeGroupId = params?.id ?? "";
-  const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const optimisticMessageId = useRef<string | null>(null);
+  const [optimisticMessageId, setOptimisticMessageId] = useState<string | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -61,13 +64,13 @@ export default function GroupChatPage() {
   useEffect(() => {
     if (!session || !routeGroupId) return;
     fetchGroupChat();
-  }, [session, routeGroupId]);
+  }, [session, routeGroupId, fetchGroupChat]);
 
   useEffect(() => {
     scrollToBottom();
   }, [groupChat?.messages]);
 
-  const fetchGroupChat = async () => {
+  const fetchGroupChat = useCallback(async () => {
     try {
       const response = await fetch(`/api/chat/group/${routeGroupId}`);
       if (!response.ok) {
@@ -80,7 +83,7 @@ export default function GroupChatPage() {
       const data = await response.json();
       setGroupChat({
         ...data,
-        messages: data.messages.map((msg: any) => ({
+        messages: (data.messages as GroupMessageApi[]).map((msg) => ({
           ...msg,
           createdAt: new Date(msg.createdAt),
         })),
@@ -91,7 +94,7 @@ export default function GroupChatPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [routeGroupId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,7 +102,7 @@ export default function GroupChatPage() {
 
     setIsSending(true);
     const tempId = `temp-${Date.now()}`;
-    optimisticMessageId.current = tempId;
+    setOptimisticMessageId(tempId);
 
     // 楽観的更新
     const optimisticMessage: GroupMessage = {
@@ -171,7 +174,7 @@ export default function GroupChatPage() {
       });
       setNewMessage(newMessage); // 入力内容を復元
     } finally {
-      setIsSending(false);
+      setOptimisticMessageId(null);
       optimisticMessageId.current = null;
     }
   };

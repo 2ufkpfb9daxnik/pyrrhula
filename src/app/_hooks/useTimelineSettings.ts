@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 
 export type TimelineUpdateMode = "banner" | "auto";
 
@@ -15,21 +15,19 @@ const DEFAULT_SETTINGS: TimelineSettings = {
 };
 
 export function useTimelineSettings() {
-  const [settings, setSettings] = useState<TimelineSettings>(DEFAULT_SETTINGS);
-  const [isLoaded, setIsLoaded] = useState(false);
-
-  useEffect(() => {
+  const [settings, setSettings] = useState<TimelineSettings>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
-        setSettings({ ...DEFAULT_SETTINGS, ...parsed });
+        return { ...DEFAULT_SETTINGS, ...parsed };
       }
     } catch {
       // ignore storage errors
     }
-    setIsLoaded(true);
-  }, []);
+    return DEFAULT_SETTINGS;
+  });
+  const [isLoaded] = useState(true);
 
   const updateSettings = useCallback((newSettings: Partial<TimelineSettings>) => {
     setSettings((prev) => {
