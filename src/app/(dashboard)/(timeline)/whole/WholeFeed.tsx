@@ -4,7 +4,12 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Post } from "@/app/_components/post";
 import { MakePost } from "@/app/_components/makepost";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { LoaderCircle, Plus } from "lucide-react";
 import type { Post as PostType } from "@/app/_types/post";
 import { toast } from "sonner";
@@ -414,8 +419,12 @@ export function WholeFeed({
             <Plus className="size-6" />
           </Button>
         </DialogTrigger>
-        <DialogContent className="w-[calc(100%-32px)] max-w-[425px]">
-          <div className="pt-6">
+        <DialogContent
+          hideCloseButton={true}
+          className="!inset-x-0 !top-12 !w-screen !max-w-none !translate-x-0 !translate-y-0 rounded-none border-x-0 p-0"
+        >
+          <DialogTitle className="sr-only">新規投稿</DialogTitle>
+          <div className="overflow-y-auto pb-4">
             <MakePost
               onPostCreated={(post) => {
                 handlePostCreated(post);
@@ -424,6 +433,7 @@ export function WholeFeed({
                 }
               }}
               inputRef={postInputRef}
+              noBorder={true}
             />
           </div>
         </DialogContent>
