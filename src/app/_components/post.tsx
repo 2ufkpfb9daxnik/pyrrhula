@@ -13,7 +13,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import { linkify } from "@/lib/linkify";
+import { renderPostContent } from "@/lib/renderPostContent";
 import { useRating } from "@/app/_hooks/useRating";
 import { ImageModal } from "@/app/_components/image-modal";
 import { useOptimisticUpdate } from "@/app/_hooks/useOptimisticUpdate";
@@ -184,6 +184,14 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
       data-created-at={new Date(post.createdAt).toISOString()}
       className="cursor-pointer border-b border-gray-700 px-3 py-2.5 transition-colors hover:bg-gray-900/50"
       onClick={handlePostClick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handlePostClick(e as unknown as React.MouseEvent);
+        }
+      }}
+      role="button"
+      tabIndex={0}
     >
       {post.repostedBy && (
         <div className="mb-1.5 flex items-center text-xs text-gray-500">
@@ -266,9 +274,9 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
         </div>
 
         {/* 投稿本文 - Q:部分を除去して表示 */}
-        <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
-          {linkify(formatPostContent(post.content))}
-        </p>
+        <div className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+          {renderPostContent(formatPostContent(post.content))}
+        </div>
 
         {post.images && post.images.length > 0 && (
           <div
@@ -289,22 +297,28 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
                   post.images.length === 3 && index === 0 ? "col-span-2" : ""
                 }`}
               >
-                <img
-                  src={url}
-                  alt={`添付画像 ${index + 1}`}
-                  className="w-full rounded-lg object-cover"
-                  style={{
-                    aspectRatio: post.images.length === 1 ? "16/9" : "1/1",
-                    maxHeight: post.images.length === 1 ? "400px" : "300px",
-                  }}
+                <button
+                  type="button"
+                  className="block w-full"
                   onClick={(e) => {
                     e.stopPropagation();
                     setSelectedImage(url);
                   }}
-                  onError={(e) => {
-                    e.currentTarget.src = "/placeholder-image.png";
-                  }}
-                />
+                  aria-label={`画像 ${index + 1} を拡大表示`}
+                >
+                  <img
+                    src={url}
+                    alt={`添付画像 ${index + 1}`}
+                    className="w-full rounded-lg object-cover"
+                    style={{
+                      aspectRatio: post.images.length === 1 ? "16/9" : "1/1",
+                      maxHeight: post.images.length === 1 ? "400px" : "300px",
+                    }}
+                    onError={(e) => {
+                      e.currentTarget.src = "/placeholder-image.png";
+                    }}
+                  />
+                </button>
               </div>
             ))}
           </div>
@@ -314,7 +328,14 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
           <div
             className="mt-2.5 cursor-pointer rounded-lg border border-blue-600/30 bg-blue-950/20 p-2.5 transition-colors hover:bg-blue-900/20"
             onClick={handleQuestionCardClick}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                handleQuestionCardClick(e as unknown as React.MouseEvent);
+              }
+            }}
             role="button"
+            tabIndex={0}
             aria-label="質問の詳細を見る"
           >
             <div className="mb-1.5 flex items-center justify-between">

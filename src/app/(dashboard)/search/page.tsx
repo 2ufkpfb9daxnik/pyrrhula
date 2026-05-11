@@ -176,6 +176,14 @@ function UserSearchResults({
           key={user.id}
           className="cursor-pointer rounded-lg border border-gray-800 p-4 transition-colors hover:bg-gray-900/50"
           onClick={() => router.push(`/user/${user.id}`)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              router.push(`/user/${user.id}`);
+            }
+          }}
+          role="button"
+          tabIndex={0}
         >
           <div className="flex items-center space-x-4">
             <Avatar className="size-12">

@@ -51,7 +51,7 @@ interface GroupChat {
 
 export default function ChatPage() {
   const [chats, setChats] = useState<Chat[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const { data: session } = useSession();
@@ -60,6 +60,7 @@ export default function ChatPage() {
   // グループチャット一覧の取得
   const fetchGroupChats = async () => {
     try {
+      setError(null);
       const response = await fetch("/api/chat/group");
       if (!response.ok) throw new Error("Failed to fetch group chats");
       const data = await response.json();
@@ -67,29 +68,22 @@ export default function ChatPage() {
       setGroupChats(data);
     } catch (error) {
       console.error("Error fetching group chats:", error);
+      setError("グループチャットの取得に失敗しました");
       // エラー時は空配列を設定
       setGroupChats([]);
     }
   };
 
   useEffect(() => {
-    if (session) {
-      fetchChats();
-      fetchGroupChats();
-    }
-  }, [session]);
-
-  useEffect(() => {
-    if (!session) {
-      setIsLoading(false);
-      return;
-    }
+    if (!session) return;
     fetchChats();
+    fetchGroupChats();
   }, [session]);
 
   const fetchChats = async () => {
     try {
       setIsLoading(true);
+      setError(null);
       const response = await fetch("/api/chat");
 
       if (response.status === 404) {
@@ -105,6 +99,7 @@ export default function ChatPage() {
       setChats(data.chats);
     } catch (err) {
       console.error(err);
+      setError("チャット一覧の取得に失敗しました");
     } finally {
       setIsLoading(false);
     }

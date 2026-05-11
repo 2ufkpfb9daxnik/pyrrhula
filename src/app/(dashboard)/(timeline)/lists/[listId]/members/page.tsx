@@ -283,6 +283,14 @@ export default function ListMembersPage() {
             <div
               className="flex flex-1 cursor-pointer items-center space-x-3"
               onClick={() => router.push(`/user/${member.id}`)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  router.push(`/user/${member.id}`);
+                }
+              }}
+              role="button"
+              tabIndex={0}
             >
               <Avatar className="size-12 shrink-0">
                 <AvatarImage
