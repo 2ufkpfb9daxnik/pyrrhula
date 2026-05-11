@@ -65,11 +65,11 @@ export default function FollowGraphPage({
 
   if (error) {
     return (
-      <div className="flex h-screen items-center justify-center flex-col">
-        <p className="text-red-500 mb-4">エラーが発生しました: {error}</p>
+      <div className="flex h-screen flex-col items-center justify-center">
+        <p className="mb-4 text-red-500">エラーが発生しました: {error}</p>
         <button
           onClick={() => router.back()}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md"
+          className="rounded-md bg-blue-600 px-4 py-2 text-white"
         >
           戻る
         </button>

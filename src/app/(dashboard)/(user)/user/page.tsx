@@ -33,6 +33,20 @@ interface PaginationInfo {
   hasMore: boolean;
 }
 
+interface ApiUser {
+  id: string;
+  username: string;
+  icon: string | null;
+  rate: number;
+  postCount: number;
+  followersCount: number;
+  followingCount: number;
+  createdAt: string;
+  isFollowing?: boolean;
+  isFollower?: boolean;
+  ratingColor?: string;
+}
+
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [sortBy, setSortBy] = useState<"rate" | "createdAt">("rate");
@@ -43,67 +57,6 @@ export default function UsersPage() {
   );
   const router = useRouter();
   const { data: session } = useSession();
-
-  // 指数バックオフでリトライする関数
-  const fetchUsersWithRetry = async (
-    page: number,
-    retryCount = 0,
-  ): Promise<any> => {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 20000); // 20秒に延長
-
-      const params = new URLSearchParams({
-        sort: sortBy,
-        page: page.toString(),
-        limit: "5",
-        includeFollowStatus: session ? "true" : "false",
-      });
-
-      const response = await fetch(`/api/users?${params}`, {
-        signal: controller.signal,
-        cache: "no-store", // キャッシュ無効化（デバッグ時のみ）
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        // 500エラーでリトライ回数が最大値未満の場合
-        if (response.status === 500 && retryCount < 3) {
-          // 指数バックオフ待機（0.5秒、1秒、2秒...）
-          const waitTime = Math.pow(2, retryCount) * 500;
-          console.log(
-            `API接続エラー、${waitTime}ms後にリトライします (${retryCount + 1}/4)`,
-          );
-          await new Promise((resolve) => setTimeout(resolve, waitTime));
-          return fetchUsersWithRetry(page, retryCount + 1);
-        }
-
-        throw new Error(
-          response.status === 504
-            ? "サーバーの応答がタイムアウトしました。後でもう一度お試しください。"
-            : "ユーザー情報の取得に失敗しました",
-        );
-      }
-
-      return await response.json();
-    } catch (error) {
-      if (
-        error instanceof Error &&
-        error.name === "AbortError" &&
-        retryCount < 3
-      ) {
-        // タイムアウトの場合も指数バックオフでリトライ
-        const waitTime = Math.pow(2, retryCount) * 500;
-        console.log(
-          `タイムアウト、${waitTime}ms後にリトライします (${retryCount + 1}/4)`,
-        );
-        await new Promise((resolve) => setTimeout(resolve, waitTime));
-        return fetchUsersWithRetry(page, retryCount + 1);
-      }
-      throw error;
-    }
-  };
 
   // APIルートの最適化
   const fetchUsers = useCallback(
@@ -139,7 +92,7 @@ export default function UsersPage() {
         const data = await response.json();
 
         // データの整形を確実に行う
-        const formattedUsers = data.users.map((user: any) => ({
+        const formattedUsers = (data.users as ApiUser[]).map((user) => ({
           id: user.id,
           username: user.username,
           icon: user.icon,
@@ -312,6 +265,14 @@ export default function UsersPage() {
             key={user.id}
             className="cursor-pointer border-b border-gray-800 px-4 py-3 hover:bg-gray-900/50"
             onClick={() => router.push(`/user/${user.id}`)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                router.push(`/user/${user.id}`);
+              }
+            }}
+            role="button"
+            tabIndex={0}
           >
             <div className="flex items-center justify-between">
               {/* ユーザー情報部分 */}

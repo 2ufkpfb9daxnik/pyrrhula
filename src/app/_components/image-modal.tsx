@@ -57,10 +57,6 @@ export function ImageModal({ isOpen, onClose, src, alt }: ImageModalProps) {
             src={src}
             alt={alt}
             className="size-auto max-h-[90vh] max-w-[90vw] rounded-lg object-contain"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
           />
         </Dialog.Content>
       </Dialog.Portal>

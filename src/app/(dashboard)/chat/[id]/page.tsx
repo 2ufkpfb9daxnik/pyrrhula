@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useSession } from "next-auth/react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import ChatClosedOverlay from "@/app/_components/ChatClosedOverlay";
 import { CHAT_CLOSED } from "@/config/chatClosed";
@@ -20,12 +20,11 @@ export default function ChatPage() {
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [optimisticMessageId, setOptimisticMessageId] = useState<string | null>(null);
   const { data: session } = useSession();
   const params = useParams<{ id: string }>();
   const routeUserId = params?.id ?? "";
-  const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const optimisticMessageId = useRef<string | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -34,13 +33,13 @@ export default function ChatPage() {
   useEffect(() => {
     if (!session || !routeUserId) return;
     fetchMessages();
-  }, [session, routeUserId]);
+  }, [session, routeUserId, fetchMessages]);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     try {
       const response = await fetch(`/api/chat/${routeUserId}`);
       if (!response.ok) {
@@ -64,7 +63,7 @@ export default function ChatPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [routeUserId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,7 +71,7 @@ export default function ChatPage() {
 
     setIsSending(true);
     const tempId = `temp-${Date.now()}`;
-    optimisticMessageId.current = tempId;
+    setOptimisticMessageId(tempId);
 
     // 楽観的更新
     const optimisticMessage: ChatMessage = {
@@ -120,7 +119,7 @@ export default function ChatPage() {
       setNewMessage(optimisticMessage.message); // 入力内容を復元
     } finally {
       setIsSending(false);
-      optimisticMessageId.current = null;
+      setOptimisticMessageId(null);
     }
   };
 
@@ -191,7 +190,7 @@ export default function ChatPage() {
               <div
                 className={`rounded-lg p-3 ${
                   message.isOwnMessage
-                    ? message.id === optimisticMessageId.current
+                    ? message.id === optimisticMessageId
                       ? "bg-blue-600/50 text-white" // 送信中のメッセージは半透明
                       : "bg-blue-600 text-white"
                     : "bg-gray-800 text-white"
