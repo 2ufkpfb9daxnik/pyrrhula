@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth/next";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { NextResponse } from "next/server";
-import type { UserFollowersResponse } from "@/app/_types/follow";
 
 export async function GET(
   req: Request,

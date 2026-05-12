@@ -3,6 +3,7 @@
 import { useCallback, useEffect } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
+import Image from "next/image";
 
 interface ImageModalProps {
   isOpen: boolean;
@@ -53,9 +54,14 @@ export function ImageModal({ isOpen, onClose, src, alt }: ImageModalProps) {
           >
             <X className="size-6" />
           </button>
-          <img
+          <Image
             src={src}
             alt={alt}
+            width={1600}
+            height={1200}
+            sizes="90vw"
+            unoptimized
+            loader={({ src: imageSrc }) => imageSrc}
             className="size-auto max-h-[90vh] max-w-[90vw] rounded-lg object-contain"
           />
         </Dialog.Content>

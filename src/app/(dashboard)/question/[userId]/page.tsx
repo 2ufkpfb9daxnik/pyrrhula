@@ -735,7 +735,7 @@ export default function QuestionPage() {
                 <Plus className="size-6" />
               </Button>
             </DialogTrigger>
-            <DialogContent className="w-[calc(100%-32px)] max-w-[425px] p-0 pt-6">
+            <DialogContent className="!top-1/4 w-[calc(100%-32px)] max-w-[425px] p-0 pt-6">
               <DialogTitle className="sr-only">新しい質問を投稿</DialogTitle>
               <AskQuestion
                 targetUserId={userId}

@@ -163,11 +163,8 @@ export async function POST(
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
     // ユニーク制約違反（既に拡散済み）
-    if (
-      error instanceof Error &&
-      "code" in error &&
-      (error as any).code === "P2002"
-    ) {
+    const prismaError = error as { code?: string };
+    if (error instanceof Error && prismaError.code === "P2002") {
       return NextResponse.json({ error: "Already reposted" }, { status: 409 });
     }
 

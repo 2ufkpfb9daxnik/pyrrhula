@@ -2,7 +2,6 @@ import { getServerSession } from "next-auth/next";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { NextResponse } from "next/server";
-import { updateUserStats } from "@/lib/user-stats";
 import { createRatingHistory, RATING_REASONS } from "@/lib/rating";
 
 // フォローする
@@ -92,7 +91,8 @@ export async function POST(
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
-    if ((error as any).code === "P2002") {
+    const prismaError = error as { code?: string };
+    if (prismaError.code === "P2002") {
       return NextResponse.json(
         { error: "Already following this user" },
         { status: 409 },
@@ -156,7 +156,8 @@ export async function DELETE(
 
     return NextResponse.json(result);
   } catch (error) {
-    if ((error as any).code === "P2025") {
+    const prismaError = error as { code?: string };
+    if (prismaError.code === "P2025") {
       return NextResponse.json(
         { error: "Not following this user" },
         { status: 404 },

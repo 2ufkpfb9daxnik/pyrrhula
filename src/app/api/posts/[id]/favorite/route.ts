@@ -167,7 +167,8 @@ export async function POST(
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
     // ユニーク制約違反（既にお気に入り済み）
-    if ((error as any).code === "P2002") {
+    const prismaError = error as { code?: string };
+    if (prismaError.code === "P2002") {
       return NextResponse.json({ error: "Already favorited" }, { status: 409 });
     }
 

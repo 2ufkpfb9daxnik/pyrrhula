@@ -21,7 +21,7 @@ const publicPaths = [
   "/api/whole",
 ];
 
-export async function middleware(request: NextRequest) {
+export default async function proxy(request: NextRequest) {
   // パスの取得
   const path = request.nextUrl.pathname;
 
@@ -48,7 +48,7 @@ export async function middleware(request: NextRequest) {
   return NextResponse.next();
 }
 
-// ミドルウェアを適用するパスを指定
+// プロキシを適用するパスを指定
 export const config = {
   matcher: ["/api/:path*", "/home/:path*", "/admin/:path*"],
 };

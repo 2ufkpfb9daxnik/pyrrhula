@@ -75,7 +75,10 @@ export function TimelineJump() {
       <div className="flex items-center gap-2">
         <select
           value={mode}
-          onChange={(e) => setMode(e.target.value as any)}
+          onChange={(e) => {
+            const value = e.target.value as "days" | "hours" | "datetime";
+            setMode(value);
+          }}
           className="rounded-md bg-background px-2 py-1 text-sm"
         >
           <option value="days">n日前</option>

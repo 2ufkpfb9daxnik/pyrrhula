@@ -8,8 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string; questionId: string }> }
 ) {
   try {
-    const targetUserId = (await params).id;
-    const questionId = (await params).questionId;
+    const { questionId } = await params;
 
     // 質問を取得
     const question = await prisma.question.findUnique({

@@ -6,7 +6,7 @@ import { NextResponse } from "next/server";
 
 // ユーザーをブロックする
 export async function POST(
-  req: Request,
+  _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -73,7 +73,7 @@ export async function POST(
 
 // ブロックを解除する
 export async function DELETE(
-  req: Request,
+  _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -98,7 +98,8 @@ export async function DELETE(
     );
   } catch (error) {
     // ブロックが存在しない場合
-    if ((error as any).code === "P2025") {
+    const prismaError = error as { code?: string };
+    if (prismaError.code === "P2025") {
       return NextResponse.json({ error: "Block not found" }, { status: 404 });
     }
 

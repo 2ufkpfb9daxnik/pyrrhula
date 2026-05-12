@@ -19,7 +19,7 @@ export default function FollowLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (pathname) {
       // /user/[id]/following または /user/[id]/follower からIDを抽出
-      const match = pathname.match(/\/user\/([^\/]+)\/(following|follower)/);
+      const match = pathname.match(/\/user\/([^/]+)\/(following|follower)/);
       if (match && match[1]) {
         setUserId(match[1]);
       }

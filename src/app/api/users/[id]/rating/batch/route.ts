@@ -102,6 +102,11 @@ export async function POST(req: Request) {
       GROUP BY p."userId"
     `;
 
+    type FavoriteCountRow = { userId: string; count: bigint | number };
+    const favoritesReceivedRows = favoritesReceivedData as FavoriteCountRow[];
+    const recentFavoritesReceivedRows =
+      recentFavoritesReceivedData as FavoriteCountRow[];
+
     // フォロワー数の取得
     const followersData = await prisma.follow.groupBy({
       by: ["followedId"],
@@ -138,7 +143,7 @@ export async function POST(req: Request) {
       const recentReposts = recentRepostsItem ? recentRepostsItem._count.id : 0;
 
       // お気に入り数
-      const favoritesReceivedItem = (favoritesReceivedData as any[]).find(
+      const favoritesReceivedItem = favoritesReceivedRows.find(
         (item) => item.userId === user.id,
       );
       const favoritesReceived = favoritesReceivedItem
@@ -146,9 +151,9 @@ export async function POST(req: Request) {
         : 0;
 
       // 最近のお気に入り数
-      const recentFavoritesReceivedItem = (
-        recentFavoritesReceivedData as any[]
-      ).find((item) => item.userId === user.id);
+      const recentFavoritesReceivedItem = recentFavoritesReceivedRows.find(
+        (item) => item.userId === user.id,
+      );
       const recentFavoritesReceived = recentFavoritesReceivedItem
         ? Number(recentFavoritesReceivedItem.count)
         : 0;

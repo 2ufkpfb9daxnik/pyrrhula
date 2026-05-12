@@ -1,5 +1,4 @@
 import useSWR from "swr";
-import { toast } from "sonner";
 
 interface Message {
   id: string;

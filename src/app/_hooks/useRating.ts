@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import type { UserRating } from "@/app/_types/rating";
 import { useRatingStore } from "@/store/ratingStore";
 
@@ -6,7 +6,7 @@ import { useRatingStore } from "@/store/ratingStore";
 // Promise に resolve/reject 関数を追加した拡張型を定義
 interface ExtendedPromise<T> extends Promise<T> {
   resolve?: (value: T) => void;
-  reject?: (reason: any) => void;
+  reject?: (reason: unknown) => void;
 }
 
 const pendingRequests = new Map<string, ExtendedPromise<UserRating>>();
@@ -39,7 +39,7 @@ export function useRating(userId: string) {
   }, []);
 
   // バッチ処理を実行する関数
-  const processBatch = async () => {
+  const processBatch = useCallback(async () => {
     // キューからBATCH_SIZE分のユーザーIDを取り出す
     const userIds = [...new Set(batchQueue.splice(0, BATCH_SIZE))];
     if (userIds.length === 0) return;
@@ -103,10 +103,11 @@ export function useRating(userId: string) {
     } else {
       batchTimer = null;
     }
-  };
+  }, [batchSetRatings, ratings, setRating]);
 
   // 単一ユーザーのレーティングを取得する関数
-  const fetchSingleRating = async (id: string): Promise<UserRating> => {
+  const fetchSingleRating = useCallback(
+    async (id: string): Promise<UserRating> => {
     try {
       const response = await fetch(`/api/users/${id}/rating`);
       if (!response.ok) throw new Error("Failed to fetch rating");
@@ -116,7 +117,9 @@ export function useRating(userId: string) {
       console.error(`[Rating] ユーザー ${id} のレーティング取得エラー:`, error);
       throw error;
     }
-  };
+    },
+    []
+  );
 
   // ユーザーのレーティングを取得する処理
   useEffect(() => {
@@ -144,7 +147,7 @@ export function useRating(userId: string) {
         else if (typeof batchSetRatings === "function") {
           // 新しいPromiseを作成し、resolve/rejectを外部から制御できるようにする
           let resolvePromise: (value: UserRating) => void;
-          let rejectPromise: (reason: any) => void;
+          let rejectPromise: (reason: unknown) => void;
 
           const promise = new Promise<UserRating>((resolve, reject) => {
             resolvePromise = resolve;
@@ -201,7 +204,7 @@ export function useRating(userId: string) {
     };
 
     fetchRating();
-  }, [userId, ratings, setRating, batchSetRatings]);
+  }, [userId, ratings, setRating, batchSetRatings, fetchSingleRating, processBatch]);
 
   return {
     rating: ratings[userId] || null,

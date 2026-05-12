@@ -2,7 +2,6 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import type { UserListResponse } from "@/app/_types/users";
 import { getColorFromScore } from "@/lib/rating";
 import { Prisma } from "@prisma/client";
 

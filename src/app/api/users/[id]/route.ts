@@ -5,7 +5,6 @@ import { getServerSession } from "next-auth/next";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { NextResponse } from "next/server";
-import type { UserDetailResponse } from "@/app/_types/users";
 
 export async function GET(
   req: Request,
@@ -58,6 +57,23 @@ export async function GET(
 
     // フォロワー/フォロイーの取得を追加
     if (type === "followers" || type === "following") {
+      type FollowUser = {
+        id: string;
+        username: string;
+        icon: string | null;
+        postCount: number;
+        rate: number;
+        createdAt: Date;
+        followersCount: number;
+        followingCount: number;
+        followers?: { followerId: string }[];
+      };
+
+      type FollowEntry = {
+        follower: FollowUser;
+        followed: FollowUser;
+      };
+
       const users = await prisma.user.findUnique({
         where: { id: targetUserId },
         select: {
@@ -97,9 +113,11 @@ export async function GET(
         return NextResponse.json({ error: "User not found" }, { status: 404 });
       }
 
-      const userList = users[
+      const followEntries = users[
         type === "followers" ? "followers" : "follows"
-      ].map((follow: any) => {
+      ] as FollowEntry[];
+
+      const userList = followEntries.map((follow) => {
         const userData =
           type === "followers" ? follow.follower : follow.followed;
         return {

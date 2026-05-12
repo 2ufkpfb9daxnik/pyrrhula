@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth/next";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
+import { Prisma } from "@prisma/client";
 
 export async function GET(
   req: Request,
@@ -31,7 +32,7 @@ export async function GET(
     }
 
     // フィルタリング条件を構築
-    const whereCondition: any = {
+    const whereCondition: Prisma.QuestionWhereInput = {
       targetUserId,
       isPublished: true, // 公開されている質問のみ
     };

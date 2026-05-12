@@ -150,6 +150,8 @@ export async function GET(req: Request) {
       };
     };
 
+    type RepostRow = Awaited<ReturnType<typeof prisma.repost.findMany>>[number];
+
     type ApiResponsePost = {
       id: string;
       content: string;
@@ -342,7 +344,7 @@ export async function GET(req: Request) {
             },
           },
         })
-      : Promise.resolve([] as any[]);
+      : Promise.resolve([] as RepostRow[]);
 
     const [regularPosts, reposts] = await timed(timings, "timelineDb", () =>
       Promise.all([regularPostsPromise, repostsPromise]),

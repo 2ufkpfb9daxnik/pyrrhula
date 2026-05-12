@@ -22,8 +22,12 @@ export function TimelineSettingsPanel() {
           新着投稿の更新方法
         </h3>
 
-        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-800 p-3 transition-colors hover:bg-gray-800/50">
+        <label
+          htmlFor="update-mode-banner"
+          className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-800 p-3 transition-colors hover:bg-gray-800/50"
+        >
           <input
+            id="update-mode-banner"
             type="checkbox"
             className="mt-0.5"
             checked={settings.updateMode === "banner"}
@@ -40,8 +44,12 @@ export function TimelineSettingsPanel() {
           </div>
         </label>
 
-        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-800 p-3 transition-colors hover:bg-gray-800/50">
+        <label
+          htmlFor="update-mode-auto"
+          className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-800 p-3 transition-colors hover:bg-gray-800/50"
+        >
           <input
+            id="update-mode-auto"
             type="checkbox"
             className="mt-0.5"
             checked={settings.updateMode === "auto"}

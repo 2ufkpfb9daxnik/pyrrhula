@@ -19,6 +19,7 @@ import { ImageModal } from "@/app/_components/image-modal";
 import { useOptimisticUpdate } from "@/app/_hooks/useOptimisticUpdate";
 import type { Post as PostType } from "@/app/_types/post";
 import Link from "next/link";
+import Image from "next/image";
 
 interface QuestionType {
   id: string;
@@ -306,16 +307,22 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
                   }}
                   aria-label={`画像 ${index + 1} を拡大表示`}
                 >
-                  <img
+                  <Image
                     src={url}
                     alt={`添付画像 ${index + 1}`}
+                    width={1200}
+                    height={900}
+                    sizes={
+                      post.images.length === 1
+                        ? "(max-width: 768px) 100vw, 600px"
+                        : "(max-width: 768px) 50vw, 300px"
+                    }
+                    unoptimized
+                    loader={({ src: imageSrc }) => imageSrc}
                     className="w-full rounded-lg object-cover"
                     style={{
                       aspectRatio: post.images.length === 1 ? "16/9" : "1/1",
                       maxHeight: post.images.length === 1 ? "400px" : "300px",
-                    }}
-                    onError={(e) => {
-                      e.currentTarget.src = "/placeholder-image.png";
                     }}
                   />
                 </button>

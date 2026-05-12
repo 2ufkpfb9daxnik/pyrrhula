@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +23,12 @@ interface User {
   icon: string | null;
 }
 
+interface ApiUser {
+  id: string;
+  username: string;
+  icon: string | null;
+}
+
 interface CreateGroupChatModalProps {
   onGroupCreated: () => void;
 }
@@ -39,7 +45,7 @@ export function CreateGroupChatModal({
   const [isSearching, setIsSearching] = useState(false);
   const router = useRouter();
 
-  const searchUsers = async (query: string) => {
+  const searchUsers = useCallback(async (query: string) => {
     if (!query.trim()) {
       setSearchResults([]);
       return;
@@ -56,8 +62,8 @@ export function CreateGroupChatModal({
       console.log("API Response:", data);
 
       // APIレスポンスの形式を統一化
-      const users = data.users
-        .map((user: any) => ({
+      const users = (data.users as ApiUser[])
+        .map((user) => ({
           id: user.id, // 内部処理用にidを保持
           user_id: user.id, // API連携用にuser_idも保持
           username: user.username,
@@ -82,7 +88,7 @@ export function CreateGroupChatModal({
     } finally {
       setIsSearching(false);
     }
-  };
+  }, [selectedUsers]);
 
   const handleUserSelect = (user: User) => {
     setSelectedUsers([...selectedUsers, user]);
@@ -161,7 +167,7 @@ export function CreateGroupChatModal({
     }, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [searchQuery, selectedUsers]);
+  }, [searchQuery, searchUsers]);
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -233,12 +239,24 @@ export function CreateGroupChatModal({
 
           {/* 4. 検索結果表示エリア */}
           <div className="max-h-48 overflow-y-auto rounded-md border p-2">
-            {searchResults.length > 0 ? (
+            {isSearching ? (
+              <p className="py-2 text-center text-sm text-gray-500">
+                検索中...
+              </p>
+            ) : searchResults.length > 0 ? (
               searchResults.map((user) => (
                 <div
                   key={`search-${user.id}`} // keyを修正
                   className="flex cursor-pointer items-center justify-between rounded-lg p-2 hover:bg-gray-100"
                   onClick={() => handleUserSelect(user)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      handleUserSelect(user);
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
                 >
                   <div className="flex items-center gap-2">
                     <Avatar className="size-8">

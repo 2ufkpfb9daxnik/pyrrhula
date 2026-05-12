@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth/next";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { NextResponse } from "next/server";
-import type { TimelineResponse, CreatePostRequest } from "@/app/_types/post";
+import type { CreatePostRequest } from "@/app/_types/post";
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
@@ -99,6 +99,8 @@ export async function GET(req: Request) {
         };
       };
     };
+
+    type RepostRow = Awaited<ReturnType<typeof prisma.repost.findMany>>[number];
 
     // API応答用の型
     type ApiResponsePost = {
@@ -295,7 +297,7 @@ export async function GET(req: Request) {
             },
           },
         })
-      : Promise.resolve([] as any[]);
+      : Promise.resolve([] as RepostRow[]);
 
     const [regularPosts, reposts] = await timed(timings, "timelineDb", () =>
       Promise.all([regularPostsPromise, repostsPromise]),

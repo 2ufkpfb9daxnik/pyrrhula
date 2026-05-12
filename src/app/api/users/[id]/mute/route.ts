@@ -6,7 +6,7 @@ import { NextResponse } from "next/server";
 
 // ユーザーをミュートする
 export async function POST(
-  req: Request,
+  _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -46,7 +46,8 @@ export async function POST(
     );
   } catch (error) {
     // ユニーク制約違反（既にミュート済み）
-    if ((error as any).code === "P2002") {
+    const prismaError = error as { code?: string };
+    if (prismaError.code === "P2002") {
       return NextResponse.json({ error: "Already muted" }, { status: 400 });
     }
 
@@ -60,7 +61,7 @@ export async function POST(
 
 // ミュートを解除する
 export async function DELETE(
-  req: Request,
+  _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -85,7 +86,8 @@ export async function DELETE(
     );
   } catch (error) {
     // ミュートが存在しない場合
-    if ((error as any).code === "P2025") {
+    const prismaError = error as { code?: string };
+    if (prismaError.code === "P2025") {
       return NextResponse.json({ error: "Mute not found" }, { status: 404 });
     }
 

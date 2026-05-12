@@ -54,7 +54,6 @@ export default function NetworkGraph({
 }: NetworkGraphProps) {
   const networkRef = useRef<HTMLDivElement>(null);
   const [selectedUser, setSelectedUser] = useState<UserDetail | null>(null);
-  const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [allNodes, setAllNodes] = useState<UserNode[]>([]);
@@ -63,7 +62,6 @@ export default function NetworkGraph({
   // ユーザー詳細情報を取得する関数
   const fetchUserDetails = useCallback(async (userId: string) => {
     try {
-      setLoading(true);
       const response = await fetch(`/api/users/${userId}?type=profile`);
       if (!response.ok) {
         throw new Error("ユーザー情報の取得に失敗しました");
@@ -72,8 +70,6 @@ export default function NetworkGraph({
       setSelectedUser(data);
     } catch (error) {
       console.error("Error fetching user details:", error);
-    } finally {
-      setLoading(false);
     }
   }, []);
 

@@ -7,7 +7,6 @@ import {
   Home,
   Search,
   Bell,
-  MessageCircle,
   User,
   LogOut,
   LogIn,
@@ -68,8 +67,9 @@ export function Navigation({ isMobile = false }: NavigationProps) {
     }
   }
 
-  const navClasses =
-    "fixed z-50 bg-background flex items-center justify-around md:flex-col md:items-center md:justify-start md:space-y-4 md:p-4 md:w-16 md:h-screen md:left-0 md:top-0 md:border-r md:border-gray-800 inset-x-0 bottom-0 h-16 border-t border-gray-800";
+  const navClasses = `fixed z-50 bg-background flex items-center justify-around md:flex-col md:items-center md:justify-start md:space-y-4 md:p-4 md:w-16 md:h-screen md:left-0 md:top-0 md:border-r md:border-gray-800 inset-x-0 bottom-0 h-16 border-t border-gray-800 ${
+    isMobile ? "md:hidden" : ""
+  }`;
 
   return (
     <nav className={navClasses}>

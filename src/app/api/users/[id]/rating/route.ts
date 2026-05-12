@@ -1,8 +1,6 @@
-import { getServerSession } from "next-auth/next";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { calculateRating, getColorFromScore } from "@/lib/rating";
-import { authOptions } from "@/lib/auth";
 import type { UserRating } from "@/app/_types/rating";
 
 export async function GET(
@@ -10,7 +8,6 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await getServerSession(authOptions);
     const userId = (await params).id;
 
     // 直近の投稿数を取得（過去30日）

@@ -16,11 +16,17 @@ const nextRules = {
 
 module.exports = [
   {
-    ignores: [".next/**", "node_modules/**", "out/**", "coverage/**"],
+    ignores: [
+      ".next/**",
+      "node_modules/**",
+      "out/**",
+      "coverage/**",
+      "eslint.config.js",
+    ],
   },
   js.configs.recommended,
   {
-    files: ["**/*.{js,jsx,ts,tsx}"] ,
+    files: ["**/*.{js,jsx,ts,tsx,mjs,cjs}"],
     languageOptions: {
       parser: tsParser,
       parserOptions: {
@@ -73,6 +79,7 @@ module.exports = [
       "react-hooks/refs": "warn",
       "react-hooks/set-state-in-effect": "off",
       "react-hooks/incompatible-library": "warn",
+      "react-hooks/preserve-manual-memoization": "warn",
       "jsx-a11y/click-events-have-key-events": "warn",
       "jsx-a11y/no-static-element-interactions": "warn",
       "jsx-a11y/no-noninteractive-element-interactions": "warn",

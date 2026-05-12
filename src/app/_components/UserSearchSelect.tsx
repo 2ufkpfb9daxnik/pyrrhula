@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +27,8 @@ export function UserSearchSelect({
   const [searchResults, setSearchResults] = useState<User[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
-  const searchUsers = async (query: string) => {
+  const searchUsers = useCallback(
+    async (query: string) => {
     if (!query.trim()) {
       setSearchResults([]);
       return;
@@ -67,7 +68,9 @@ export function UserSearchSelect({
     } finally {
       setIsSearching(false);
     }
-  };
+    },
+    [selectedUsers]
+  );
 
   // debounceの時間をさらに調整
   useEffect(() => {
@@ -78,7 +81,7 @@ export function UserSearchSelect({
     }, 750); // 750msに延長してAPI呼び出しを抑制
 
     return () => clearTimeout(timeoutId);
-  }, [searchQuery]);
+  }, [searchQuery, searchUsers]);
 
   const handleQueryChange = (value: string) => {
     setSearchQuery(value);

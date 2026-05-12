@@ -10,7 +10,12 @@ import { Post as PostComponent } from "@/app/_components/post";
 import { MakePost } from "@/app/_components/makepost";
 import { Search } from "@/app/_components/search";
 import { Plus } from "lucide-react";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
@@ -29,6 +34,7 @@ export default function HomePage() {
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { data: session } = useSession();
+  const sessionUserId = session?.user?.id;
   const router = useRouter();
   const [parentPost, setParentPost] = useState<Post | null>(null);
   const [hasMore, setHasMore] = useState(false);
@@ -67,16 +73,16 @@ export default function HomePage() {
   }, []);
 
   const handleUserClick = () => {
-    if (session?.user?.id) {
-      router.push(`/user/${session.user.id}`);
+    if (sessionUserId) {
+      router.push(`/user/${sessionUserId}`);
     }
   };
 
   const fetchUserInfo = useCallback(async () => {
-    if (!session?.user?.id) return;
+    if (!sessionUserId) return;
 
     try {
-      const response = await fetch(`/api/users/${session.user.id}`, {
+      const response = await fetch(`/api/users/${sessionUserId}`, {
         next: { revalidate: 300 }, // 5分間キャッシュ
       });
       if (!response.ok) {
@@ -88,7 +94,7 @@ export default function HomePage() {
     } catch (error) {
       console.error("Error fetching user info:", error);
     }
-  }, [session?.user?.id]);
+  }, [sessionUserId]);
 
   // APIレスポンスの投稿データをフォーマットするヘルパー関数
   const formatPost = (post: any): Post => {
@@ -452,8 +458,12 @@ export default function HomePage() {
             <Plus className="size-6" />
           </Button>
         </DialogTrigger>
-        <DialogContent className="w-[calc(100%-32px)] max-w-[425px]">
-          <div className="pt-6">
+        <DialogContent
+          hideCloseButton={true}
+          className="!inset-x-0 !top-12 !w-screen !max-w-none !translate-x-0 !translate-y-0 rounded-none border-x-0 p-0"
+        >
+          <DialogTitle className="sr-only">新規投稿</DialogTitle>
+          <div className="overflow-y-auto pb-4">
             <MakePost
               onPostCreated={(post) => {
                 handlePostCreated(post);
@@ -462,6 +472,7 @@ export default function HomePage() {
                 }
               }}
               inputRef={postInputRef}
+              noBorder={true}
               replyTo={
                 parentPost
                   ? {

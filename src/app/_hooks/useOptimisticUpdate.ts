@@ -43,7 +43,7 @@ export function useOptimisticUpdate({
 
       toast.success(isActive ? successMessage.remove : successMessage.add);
       if (onSuccess) await onSuccess();
-    } catch (error) {
+    } catch {
       toast.error(errorMessage);
       // エラー時は既に状態を元に戻しているので何もしない
     } finally {

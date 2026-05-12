@@ -145,7 +145,11 @@ export default function UserProfilePage() {
         setPosts([]);
       }
 
-      cursor ? setIsLoadingMore(true) : setIsContentLoading(true);
+      if (cursor) {
+        setIsLoadingMore(true);
+      } else {
+        setIsContentLoading(true);
+      }
 
       let formattedPosts;
 
@@ -279,7 +283,11 @@ export default function UserProfilePage() {
       setHasMore(false);
       setNextCursor(null);
     } finally {
-      cursor ? setIsLoadingMore(false) : setIsContentLoading(false);
+      if (cursor) {
+        setIsLoadingMore(false);
+      } else {
+        setIsContentLoading(false);
+      }
     }
   };
 

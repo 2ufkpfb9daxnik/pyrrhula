@@ -7,7 +7,7 @@ import prisma from "@/lib/prisma";
 // バッチサイズの定義 - 一度に処理するユーザー数
 const BATCH_SIZE = 5;
 
-export async function POST(req: Request) {
+export async function POST(_req: Request) {
   try {
     const session = await getServerSession(authOptions);
 

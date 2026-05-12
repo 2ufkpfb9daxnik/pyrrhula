@@ -63,41 +63,6 @@ export interface ReplyToPost {
   username?: string;
 }
 
-interface PostResponse {
-  id: string;
-  content: string;
-  createdAt: Date;
-  favorites: number;
-  reposts: number;
-  user: {
-    id: string;
-    username: string;
-    icon: string | null;
-  };
-  parent?: {
-    id: string;
-    content: string;
-    user: {
-      id: string;
-      username: string;
-    };
-  } | null;
-  _count: {
-    replies: number;
-  };
-  isFavorited?: boolean;
-  isReposted?: boolean;
-  // 拡散関連の情報を追加
-  repostedBy?: {
-    id: string;
-    username: string;
-    icon: string | null;
-  };
-  repostedAt?: string | Date;
-  // 質問関連の情報を追加 (オプショナル)
-  question?: QuestionInfo;
-}
-
 export type TimelineResponse = {
   posts: Post[];
   hasMore: boolean;

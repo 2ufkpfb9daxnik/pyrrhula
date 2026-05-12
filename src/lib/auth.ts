@@ -3,6 +3,7 @@ import {
   User as NextAuthUser,
   Session as NextAuthSession,
 } from "next-auth";
+import type { JWT } from "next-auth/jwt";
 import CredentialsProvider from "next-auth/providers/credentials";
 import prisma from "./prisma";
 import { compare } from "bcrypt";
@@ -78,7 +79,7 @@ export const authOptions: NextAuthOptions = {
       token,
     }: {
       session: NextAuthSession;
-      token: any;
+      token: JWT;
     }) {
       if (token) {
         if (session.user) {

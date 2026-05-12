@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { createRatingHistory, RATING_REASONS } from "@/lib/rating";
-import { headers } from "next/headers";
 
 export const dynamic = "force-dynamic";
 

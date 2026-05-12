@@ -52,6 +52,7 @@ export default function TimelineLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { data: session } = useSession();
+  const sessionUserId = session?.user?.id;
   const [activeTab, setActiveTab] = useState<TabType>("global");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
@@ -76,25 +77,25 @@ export default function TimelineLayout({ children }: { children: ReactNode }) {
   }, [pathname]);
 
   const handleUserClick = () => {
-    if (session?.user?.id) {
-      router.push(`/user/${session.user.id}`);
+    if (sessionUserId) {
+      router.push(`/user/${sessionUserId}`);
     }
   };
 
   const fetchUserInfo = useCallback(async () => {
-    if (!session?.user?.id) return;
+    if (!sessionUserId) return;
     try {
-      const response = await fetch(`/api/users/${session.user.id}`);
+      const response = await fetch(`/api/users/${sessionUserId}`);
       if (!response.ok) throw new Error("Failed to fetch user info");
       const data = await response.json();
       setUserInfo(data);
     } catch (error) {
       console.error("Error fetching user info:", error);
     }
-  }, [session?.user?.id]);
+  }, [sessionUserId]);
 
   const fetchUserLists = useCallback(async () => {
-    if (!session?.user?.id) return;
+    if (!sessionUserId) return;
     try {
       setIsLoadingLists(true);
       const response = await fetch("/api/lists?isMember=true");
@@ -107,10 +108,10 @@ export default function TimelineLayout({ children }: { children: ReactNode }) {
     } finally {
       setIsLoadingLists(false);
     }
-  }, [session?.user?.id]);
+  }, [sessionUserId]);
 
   const fetchFollowedLists = useCallback(async () => {
-    if (!session?.user?.id) return;
+    if (!sessionUserId) return;
     try {
       const response = await fetch("/api/lists/followed");
       if (!response.ok) throw new Error("Failed to fetch followed lists");
@@ -120,15 +121,15 @@ export default function TimelineLayout({ children }: { children: ReactNode }) {
       console.error("Error fetching followed lists:", error);
       setFollowedLists([]);
     }
-  }, [session?.user?.id]);
+  }, [sessionUserId]);
 
   useEffect(() => {
-    if (session?.user?.id) {
+    if (sessionUserId) {
       fetchUserInfo();
       fetchUserLists();
       fetchFollowedLists();
     }
-  }, [fetchFollowedLists, fetchUserInfo, fetchUserLists, session?.user?.id]);
+  }, [fetchFollowedLists, fetchUserInfo, fetchUserLists, sessionUserId]);
 
   const handleTabChange = (value: TabType) => {
     if (value === "settings") {
@@ -206,7 +207,7 @@ export default function TimelineLayout({ children }: { children: ReactNode }) {
               <div className="flex flex-col">
                 <span className="font-semibold">{session?.user?.name}</span>
                 <span className="text-sm text-muted-foreground">
-                  @{session?.user?.id}
+                  @{sessionUserId}
                 </span>
               </div>
             </div>

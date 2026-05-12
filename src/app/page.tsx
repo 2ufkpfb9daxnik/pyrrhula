@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import {
@@ -16,7 +15,7 @@ import {
 import { Post } from "@/app/_components/post";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { Post as PostType } from "@/app/_types/post";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSession } from "next-auth/react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -87,11 +86,11 @@ export default function LandingPage() {
         throw new Error("タイムラインの取得に失敗しました");
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as { posts: TimelinePost[] };
 
       // 日付とQuestion情報を変換して投稿を設定
       setPosts(
-        data.posts.map((post: any) => ({
+        data.posts.map((post) => ({
           ...post,
           createdAt: new Date(post.createdAt),
           repostedAt: post.repostedAt ? new Date(post.repostedAt) : undefined,

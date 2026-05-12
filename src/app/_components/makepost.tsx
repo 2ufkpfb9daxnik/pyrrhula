@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -21,9 +22,15 @@ interface MakePostProps {
   onPostCreated: (post: Post) => void;
   replyTo?: ReplyToPost | undefined;
   inputRef?: React.RefObject<HTMLTextAreaElement>;
+  noBorder?: boolean;
 }
 
-export function MakePost({ onPostCreated, replyTo, inputRef }: MakePostProps) {
+export function MakePost({
+  onPostCreated,
+  replyTo,
+  inputRef,
+  noBorder = false,
+}: MakePostProps) {
   const [content, setContent] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
@@ -57,7 +64,7 @@ export function MakePost({ onPostCreated, replyTo, inputRef }: MakePostProps) {
   // メンションされたユーザーの通知を作成
   const createMentionNotifications = async (
     postId: string,
-    content: string
+    content: string,
   ) => {
     const mentions = content.match(MENTION_PATTERN);
     if (!mentions) return;
@@ -92,13 +99,12 @@ export function MakePost({ onPostCreated, replyTo, inputRef }: MakePostProps) {
     if (e.ctrlKey && e.key === "Enter") {
       e.preventDefault();
       if (content.length > 0 && !isLoading) {
-        handleSubmit(e as any);
+        void submitPost();
       }
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const submitPost = async () => {
     if (content.trim().length === 0 || isLoading || !session?.user) return;
 
     setIsLoading(true);
@@ -168,8 +174,13 @@ export function MakePost({ onPostCreated, replyTo, inputRef }: MakePostProps) {
     }
   };
 
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    await submitPost();
+  };
+
   return (
-    <form onSubmit={handleSubmit} className="mb-8">
+    <form onSubmit={handleSubmit} className={noBorder ? "mb-0" : "mb-8"}>
       {replyTo && (
         <div className="mb-2 text-sm text-gray-500">
           返信: @{replyTo.user?.username ?? replyTo.username}{" "}
@@ -183,7 +194,11 @@ export function MakePost({ onPostCreated, replyTo, inputRef }: MakePostProps) {
         value={content}
         onChange={(e) => setContent(e.target.value)}
         onKeyDown={handleKeyDown}
-        className="min-h-24 resize-none border-gray-800 bg-transparent"
+        className={
+          noBorder
+            ? "min-h-72 resize-none rounded-none border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+            : "min-h-24 resize-none border-gray-800 bg-transparent"
+        }
       />
       <div className="flex items-center justify-between">
         <span className="text-sm text-gray-500">
@@ -214,13 +229,15 @@ export function MakePost({ onPostCreated, replyTo, inputRef }: MakePostProps) {
             <div className="grid grid-cols-2 gap-2">
               {imageUrls.map((url, index) => (
                 <div key={index} className="group relative">
-                  <img
+                  <Image
                     src={url}
                     alt={`Preview ${index + 1}`}
+                    width={320}
+                    height={160}
+                    sizes="(max-width: 768px) 50vw, 25vw"
+                    unoptimized
+                    loader={({ src }) => src}
                     className="h-40 w-full rounded-lg object-cover"
-                    onError={(e) => {
-                      e.currentTarget.src = "/placeholder-image.png";
-                    }}
                   />
                   <Button
                     type="button"
