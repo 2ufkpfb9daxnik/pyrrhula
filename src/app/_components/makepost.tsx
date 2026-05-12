@@ -11,6 +11,7 @@ import { useSession } from "next-auth/react";
 import { Post, ReplyToPost } from "@/app/_types/post";
 
 const MENTION_PATTERN = /@[\w]+/g;
+const MAX_POST_LENGTH = 500;
 
 interface CreatePostRequest {
   content: string;
@@ -105,13 +106,18 @@ export function MakePost({
   };
 
   const submitPost = async () => {
-    if (content.trim().length === 0 || isLoading || !session?.user) return;
+    const trimmedContent = content.trim();
+    if (!trimmedContent || isLoading || !session?.user) return;
+    if (trimmedContent.length > MAX_POST_LENGTH) {
+      toast.error(`投稿は${MAX_POST_LENGTH}文字以内で入力してください`);
+      return;
+    }
 
     setIsLoading(true);
 
     const optimisticPost: Post = {
       id: `temp-${Date.now()}`,
-      content: content.trim(),
+      content: trimmedContent,
       createdAt: new Date(),
       user: {
         id: session.user.id,
@@ -194,6 +200,7 @@ export function MakePost({
         value={content}
         onChange={(e) => setContent(e.target.value)}
         onKeyDown={handleKeyDown}
+        maxLength={MAX_POST_LENGTH}
         className={
           noBorder
             ? "min-h-72 resize-none rounded-none border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
@@ -202,7 +209,7 @@ export function MakePost({
       />
       <div className="flex items-center justify-between">
         <span className="text-sm text-gray-500">
-          残り {500 - content.length} 文字
+          残り {MAX_POST_LENGTH - content.length} 文字
         </span>
 
         {/* 画像URL入力部分 */}
@@ -257,7 +264,11 @@ export function MakePost({
         {/* 投稿ボタン */}
         <Button
           type="submit"
-          disabled={content.trim().length === 0 || isLoading}
+          disabled={
+            content.trim().length === 0 ||
+            isLoading ||
+            content.length > MAX_POST_LENGTH
+          }
         >
           {isLoading ? "投稿中..." : "投稿"}
         </Button>

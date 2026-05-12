@@ -7,6 +7,7 @@ import { createRatingHistory, RATING_REASONS } from "@/lib/rating";
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
+const MAX_POST_LENGTH = 500;
 
 type TimingEntry = {
   name: string;
@@ -523,10 +524,18 @@ export async function POST(req: Request) {
     }
 
     const body: CreatePostRequest = await req.json();
+    const trimmedContent = body.content?.trim();
 
-    if (!body.content.trim()) {
+    if (!trimmedContent) {
       return NextResponse.json(
         { error: "Content cannot be empty" },
+        { status: 400 },
+      );
+    }
+
+    if (trimmedContent.length > MAX_POST_LENGTH) {
+      return NextResponse.json(
+        { error: `Content must be ${MAX_POST_LENGTH} characters or less` },
         { status: 400 },
       );
     }
@@ -534,7 +543,7 @@ export async function POST(req: Request) {
     // まず投稿だけを確定して、失敗時に投稿自体が消えないようにする
     const post = await prisma.post.create({
       data: {
-        content: body.content.trim(),
+        content: trimmedContent,
         userId: session.user.id,
         images: body.images || [],
         ...(body.parentId && { parentId: body.parentId }),
