@@ -90,6 +90,13 @@ export function UserSearchSelect({
     }
   };
 
+  const handleQueryChange = (value: string) => {
+    setSearchQuery(value);
+    if (!value.trim()) {
+      setSearchResults([]);
+    }
+  };
+
   const handleUserRemove = (id: string) => {
     const updatedUsers = selectedUsers.filter((user) => user.id !== id);
     onSelect(updatedUsers);
