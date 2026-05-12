@@ -29,47 +29,49 @@ export function UserSearchSelect({
 
   const searchUsers = useCallback(
     async (query: string) => {
-    if (!query.trim()) {
-      setSearchResults([]);
-      return;
-    }
-
-    setIsSearching(true);
-    try {
-      const response = await fetch(
-        `/api/search?type=users&q=${encodeURIComponent(query)}`
-      );
-      if (!response.ok) throw new Error("ユーザーの検索に失敗しました");
-
-      const data = await response.json();
-
-      if (!data || !Array.isArray(data.users)) {
-        console.error("Invalid API response:", data);
-        throw new Error("不正なAPIレスポンスです");
+      if (!query.trim()) {
+        setSearchResults([]);
+        return;
       }
 
-      // 既に選択されているユーザーを除外
-      const filteredUsers = data.users.filter(
-        (user: User) =>
-          !selectedUsers.some((selected) => selected.id === user.id)
-      );
+      setIsSearching(true);
+      try {
+        const response = await fetch(
+          `/api/search?type=users&q=${encodeURIComponent(query)}`,
+        );
+        if (!response.ok) throw new Error("ユーザーの検索に失敗しました");
 
-      setSearchResults(filteredUsers);
+        const data = await response.json();
 
-      if (filteredUsers.length === 0 && data.users.length > 0) {
-        toast.info("検索されたユーザーは既に選択されています");
+        if (!data || !Array.isArray(data.users)) {
+          console.error("Invalid API response:", data);
+          throw new Error("不正なAPIレスポンスです");
+        }
+
+        // 既に選択されているユーザーを除外
+        const filteredUsers = data.users.filter(
+          (user: User) =>
+            !selectedUsers.some((selected) => selected.id === user.id),
+        );
+
+        setSearchResults(filteredUsers);
+
+        if (filteredUsers.length === 0 && data.users.length > 0) {
+          toast.info("検索されたユーザーは既に選択されています");
+        }
+      } catch (error) {
+        console.error("検索エラー:", error);
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "ユーザーの検索に失敗しました",
+        );
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
       }
-    } catch (error) {
-      console.error("検索エラー:", error);
-      toast.error(
-        error instanceof Error ? error.message : "ユーザーの検索に失敗しました"
-      );
-      setSearchResults([]);
-    } finally {
-      setIsSearching(false);
-    }
     },
-    [selectedUsers]
+    [selectedUsers],
   );
 
   // debounceの時間をさらに調整
@@ -82,13 +84,6 @@ export function UserSearchSelect({
 
     return () => clearTimeout(timeoutId);
   }, [searchQuery, searchUsers]);
-
-  const handleQueryChange = (value: string) => {
-    setSearchQuery(value);
-    if (!value.trim()) {
-      setSearchResults([]);
-    }
-  };
 
   const handleQueryChange = (value: string) => {
     setSearchQuery(value);
