@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import "vis-network/styles/vis-network.css";
 import type { Edge, Node } from "vis-network";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -407,7 +408,10 @@ export default function NetworkGraph({
   const needsPagination = totalPages > 1;
 
   return (
-    <div className="relative size-full" style={{ background: "#0a0a0a" }}>
+    <div
+      className="relative h-full w-full min-h-screen"
+      style={{ background: "#0a0a0a" }}
+    >
       {/* グラフの凡例 */}
       <div
         className={`z-10 rounded bg-gray-900/80 p-3 text-white shadow-lg ${
@@ -449,7 +453,7 @@ export default function NetworkGraph({
       {selectedUser && renderActionButtons(selectedUser)}
 
       {/* グラフ描画エリア */}
-      <div ref={networkRef} className="size-full" />
+      <div ref={networkRef} className="h-full w-full min-h-screen" />
 
       {/* ページネーション */}
       {needsPagination && (

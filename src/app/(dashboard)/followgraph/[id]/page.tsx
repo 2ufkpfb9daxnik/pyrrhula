@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { LoaderCircle } from "lucide-react";
 import dynamic from "next/dynamic";
 
@@ -26,21 +26,24 @@ const NetworkGraph = dynamic(() => import("@/app/_components/NetworkGraph"), {
   ),
 });
 
-export default function FollowGraphPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default function FollowGraphPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [graphData, setGraphData] = useState<UserNode | null>(null);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const params = useParams<{ id: string }>();
+  const userId = Array.isArray(params?.id) ? params?.id[0] : params?.id;
 
   useEffect(() => {
     const fetchGraphData = async () => {
+      if (!userId) {
+        setError("ユーザーIDが見つかりません");
+        setIsLoading(false);
+        return;
+      }
       try {
         setIsLoading(true);
-        const response = await fetch(`/api/users/${params.id}/followgraph`);
+        const response = await fetch(`/api/users/${userId}/followgraph`);
 
         if (!response.ok) {
           throw new Error("フォローグラフの取得に失敗しました");
@@ -53,7 +56,7 @@ export default function FollowGraphPage({
         setError(
           error instanceof Error
             ? error.message
-            : "フォローグラフの取得に失敗しました"
+            : "フォローグラフの取得に失敗しました",
         );
       } finally {
         setIsLoading(false);
@@ -61,7 +64,7 @@ export default function FollowGraphPage({
     };
 
     fetchGraphData();
-  }, [params.id]);
+  }, [userId]);
 
   if (error) {
     return (
