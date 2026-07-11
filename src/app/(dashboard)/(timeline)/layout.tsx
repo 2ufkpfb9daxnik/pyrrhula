@@ -5,7 +5,6 @@ import { useRouter, usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { upsertPostInTimelines } from "@/lib/timeline-cache";
-import { Navigation } from "@/app/_components/navigation";
 import { MakePost } from "@/app/_components/makepost";
 import { Search } from "@/app/_components/search";
 import { TimelineJump } from "@/app/_components/TimelineJump";
@@ -171,14 +170,6 @@ export default function TimelineLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen flex-col pb-16 md:pb-0 md:pl-16">
-      <div className="md:hidden">
-        <Navigation />
-      </div>
-
-      <div className="hidden md:block">
-        <Navigation />
-      </div>
-
       {session && (
         <div className="fixed hidden h-full w-80 flex-col gap-4 border-r border-gray-800 p-4 md:left-16 md:top-0 md:flex">
           <button

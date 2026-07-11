@@ -1,6 +1,11 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import {
+  createRealtimeChannel,
+  isRealtimeConfigured,
+  safeSubscribe,
+} from "@/lib/supabase-realtime";
 import { supabase } from "@/utils/supabase";
 
 /** 接続失敗をこの回数繰り返したら再試行を止める */
@@ -44,17 +49,14 @@ export function useRealtimeTimeline({
   });
 
   useEffect(() => {
-    if (
-      !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-      !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    ) {
+    if (!isRealtimeConfigured()) {
       return;
     }
 
     let retryCount = 0;
     let stopped = false;
 
-    const channel = supabase.channel(channelName);
+    const channel = createRealtimeChannel(channelName);
 
     const scheduleUpdate = () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -86,7 +88,7 @@ export function useRealtimeTimeline({
       );
     }
 
-    channel.subscribe((status) => {
+    safeSubscribe(channel, (status) => {
       if (stopped) return;
       if (status === "SUBSCRIBED") {
         setConnectionState("connected");

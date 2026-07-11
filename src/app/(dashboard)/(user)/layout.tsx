@@ -4,7 +4,6 @@ import { useEffect, ReactNode } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Navigation } from "@/app/_components/navigation";
 import { User, Users } from "lucide-react";
 import { useSwipeable } from "react-swipeable";
 import { queryKeys } from "@/lib/api/query-keys";
@@ -67,17 +66,7 @@ export default function UserLayout({ children }: { children: ReactNode }) {
   });
 
   return (
-    <div className="flex min-h-screen flex-col sm:flex-row">
-      {/* モバイル向けの固定ナビゲーションバー（画面上部） */}
-      <div className="sticky top-0 z-30 border-b border-gray-800 bg-background sm:hidden">
-        <Navigation isMobile={true} />
-      </div>
-
-      {/* デスクトップ向けの左サイドナビゲーション */}
-      <div className="hidden sm:block">
-        <Navigation />
-      </div>
-
+    <div className="flex min-h-screen flex-col">
       <div className="flex-1">
         <div className="mx-auto max-w-2xl">
           {/* タブナビゲーション - 常に表示されるように sticky に */}
