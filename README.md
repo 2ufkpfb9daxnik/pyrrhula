@@ -1,37 +1,15 @@
-# 鷽(ウソ)
-
-レートのあるSNS
+# 鷽
 
 ## 概要
 
-鷽は、シンプルさと使いやすさを重視したレートのあるSNSです。手軽に情報発信や交流が行えます。
+以下のような機能があると面白いと考えました
 
-### 開発背景
-
-既存のSNSプラットフォームには以下のような課題があると考えました：
-
-- 過度に複雑化したUI/UX
-- プライバシーへの懸念
-- アルゴリズムによる情報の偏り
-
-また、以下のような機能があると面白いと考えました：
-
-- 投稿数に応じたレーティングシステム
-  - ユーザーの活動度が一目で分かる
+- レート
 - 全体タイムライン
-  - アカウント作成直後から好みの投稿者を見つけやすい
-  - アルゴリズムに依存せず多様な投稿に触れられる
+- アルゴリズムに依存せず多様な投稿に触れられる
 - フォローグラフ
   - ユーザー間のつながりを視覚的に把握
   - 好みの投稿者に近いユーザーの発見が容易
-
-これらの課題を解決し、新しい機能を実現するため、以下の特徴を持つプラットフォームを開発しました：
-
-- 直感的で分かりやすいUI
-- アルゴリズムに依存しない時系列タイムライン
-- レーティング、全体タイムライン、フォローグラフが存在
-
-全体的におすすめアルゴリズムに頼らないで、他のユーザーの発見が容易であるような設計を心がけました。
 
 ### 公開URL
 
@@ -39,15 +17,15 @@
 
 ## 特徴と機能
 
-### 1. シンプルな認証システム
+### シンプルな認証システム
 
 ![認証画面](/screenshots/auth.png)
 
 - ユーザーIDとパスワードのみでログイン可能
-- セキュアなJWT認証
+- 安全なJWT認証
 - パスワードの暗号化保存
 
-### 2. 直感的なタイムライン
+### 直感的なタイムライン
 
 ![タイムライン](/screenshots/timeline.png)
 
@@ -55,38 +33,35 @@
 - 無限スクロール
 - レスポンシブデザイン
 
-### 3. インタラクション機能
+### インタラクション機能
 
 ![インタラクション](/screenshots/interaction.png)
 
 - お気に入り登録
-- 投稿の拡散（拡散）
+- 投稿の拡散
 - 返信チェーン
 
-### 4. プロフィール
+### プロフィール
 
 ![プロフィール](/screenshots/profile.png)
 
-<!-- - アイコン画像のアップロード -->
-
 - プロフィール情報の編集
-
 - 投稿履歴の確認
 
-### 5. 通知システム
+### 通知システム
 
 ![通知](/screenshots/notification.png)
-
-<!-- - リアルタイム通知 -->
 
 - アクション別の通知管理
 - 既読/未読の状態管理
 
-## 6. 全体タイムライン
+## 全体タイムライン
 
 フォローしている人のもしていない人のも全部流れてくるタイムラインがあります
 
-## 7. チャット
+## チャット
+
+※ この機能は閉鎖しています
 
 それぞれのユーザーたちと自由にチャットできます
 
@@ -94,41 +69,43 @@
 
 グループチャットもあります。
 
-※ この機能は閉鎖しています
-
 ![グループチャット](/screenshots/groupchat.png)
 
-## 8. フォローグラフ
+## フォローグラフ
 
 フォロー/フォロワー関係にある人たちをグラフで表します。矢印で指されている人がフォローされている人です。
 
 ![フォローグラフ](/screenshots/followgraph.png)
 
-## 9. レーティング
+## レーティング
 
-投稿頻度などによってレーティングがつき、それぞれに対応する色が名前に反映されます
+投稿頻度などによってレートがつき、それぞれに対応する色が名前に反映されます
 
 ![レーティング](/screenshots/rating.png)
 
-## 10. ハッシュタグ
+## ハッシュタグ
 
-ハッシュタグを付けるとそのワードで簡単に検索できます
+ハッシュタグを付けるとそのワードで検索できます
 
 ![ハッシュタグ](/screenshots/hashtag.png)
 
-## 11. 質問
+## 質問
 
-匿名質問機能があります
+質問機能があります
 
 ![質問](/screenshots/question.png)
 
-## 12. レスポンシブ対応
-
-これらの全ての機能について、スマートフォンなどで見たときに表示が適したものになるようになっています
-
-![レスポンシブ対応](/screenshots/responsibe.png)
-
 ## 使用技術
+
+| 区分           | 技術                                                      |
+| -------------- | --------------------------------------------------------- |
+| フロントエンド | Next.js 16, React 18, TypeScript, Tailwind CSS, shadcn/ui |
+| データ取得     | TanStack React Query（localStorage 永続化）               |
+| 認証           | NextAuth.js（Credentials / JWT）                          |
+| バックエンド   | Next.js API Routes, Prisma                                |
+| データベース   | PostgreSQL（Supabase）                                    |
+| リアルタイム   | Supabase Realtime                                         |
+| デプロイ       | Vercel                                                    |
 
 ## システム構成図
 
@@ -152,7 +129,6 @@ graph TB
     end
 
     subgraph External
-        GitHub[GitHub OAuth]
         Vercel[Vercel Platform]
         CDN[Vercel Edge Network]
     end
@@ -160,8 +136,8 @@ graph TB
     Browser --> NextJS
     NextJS --> React
     NextJS --> Auth
-    Auth --> GitHub
     API --> Prisma
+    Prisma --> Supabase
     NextJS --> Cache
     Cache --> CDN
     NextJS --> Vercel
@@ -174,68 +150,76 @@ graph TB
     class Browser,NextJS,React,Auth primary;
     class API,Prisma,Cache secondary;
     class Supabase database;
-    class GitHub,Vercel,CDN external;
+    class Vercel,CDN external;
 ```
 
 ## 技術スタックの詳細
 
 ### フロントエンド
 
-- **Next.js 14**: App Routerを使用したサーバーコンポーネント
-- **React 18**: Suspense, Server Componentsサポート
-- **TailwindCSS**: スタイリング
-- **ShadcnUI**: UIコンポーネント
-- **NextAuth.js**: 認証
-- **VisJS**:フォローグラフの描画
+#### コア
 
-#### Reactライブラリ
+- **Next.js 16（App Router）**: ページルーティング、Server / Client Components、API Routes をひとつのプロジェクトで運用
+- **React 18**: UI 構築。タイムライン、プロフィール、検索など主要画面は Client Component 中心
+- **TypeScript 5**: 型安全な開発
 
-- **Zustand**: 軽量な状態管理
-- **SWR**: データフェッチとキャッシュ(チャットの送信、投稿、お気に入りなどについて楽観的更新)
-- **Lucide React**: アイコンコンポーネント
-- **Radix UI**: アクセシブルなヘッドレスUIコンポーネント
-- **Vis.js**: フォローグラフの可視化
-- **Recharts**: データの可視化
-- **React Flow**: フローチャートとグラフ
-- **date-fns**: 日付操作
-- **react-swipeable**: フォロー中タイムライン/全体タイムラインと、プロフィール/ユーザー一覧ページの切り替え
+#### UI / スタイル
+
+- **Tailwind CSS**: レイアウト・配色・レスポンシブ対応
+- **shadcn/ui**: Button、Dialog、Tabs などの UI コンポーネント群
+- **Radix UI**: shadcn/ui のベースとなるアクセシブルなプリミティブ
+- **Lucide React**: アイコン
+- **sonner**: トースト通知（投稿・フォロー・設定変更など）
+
+#### データ取得・状態管理
+
+- **TanStack React Query v5**: メインのデータ取得レイヤー
+  - タイムライン（無限スクロール）、ユーザー情報、検索、リスト、通知など
+  - `@tanstack/react-query-persist-client` により **localStorage へキャッシュ永続化**（再訪問時に即時表示）
+- **Zustand**: レーティング表示用の軽量ストア（`ratingStore`）
+- **SWR**: グループチャット周りなど、一部レガシー用途で併用
+
+#### リアルタイム
+
+- **Supabase Realtime**（`@supabase/supabase-js`）: タイムライン・通知の差分更新
+
+#### 可視化・操作補助
+
+- **vis-network / vis-data**: フォローグラフの描画
+- **Recharts**: プロフィールのレート履歴グラフ
+- **react-swipeable**: タイムライン切替やプロフィール／ユーザー一覧のスワイプ操作
+- **react-intersection-observer**: 無限スクロールの読み込みトリガー
+- **date-fns**: 日時の表示フォーマット
+- **KaTeX**: 投稿本文の数式レンダリング
+- **react-hook-form + Zod**: リスト作成などフォームのバリデーション
 
 ### バックエンド
 
-- **Next.js API Routes**: RESTful API
-- **Prisma**: 型安全ORM
-- **PostgreSQL**: データベース
+- **Next.js API Routes**: REST 風 API（投稿、フォロー、通知、ユーザー、リスト、管理画面など）
+- **NextAuth.js v4**: ユーザー ID / パスワードによる Credentials 認証、JWT セッション
+- **bcrypt**: パスワードのハッシュ化・照合
+- **Prisma 6**: PostgreSQL 向け ORM。スキーマ管理・型安全なクエリ
+- **PostgreSQL**: ユーザー、投稿、フォロー、通知、レート履歴などを保存
+- **Vercel Cron**: アカウント経過日数に応じたレート更新（`/api/cron/update-account-age-rating`）
 
 ### インフラストラクチャ
 
-- **Vercel**: ホスティング & デプロイ
-- **Supabase**: データベースホスティング
-- **GitHub Actions**: CI/CD
+- **Vercel**: 本番ホスティング・デプロイ
+- **Supabase**: PostgreSQL のホスティング、Realtime 利用
+- **GitHub Actions**: Supabase のスリープ防止のための定期 ping（`dasily-ping.yaml`）
 
-### 開発ツール
+### 開発・品質
 
-- **GitHub Copilot**: Claude3.5および3.7 sonnetを全体で使用
-- **TypeScript**: 型安全性
-- **ESLint**: コード品質
+- **TypeScript**: アプリ全体の型チェック
+- **ESLint 9**（flat config）: 静的解析（React / Next.js / a11y / Tailwind ルール）
 - **Prettier**: コードフォーマット
-
-## 開発期間・体制
-
-- 開発体制：個人開発
-- 開発期間：2025.2 (約50時間)
+- **Vitest**: ユニットテスト（例: `src/lib/rating.test.ts`）
+- **Prisma Migrate / `prisma generate`**: DB スキーマ同期とクライアント生成
 
 ## 工夫した点
 
-- 意図的に投稿/アカウントの削除/編集機能を付けていません。今まで類似サービスを使ってきた経験からです。
+- 意図的に投稿/アカウントの削除/編集機能を付けていません。
 - 意図的にユーザーIDは変更できませんし、決めることもできません。単にログイン機能としてのみ使われます。
-- パスワードに漢字や平仮名を使うことができます。これでラテン文字だけとは比べ物にならない強固なパスワードを少ない文字数で作ることができます。
+- パスワードに漢字や平仮名を使うことができます。これでラテン文字だけと比べて強固なパスワードを少ない文字数で作ることができます。
 
-## 既知の課題
-
-- プッシュ通知の実装
-- 検索機能の強化
-
-## 各種リンク
-
-- [2ufkpfbdaxnik](https://github.com/2ufkpfb9daxnik/pyrrhula)
-- [もう少しフランクな開発動機など](https://2ufkpfb9daxnik.github.io/portfolio/pages/pyrrhula)
+- [跋](https://2ufkpfb9daxnik.github.io/portfolio/pages/pyrrhula)
