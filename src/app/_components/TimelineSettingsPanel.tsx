@@ -13,10 +13,7 @@ export function TimelineSettingsPanel() {
       <div className="flex items-start gap-2 rounded-lg border border-blue-500/30 bg-blue-500/10 p-3">
         <Info className="mt-0.5 size-4 shrink-0 text-blue-400" />
         <p className="text-sm text-blue-200/90">
-          タイムラインのリアルタイム更新には Supabase Realtime が必要です。
-          初回は SQL Editor で{" "}
-          <code className="text-xs">supabase/migrations/enable_realtime.sql</code>{" "}
-          を実行してください。
+          実験的な機能なので、多分使えないと思います。githubのissueとかでやり方を教えて下さい。
         </p>
       </div>
 
@@ -60,7 +57,8 @@ export function TimelineSettingsPanel() {
           <div>
             <p className="text-sm font-medium">バナーを表示する</p>
             <p className="mt-1 text-xs text-gray-500">
-              新着があるときだけ「↑ 新しい投稿があります」を表示し、タップで更新します。
+              新着があるときだけ「↑
+              新しい投稿があります」を表示し、タップで更新します。
             </p>
           </div>
         </label>

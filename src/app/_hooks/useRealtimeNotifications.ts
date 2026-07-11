@@ -1,12 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import {
-  createRealtimeChannel,
-  isRealtimeConfigured,
-  safeSubscribe,
-} from "@/lib/supabase-realtime";
-import { supabase } from "@/utils/supabase";
+import { isRealtimeConfigured } from "@/lib/realtime-config";
+import { subscribeToNotifications } from "@/lib/realtime-manager";
 
 interface UseRealtimeNotificationsOptions {
   userId?: string;
@@ -25,26 +21,6 @@ export function useRealtimeNotifications({
       return;
     }
 
-    const channelName = `notifications-${userId}`;
-    const channel = createRealtimeChannel(channelName);
-
-    channel.on(
-      "postgres_changes",
-      {
-        event: "INSERT",
-        schema: "public",
-        table: "Notification",
-        filter: `receiverId=eq.${userId}`,
-      },
-      () => {
-        onNewNotification();
-      },
-    );
-
-    safeSubscribe(channel);
-
-    return () => {
-      void supabase.removeChannel(channel);
-    };
+    return subscribeToNotifications(userId, onNewNotification);
   }, [userId, onNewNotification]);
 }

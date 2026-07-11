@@ -1,15 +1,11 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { isRealtimeConfigured } from "@/lib/realtime-config";
 import {
-  createRealtimeChannel,
-  isRealtimeConfigured,
-  safeSubscribe,
-} from "@/lib/supabase-realtime";
-import { supabase } from "@/utils/supabase";
-
-/** 接続失敗をこの回数繰り返したら再試行を止める */
-const MAX_RETRY_ATTEMPTS = 5;
+  subscribeToPostInserts,
+  subscribeToRepostInserts,
+} from "@/lib/realtime-manager";
 
 /** 連続 INSERT をまとめて1回の更新にする（無料枠・API負荷軽減） */
 const DEBOUNCE_MS = 800;
@@ -24,12 +20,9 @@ interface UseRealtimeTimelineOptions {
 
 /**
  * Supabase Realtime で Post / Repost の INSERT を購読する。
- * スマホで投稿 → PC のタイムラインに自動反映、といった同期に使う。
- *
- * 前提: Supabase で Realtime を有効化していること（supabase/migrations/enable_realtime.sql 参照）
+ * 接続はアプリ全体で1本だけ共有する（WebSocket の作り直しを防ぐ）。
  */
 export function useRealtimeTimeline({
-  channelName,
   includeReposts = false,
   autoUpdate = true,
   onAutoUpdate,
@@ -53,66 +46,30 @@ export function useRealtimeTimeline({
       return;
     }
 
-    let retryCount = 0;
-    let stopped = false;
-
-    const channel = createRealtimeChannel(channelName);
+    setConnectionState("connected");
 
     const scheduleUpdate = () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {
-        onAutoUpdateRef.current?.();
+        if (autoUpdateRef.current && onAutoUpdateRef.current) {
+          onAutoUpdateRef.current();
+        } else {
+          setHasNewPosts(true);
+        }
       }, DEBOUNCE_MS);
     };
 
-    const handleInsert = () => {
-      if (stopped) return;
-      if (autoUpdateRef.current && onAutoUpdateRef.current) {
-        scheduleUpdate();
-      } else {
-        setHasNewPosts(true);
-      }
-    };
-
-    channel.on(
-      "postgres_changes",
-      { event: "INSERT", schema: "public", table: "Post" },
-      handleInsert,
-    );
-
-    if (includeReposts) {
-      channel.on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "Repost" },
-        handleInsert,
-      );
-    }
-
-    safeSubscribe(channel, (status) => {
-      if (stopped) return;
-      if (status === "SUBSCRIBED") {
-        setConnectionState("connected");
-        retryCount = 0;
-      }
-      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-        setConnectionState("error");
-        retryCount += 1;
-        if (retryCount >= MAX_RETRY_ATTEMPTS) {
-          stopped = true;
-          void supabase.removeChannel(channel);
-          console.warn(
-            `Realtime: チャンネル "${channelName}" への接続を停止しました。Supabase で Realtime が有効か確認してください。`,
-          );
-        }
-      }
-    });
+    const unsubPost = subscribeToPostInserts(scheduleUpdate);
+    const unsubRepost = includeReposts
+      ? subscribeToRepostInserts(scheduleUpdate)
+      : () => {};
 
     return () => {
-      stopped = true;
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      void supabase.removeChannel(channel);
+      unsubPost();
+      unsubRepost();
     };
-  }, [channelName, includeReposts]);
+  }, [includeReposts]);
 
   const clearNewPosts = useCallback(() => {
     setHasNewPosts(false);
