@@ -253,7 +253,7 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
           )}
 
           <div
-            className="flex flex-wrap items-start gap-x-1.5 gap-y-0"
+            className="flex flex-wrap items-start gap-x-1.5 gap-y-0 text-sm leading-none"
             style={{ color: "var(--app-muted-text, #737373)" }}
           >
             <Button
@@ -268,15 +268,15 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
             >
               {post.user.username}
             </Button>
-            <span className="shrink-0 text-xs leading-none">@{post.user.id}</span>
-            <span className="shrink-0 text-xs leading-none">·</span>
-            <span className="shrink-0 text-xs leading-none">
+            <span className="shrink-0">@{post.user.id}</span>
+            <span className="shrink-0">·</span>
+            <span className="shrink-0">
               {formatDistanceToNow(new Date(post.createdAt))}
             </span>
             {post.repostedAt && !post.repostedBy && (
               <>
-                <span className="shrink-0 text-xs leading-none">·</span>
-                <span className="shrink-0 text-xs leading-none">
+                <span className="shrink-0">·</span>
+                <span className="shrink-0">
                   {formatDistanceToNow(formatDate(post.repostedAt))}
                   に拡散
                 </span>
@@ -284,8 +284,8 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
             )}
             {post.favoritedAt && (
               <>
-                <span className="shrink-0 text-xs leading-none">·</span>
-                <span className="shrink-0 text-xs leading-none">
+                <span className="shrink-0">·</span>
+                <span className="shrink-0">
                   {formatDistanceToNow(formatDate(post.favoritedAt))}
                   にお気に入り
                 </span>
