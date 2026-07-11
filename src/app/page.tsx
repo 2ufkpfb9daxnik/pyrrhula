@@ -160,20 +160,6 @@ export default function LandingPage() {
           {/* ロゴとタイトル */}
           <div className="space-y-4">
             <h1 className="text-4xl font-bold md:text-6xl">鷽</h1>
-            <h3 className="text-xl">レートのあるSNS</h3>
-          </div>
-
-          {/* 説明文 */}
-          <div className="space-y-2 text-muted-foreground">
-            <Link
-              href="https://ja.wikipedia.org/wiki/%E3%82%A6%E3%82%BD"
-              className="text-sm hover:underline"
-            >
-              ウソ（鷽、学名：Pyrrhula pyrrhula Linnaeus,
-              1758）は、スズメ目アトリ科ウソ属に分類される鳥類の一種... ウソ -
-              Wikipedia
-            </Link>
-            <br />
           </div>
 
           {/* 機能タブ */}
@@ -203,11 +189,6 @@ export default function LandingPage() {
               <Link href="/login">ログイン</Link>
             </Button>
           </div>
-
-          {/* フッター */}
-          <footer className="mt-6 text-xs text-muted-foreground">
-            <p>© 2024 鷽. All rights reserved.</p>
-          </footer>
         </div>
       </div>
 
@@ -249,8 +230,8 @@ export default function LandingPage() {
 
               <div className="rounded-lg border p-6">
                 <p className="mb-4 text-sm leading-relaxed text-muted-foreground">
-                  鷽のレーティングは、ユーザーの活動量を評価する指標です。投稿数や反応の数など、複数の要素から総合的に算出されます。
-                  アクティブで投稿を行う頻度が高いユーザーほど、高いレーティングが付与されます。
+                  鷽のレーティングは、ユーザーの投稿数や反応の数など、複数の要素から算出されます。
+                  基本的には、アクティブで投稿を行う頻度が高いユーザーほど、高いレーティングが付与されます。
                 </p>
                 <RatingColorLegend />
               </div>
