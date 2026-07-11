@@ -18,6 +18,7 @@ import type { Post as PostType } from "@/app/_types/post";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSession } from "next-auth/react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { RatingColorLegend } from "@/app/_components/RatingColorLegend";
 
 // 投稿の型定義
 interface PostUser {
@@ -257,74 +258,7 @@ export default function LandingPage() {
                   鷽のレーティングは、ユーザーの活動量を評価する指標です。投稿数や反応の数など、複数の要素から総合的に算出されます。
                   アクティブで投稿を行う頻度が高いユーザーほど、高いレーティングが付与されます。
                 </p>
-                <div className="grid grid-cols-1 gap-4 text-center sm:grid-cols-2 md:grid-cols-3">
-                  <div className="flex flex-col items-center rounded-md border p-3">
-                    <span className="text-gray-300">白</span>
-                    <span className="text-xs text-muted-foreground">
-                      64点以下
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-center rounded-md border p-3">
-                    <span className="text-gray-500">灰</span>
-                    <span className="text-xs text-muted-foreground">
-                      65～128点
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-center rounded-md border p-3">
-                    <span className="text-amber-700">茶</span>
-                    <span className="text-xs text-muted-foreground">
-                      129～256点
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-center rounded-md border p-3">
-                    <span className="text-lime-500">黄緑</span>
-                    <span className="text-xs text-muted-foreground">
-                      257〜512点
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-center rounded-md border p-3">
-                    <span className="text-green-500">緑</span>
-                    <span className="text-xs text-muted-foreground">
-                      513〜1024点
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-center rounded-md border p-3">
-                    <span className="text-cyan-500">水</span>
-                    <span className="text-xs text-muted-foreground">
-                      1025〜2048点
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-center rounded-md border p-3">
-                    <span className="text-blue-500">青</span>
-                    <span className="text-xs text-muted-foreground">
-                      2049〜4096点
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-center rounded-md border p-3">
-                    <span className="text-purple-500">紫</span>
-                    <span className="text-xs text-muted-foreground">
-                      4097〜8192点
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-center rounded-md border p-3">
-                    <span className="text-yellow-500">黄</span>
-                    <span className="text-xs text-muted-foreground">
-                      8193〜16384点
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-center rounded-md border p-3">
-                    <span className="text-orange-500">橙</span>
-                    <span className="text-xs text-muted-foreground">
-                      16385〜32768点
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-center rounded-md border p-3">
-                    <span className="text-red-500">赤</span>
-                    <span className="text-xs text-muted-foreground">
-                      32769点以上
-                    </span>
-                  </div>
-                </div>
+                <RatingColorLegend />
               </div>
 
               <div className="rounded-lg border p-6">

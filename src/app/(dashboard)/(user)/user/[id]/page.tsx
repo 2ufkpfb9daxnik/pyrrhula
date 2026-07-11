@@ -21,7 +21,7 @@ import {
   Send,
 } from "lucide-react";
 import { Post as PostComponent } from "@/app/_components/post";
-import { RatingChart } from "@/app/_components/RatingChart";
+import { RatingChartSection } from "@/app/_components/RatingChartSection";
 import { StaleRefreshBanner } from "@/app/_components/StaleRefreshBanner";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -226,13 +226,14 @@ export default function UserProfilePage() {
 
       <Card className="mb-6">
         <CardContent className="p-6">
-          <div className="flex flex-col md:flex-row md:items-start md:space-x-4">
-            <Avatar className="mb-4 size-20 md:mb-0">
-              <AvatarImage src={user.icon ?? undefined} alt={user.username} />
-              <AvatarFallback>{user.username[0]}</AvatarFallback>
-            </Avatar>
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+            <div className="flex min-w-0 flex-1 flex-col md:flex-row md:items-start md:space-x-4">
+              <Avatar className="mb-4 size-20 md:mb-0">
+                <AvatarImage src={user.icon ?? undefined} alt={user.username} />
+                <AvatarFallback>{user.username[0]}</AvatarFallback>
+              </Avatar>
 
-            <div className="flex-1">
+              <div className="min-w-0 flex-1">
               <h1 className="text-2xl font-bold">{user.username}</h1>
               <p className="text-sm text-gray-500">@{user.id}</p>
 
@@ -327,25 +328,18 @@ export default function UserProfilePage() {
                   </div>
                 </div>
               </div>
-
-              {isRatingStale && ratingHistory.length > 0 && (
-                <StaleRefreshBanner
-                  isStale={isRatingStale}
-                  isFetching={isRatingFetching}
-                  dataUpdatedAt={ratingUpdatedAt}
-                  onRefresh={() => void refetchRating()}
-                  label="レート履歴を更新"
-                />
-              )}
-
-              {isRatingHistoryLoading ? (
-                <div className="mt-4 flex h-[300px] items-center justify-center">
-                  <LoaderCircle className="size-8 animate-spin" />
-                </div>
-              ) : ratingHistory.length > 0 ? (
-                <RatingChart history={ratingHistory} />
-              ) : null}
+              </div>
             </div>
+
+            <RatingChartSection
+              className="w-full shrink-0 border-t border-border pt-4 lg:w-72 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0 xl:w-80"
+              history={ratingHistory}
+              isLoading={isRatingHistoryLoading}
+              isStale={isRatingStale}
+              isFetching={isRatingFetching}
+              dataUpdatedAt={ratingUpdatedAt}
+              onRefresh={() => void refetchRating()}
+            />
           </div>
         </CardContent>
       </Card>

@@ -11,6 +11,7 @@ import { Calendar, Trophy, UserCircle, Share2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMediaQuery } from "@/app/_hooks/useMediaQuery";
+import { getColorFromScore } from "@/lib/rating";
 
 interface UserNode {
   id: string;
@@ -301,15 +302,6 @@ export default function NetworkGraph({
     };
   }, [collectNodes, currentPage, getNodesForPage, graphData, renderGraph]);
 
-  // レート値に応じた色を生成
-  const getRateColor = (rate: number): string => {
-    if (rate >= 1000) return "text-purple-500";
-    if (rate >= 500) return "text-blue-500";
-    if (rate >= 100) return "text-green-500";
-    if (rate >= 50) return "text-yellow-500";
-    return "text-gray-400";
-  };
-
   // ユーザーウィジェットの表示
   const renderUserWidget = (user: UserDetail) => (
     <Card
@@ -326,7 +318,7 @@ export default function NetworkGraph({
             </Avatar>
             <div>
               <CardTitle className="flex items-center">
-                <span className={`font-bold ${getRateColor(user.rate)}`}>
+                <span className={`font-bold ${getColorFromScore(user.rate)}`}>
                   {user.username}
                 </span>
                 <Badge variant="outline" className="ml-2 text-xs">

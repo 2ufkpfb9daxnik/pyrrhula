@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   calculateRating,
   getColorFromScore,
+  RATING_COLOR_TIERS,
   RATING_DELTAS,
 } from "@/lib/rating";
 
@@ -51,12 +52,24 @@ describe("calculateRating", () => {
 describe("getColorFromScore", () => {
   it("maps score ranges to colors", () => {
     expect(getColorFromScore(0)).toBe("text-gray-300");
-    expect(getColorFromScore(100)).toBe("text-gray-500");
+    expect(getColorFromScore(79)).toBe("text-gray-300");
+    expect(getColorFromScore(80)).toBe("text-gray-500");
+    expect(getColorFromScore(2640)).toBe("text-yellow-500");
     expect(getColorFromScore(5000)).toContain("gradient");
   });
 
   it("handles null safely", () => {
     expect(getColorFromScore(null)).toBe("text-gray-300");
+  });
+});
+
+describe("RATING_COLOR_TIERS", () => {
+  it("is ordered from highest threshold to lowest", () => {
+    for (let i = 1; i < RATING_COLOR_TIERS.length; i += 1) {
+      expect(RATING_COLOR_TIERS[i - 1].minScore).toBeGreaterThan(
+        RATING_COLOR_TIERS[i].minScore,
+      );
+    }
   });
 });
 

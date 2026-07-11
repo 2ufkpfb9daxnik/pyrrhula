@@ -63,6 +63,82 @@ export function calculateRating(input: RatingInput): number {
   );
 }
 
+/** レート色のしきい値（高い順）。アプリ全体でこの定義を参照する */
+export const RATING_COLOR_TIERS = [
+  {
+    minScore: 5000,
+    label: "虹",
+    colorClass: "bg-gradient-to-r from-red-500 via-yellow-500 to-blue-500",
+    rangeLabel: "5000点以上",
+  },
+  {
+    minScore: 4000,
+    label: "赤",
+    colorClass: "text-red-500",
+    rangeLabel: "4000〜4999点",
+  },
+  {
+    minScore: 3200,
+    label: "橙",
+    colorClass: "text-orange-500",
+    rangeLabel: "3200〜3999点",
+  },
+  {
+    minScore: 2500,
+    label: "黄",
+    colorClass: "text-yellow-500",
+    rangeLabel: "2500〜3199点",
+  },
+  {
+    minScore: 1900,
+    label: "紫",
+    colorClass: "text-purple-500",
+    rangeLabel: "1900〜2499点",
+  },
+  {
+    minScore: 1400,
+    label: "青",
+    colorClass: "text-blue-500",
+    rangeLabel: "1400〜1899点",
+  },
+  {
+    minScore: 1000,
+    label: "水",
+    colorClass: "text-cyan-500",
+    rangeLabel: "1000〜1399点",
+  },
+  {
+    minScore: 700,
+    label: "緑",
+    colorClass: "text-green-500",
+    rangeLabel: "700〜999点",
+  },
+  {
+    minScore: 450,
+    label: "黄緑",
+    colorClass: "text-lime-500",
+    rangeLabel: "450〜699点",
+  },
+  {
+    minScore: 250,
+    label: "茶",
+    colorClass: "text-amber-700",
+    rangeLabel: "250〜449点",
+  },
+  {
+    minScore: 80,
+    label: "灰",
+    colorClass: "text-gray-500",
+    rangeLabel: "80〜249点",
+  },
+  {
+    minScore: 0,
+    label: "白",
+    colorClass: "text-gray-300",
+    rangeLabel: "79点以下",
+  },
+] as const;
+
 export function getColorFromScore(
   score: number | null | undefined,
 ): RatingColor {
@@ -70,38 +146,10 @@ export function getColorFromScore(
     ? Math.max(0, score as number)
     : 0;
 
-  if (normalizedScore >= 5000) {
-    return "bg-gradient-to-r from-red-500 via-yellow-500 to-blue-500";
-  }
-  if (normalizedScore >= 4000) {
-    return "text-red-500";
-  }
-  if (normalizedScore >= 3200) {
-    return "text-orange-500";
-  }
-  if (normalizedScore >= 2500) {
-    return "text-yellow-500";
-  }
-  if (normalizedScore >= 1900) {
-    return "text-purple-500";
-  }
-  if (normalizedScore >= 1400) {
-    return "text-blue-500";
-  }
-  if (normalizedScore >= 1000) {
-    return "text-cyan-500";
-  }
-  if (normalizedScore >= 700) {
-    return "text-green-500";
-  }
-  if (normalizedScore >= 450) {
-    return "text-lime-500";
-  }
-  if (normalizedScore >= 250) {
-    return "text-amber-700";
-  }
-  if (normalizedScore >= 80) {
-    return "text-gray-500";
+  for (const tier of RATING_COLOR_TIERS) {
+    if (normalizedScore >= tier.minScore) {
+      return tier.colorClass as RatingColor;
+    }
   }
 
   return "text-gray-300";
