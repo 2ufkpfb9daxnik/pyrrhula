@@ -13,7 +13,7 @@ export function TimelineSettingsPanel() {
       <div className="flex items-start gap-2 rounded-lg border border-blue-500/30 bg-blue-500/10 p-3">
         <Info className="mt-0.5 size-4 shrink-0 text-blue-400" />
         <p className="text-sm text-blue-200/90">
-          実験的な機能なので、多分使えないと思います。githubのissueとかでやり方を教えて下さい。
+          実験的な機能なので、使えるかはわかりません。
         </p>
       </div>
 
