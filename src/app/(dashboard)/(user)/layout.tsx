@@ -68,7 +68,7 @@ export default function UserLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col">
       <div className="flex-1">
-        <div className="mx-auto max-w-2xl">
+        <div className="mx-auto max-w-2xl overflow-visible">
           {/* タブナビゲーション - 常に表示されるように sticky に */}
           <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md">
             <div className="flex border-b border-gray-800">
@@ -104,7 +104,7 @@ export default function UserLayout({ children }: { children: ReactNode }) {
           </div>
 
           {/* コンテンツエリア - スワイプできるようにする */}
-          <div {...swipeHandlers} className="touch-pan-y p-4">
+          <div {...swipeHandlers} className="touch-pan-y overflow-visible p-4">
             {children}
           </div>
         </div>

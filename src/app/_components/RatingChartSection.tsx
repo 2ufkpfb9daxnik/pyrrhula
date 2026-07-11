@@ -18,22 +18,9 @@ export function RatingChartSection({
   isLoading,
   className,
 }: RatingChartSectionProps) {
-  const [showOnMobile, setShowOnMobile] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
 
-  if (isLoading) {
-    return (
-      <div
-        className={cn(
-          "flex h-[200px] items-center justify-center lg:h-full lg:min-h-[280px]",
-          className,
-        )}
-      >
-        <LoaderCircle className="size-8 animate-spin" />
-      </div>
-    );
-  }
-
-  if (history.length === 0) {
+  if (!isLoading && history.length === 0) {
     return null;
   }
 
@@ -46,25 +33,33 @@ export function RatingChartSection({
 
   return (
     <div className={cn("w-full", className)}>
-      <div className="lg:hidden">
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full"
-          onClick={() => setShowOnMobile((prev) => !prev)}
-        >
-          <BarChart className="mr-2 size-4" />
-          レート履歴を{showOnMobile ? "隠す" : "表示"}
-          {showOnMobile ? (
-            <ChevronUp className="ml-auto size-4" />
-          ) : (
-            <ChevronDown className="ml-auto size-4" />
-          )}
-        </Button>
-        {showOnMobile && <div className="mt-3">{chartContent}</div>}
-      </div>
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full"
+        disabled={isLoading}
+        onClick={() => setIsOpen((prev) => !prev)}
+      >
+        <BarChart className="mr-2 size-4" />
+        レート履歴を{isOpen ? "隠す" : "表示"}
+        {isOpen ? (
+          <ChevronUp className="ml-auto size-4" />
+        ) : (
+          <ChevronDown className="ml-auto size-4" />
+        )}
+      </Button>
 
-      <div className="hidden lg:block">{chartContent}</div>
+      {isOpen && (
+        <div className="mt-3">
+          {isLoading ? (
+            <div className="flex h-[200px] items-center justify-center">
+              <LoaderCircle className="size-8 animate-spin" />
+            </div>
+          ) : (
+            chartContent
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,33 +1,28 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-interface RatingHistoryRecord {
-  delta: number;
-  rating: number;
-  created_at: Date;
-  reason: string | null;
-}
-
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const userId = (await params).id;
 
-    // 対象ユーザーのレート履歴を取得
-    const ratingHistory = await prisma.$queryRaw<RatingHistoryRecord[]>`
-      SELECT delta, rating, created_at, reason
-      FROM rating_history
-      WHERE user_id = ${userId}
-      ORDER BY created_at ASC
-    `;
+    const ratingHistory = await prisma.rating_history.findMany({
+      where: { user_id: userId },
+      orderBy: { created_at: "asc" },
+      select: {
+        delta: true,
+        rating: true,
+        created_at: true,
+        reason: true,
+      },
+    });
 
-    // レスポンスのデータ形式を合わせる
     const formattedHistory = ratingHistory.map((history) => ({
       delta: history.delta,
       rating: history.rating,
-      createdAt: history.created_at,
+      createdAt: history.created_at?.toISOString() ?? new Date().toISOString(),
       reason: history.reason,
     }));
 
@@ -36,7 +31,7 @@ export async function GET(
     console.error("Failed to fetch rating history:", error);
     return NextResponse.json(
       { error: "Failed to fetch rating history" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
