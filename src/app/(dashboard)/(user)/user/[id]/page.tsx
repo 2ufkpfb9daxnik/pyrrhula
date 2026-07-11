@@ -22,7 +22,6 @@ import {
 } from "lucide-react";
 import { Post as PostComponent } from "@/app/_components/post";
 import { RatingChartSection } from "@/app/_components/RatingChartSection";
-import { StaleRefreshBanner } from "@/app/_components/StaleRefreshBanner";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { LoaderCircle } from "lucide-react";
@@ -88,18 +87,12 @@ export default function UserProfilePage() {
   const {
     data: user,
     isLoading: isUserLoading,
-    isStale: isUserStale,
-    isFetching: isUserFetching,
-    dataUpdatedAt: userUpdatedAt,
     refetch: refetchUser,
   } = useUserProfile(userId);
 
   const {
     data: ratingHistory = [],
     isLoading: isRatingHistoryLoading,
-    isStale: isRatingStale,
-    isFetching: isRatingFetching,
-    dataUpdatedAt: ratingUpdatedAt,
     refetch: refetchRating,
   } = useUserRatingHistory(userId);
 
@@ -108,8 +101,6 @@ export default function UserProfilePage() {
     isLoading: isContentLoading,
     isFetching: isContentFetching,
     isFetchingNextPage,
-    isStale: isContentStale,
-    dataUpdatedAt: contentUpdatedAt,
     hasNextPage,
     fetchNextPage,
     refetch: refetchContent,
@@ -214,16 +205,6 @@ export default function UserProfilePage() {
 
   return (
     <>
-      {isUserStale && (
-        <StaleRefreshBanner
-          isStale={isUserStale}
-          isFetching={isUserFetching}
-          dataUpdatedAt={userUpdatedAt}
-          onRefresh={() => void refetchUser()}
-          label="プロフィールを更新"
-        />
-      )}
-
       <Card className="mb-6">
         <CardContent className="p-6">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
@@ -335,10 +316,6 @@ export default function UserProfilePage() {
               className="w-full shrink-0 border-t border-border pt-4 lg:w-72 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0 xl:w-80"
               history={ratingHistory}
               isLoading={isRatingHistoryLoading}
-              isStale={isRatingStale}
-              isFetching={isRatingFetching}
-              dataUpdatedAt={ratingUpdatedAt}
-              onRefresh={() => void refetchRating()}
             />
           </div>
         </CardContent>
@@ -364,16 +341,6 @@ export default function UserProfilePage() {
           </Button>
         ))}
       </div>
-
-      {isContentStale && posts.length > 0 && (
-        <StaleRefreshBanner
-          isStale={isContentStale}
-          isFetching={isContentFetching}
-          dataUpdatedAt={contentUpdatedAt}
-          onRefresh={() => void refetchContent()}
-          label="投稿一覧を更新"
-        />
-      )}
 
       {isContentLoading && posts.length === 0 ? (
         <div className="flex items-center justify-center py-12">

@@ -7,7 +7,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen bg-gray-950 text-white">
+    <div className="flex min-h-screen bg-black text-white">
       <Navigation />
       <main className="w-full pb-16 md:ml-16 md:pb-0">{children}</main>
     </div>

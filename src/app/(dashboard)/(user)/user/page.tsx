@@ -10,7 +10,6 @@ import { PowerPagination } from "@/components/ui/power-pagination";
 import { formatDistanceToNow } from "@/lib/formatDistanceToNow";
 import { Star, Calendar, Trophy, LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
-import { StaleRefreshBanner } from "@/app/_components/StaleRefreshBanner";
 import { useUsersList } from "@/app/_hooks/useUsersListQuery";
 import { queryKeys } from "@/lib/api/query-keys";
 
@@ -22,14 +21,7 @@ export default function UsersPage() {
   const { data: session } = useSession();
   const queryClient = useQueryClient();
 
-  const {
-    data,
-    isLoading,
-    isStale,
-    isFetching,
-    dataUpdatedAt,
-    refetch,
-  } = useUsersList(sortBy, page, !!session);
+  const { data, isLoading, refetch } = useUsersList(sortBy, page, !!session);
 
   const users = data?.users ?? [];
   const pagination = data?.pagination;
@@ -85,16 +77,6 @@ export default function UsersPage() {
 
   return (
     <>
-      {isStale && users.length > 0 && (
-        <StaleRefreshBanner
-          isStale={isStale}
-          isFetching={isFetching}
-          dataUpdatedAt={dataUpdatedAt}
-          onRefresh={() => void refetch()}
-          label="ユーザー一覧を更新"
-        />
-      )}
-
       <div className="mb-6 flex items-center justify-between border-b border-gray-800 pb-4">
         <h1 className="text-2xl font-bold">ユーザー一覧</h1>
         <div className="flex space-x-2">

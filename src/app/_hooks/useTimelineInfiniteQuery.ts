@@ -3,7 +3,7 @@
 import { useMemo, useCallback } from "react";
 import {
   useInfiniteQuery,
-  type InfiniteData,
+  keepPreviousData,
 } from "@tanstack/react-query";
 import { fetchJson } from "@/lib/api/client";
 import type { TimelinePageResponse } from "@/lib/api/timeline";
@@ -15,7 +15,10 @@ interface UseTimelineInfiniteQueryOptions {
   endpoint: string;
   extraParams?: Record<string, string>;
   enabled?: boolean;
-  initialData?: InfiniteData<TimelinePageResponse, string | undefined>;
+  initialData?: import("@tanstack/react-query").InfiniteData<
+    TimelinePageResponse,
+    string | undefined
+  >;
 }
 
 export function useTimelineInfiniteQuery({
@@ -41,10 +44,11 @@ export function useTimelineInfiniteQuery({
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     staleTime: STALE_TIME_MS,
     gcTime: GC_TIME_MS,
-    refetchOnMount: false,
+    refetchOnMount: true,
     refetchOnWindowFocus: false,
     enabled,
     initialData,
+    placeholderData: keepPreviousData,
   });
 
   const posts = useMemo(() => {
@@ -57,13 +61,10 @@ export function useTimelineInfiniteQuery({
     void query.refetch();
   }, [query]);
 
-  const showStaleBanner = query.isStale && posts.length > 0;
-
   return {
     ...query,
     posts,
     refresh,
-    showStaleBanner,
     hasCachedData: posts.length > 0,
   };
 }

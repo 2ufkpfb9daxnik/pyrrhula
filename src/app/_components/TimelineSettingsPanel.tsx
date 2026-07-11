@@ -1,67 +1,43 @@
 "use client";
 
-import { Info } from "lucide-react";
-import { useTimelineSettings } from "@/app/_hooks/useTimelineSettings";
+import { useAppTheme } from "@/app/_hooks/useAppTheme";
+import { THEME_COLOR_FIELDS } from "@/lib/app-theme";
+import { Button } from "@/components/ui/button";
 
 export function TimelineSettingsPanel() {
-  const { settings, updateSettings, isLoaded } = useTimelineSettings();
+  const { theme, updateTheme, resetTheme, isLoaded: themeLoaded } =
+    useAppTheme();
 
-  if (!isLoaded) return null;
+  if (!themeLoaded) return null;
 
   return (
-    <div className="space-y-4 p-4">
-      <div className="flex items-start gap-2 rounded-lg border border-blue-500/30 bg-blue-500/10 p-3">
-        <Info className="mt-0.5 size-4 shrink-0 text-blue-400" />
-        <p className="text-sm text-blue-200/90">
-          実験的な機能なので、使えるかはわかりません。
-        </p>
-      </div>
-
+    <div className="max-h-[70vh] space-y-6 overflow-y-auto p-4">
       <div className="space-y-3">
-        <h3 className="text-sm font-medium text-gray-400">
-          新着投稿の更新方法
-        </h3>
-
-        <label
-          htmlFor="update-mode-auto"
-          className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-800 p-3 transition-colors hover:bg-gray-800/50"
-        >
-          <input
-            id="update-mode-auto"
-            type="radio"
-            name="update-mode"
-            className="mt-0.5"
-            checked={settings.updateMode === "auto"}
-            onChange={() => updateSettings({ updateMode: "auto" })}
-          />
-          <div>
-            <p className="text-sm font-medium">自動的に更新する（推奨）</p>
-            <p className="mt-1 text-xs text-gray-500">
-              他の端末や他ユーザーの投稿が届くと、自動でタイムラインに反映されます。
-            </p>
-          </div>
-        </label>
-
-        <label
-          htmlFor="update-mode-banner"
-          className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-800 p-3 transition-colors hover:bg-gray-800/50"
-        >
-          <input
-            id="update-mode-banner"
-            type="radio"
-            name="update-mode"
-            className="mt-0.5"
-            checked={settings.updateMode === "banner"}
-            onChange={() => updateSettings({ updateMode: "banner" })}
-          />
-          <div>
-            <p className="text-sm font-medium">バナーを表示する</p>
-            <p className="mt-1 text-xs text-gray-500">
-              新着があるときだけ「↑
-              新しい投稿があります」を表示し、タップで更新します。
-            </p>
-          </div>
-        </label>
+        <h3 className="text-sm font-medium text-gray-400">表示の色</h3>
+        <p className="text-xs text-gray-500">
+          レーティングのユーザー名の色は変更できません。それ以外の UI
+          色をカスタマイズできます。
+        </p>
+        <div className="space-y-3">
+          {THEME_COLOR_FIELDS.map(({ key, label }) => (
+            <label
+              key={key}
+              className="flex items-center justify-between gap-3 rounded-lg border border-gray-800 p-3"
+            >
+              <span className="text-sm">{label}</span>
+              <input
+                type="color"
+                value={theme[key]}
+                onChange={(e) => updateTheme({ [key]: e.target.value })}
+                className="size-8 cursor-pointer rounded border-0 bg-transparent"
+                aria-label={label}
+              />
+            </label>
+          ))}
+        </div>
+        <Button type="button" variant="outline" size="sm" onClick={resetTheme}>
+          色をデフォルト（白黒）に戻す
+        </Button>
       </div>
     </div>
   );

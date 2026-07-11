@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { fetchJson } from "@/lib/api/client";
 import { queryKeys } from "@/lib/api/query-keys";
 
@@ -81,5 +81,6 @@ export function useUsersList(
         },
       };
     },
+    placeholderData: keepPreviousData,
   });
 }

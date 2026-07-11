@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Post as PostComponent } from "@/app/_components/post";
 import type { Post } from "@/app/_types/post";
 import type { User } from "@/app/_types/user";
@@ -20,6 +21,7 @@ import { useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { formatApiPost } from "@/lib/format-post";
 import type { ApiPostRaw } from "@/lib/api/timeline";
+import { queryKeys } from "@/lib/api/query-keys";
 
 export const dynamic = "force-dynamic";
 
@@ -101,17 +103,19 @@ function SearchOptions() {
 function PostSearchResults({
   posts,
   isLoading,
+  hasCache,
   currentQuery,
   onRepostSuccess,
   onFavoriteSuccess,
 }: {
   posts: Post[];
   isLoading: boolean;
+  hasCache: boolean;
   currentQuery: string;
   onRepostSuccess: () => Promise<void>;
   onFavoriteSuccess: () => Promise<void>;
 }) {
-  if (isLoading) {
+  if (isLoading && !hasCache) {
     return (
       <div className="mt-8 text-center text-muted-foreground">
         <Loader2 className="mx-auto size-6 animate-spin" />
@@ -120,7 +124,7 @@ function PostSearchResults({
     );
   }
 
-  if (posts.length === 0 && currentQuery) {
+  if (!isLoading && posts.length === 0 && currentQuery) {
     return (
       <div className="mt-8 text-center text-muted-foreground">
         検索結果が見つかりませんでした
@@ -129,7 +133,7 @@ function PostSearchResults({
   }
 
   return posts.length > 0 ? (
-    <div className="mt-8 space-y-4">
+    <div className="mt-8">
       {posts.map((post) => (
         <PostComponent
           key={post.id}
@@ -146,15 +150,17 @@ function PostSearchResults({
 function UserSearchResults({
   users,
   isLoading,
+  hasCache,
   currentQuery,
 }: {
   users: User[];
   isLoading: boolean;
+  hasCache: boolean;
   currentQuery: string;
 }) {
   const router = useRouter();
 
-  if (isLoading) {
+  if (isLoading && !hasCache) {
     return (
       <div className="mt-8 text-center text-muted-foreground">
         <Loader2 className="mx-auto size-6 animate-spin" />
@@ -163,7 +169,7 @@ function UserSearchResults({
     );
   }
 
-  if (users.length === 0 && currentQuery) {
+  if (!isLoading && users.length === 0 && currentQuery) {
     return (
       <div className="mt-8 text-center text-muted-foreground">
         ユーザーが見つかりませんでした
@@ -207,60 +213,70 @@ function UserSearchResults({
 function SearchContent() {
   const searchParams = useSearchParams();
   const [searchType, setSearchType] = useState<"posts" | "users">("posts");
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [currentQuery, setCurrentQuery] = useState("");
+  const notifiedKeyRef = useRef<string | null>(null);
 
-  const handleSearch = async (query: string) => {
-    setCurrentQuery(query);
-    setIsLoading(true);
-    try {
+  const { data, isLoading, isFetching, isSuccess, refetch } = useQuery({
+    queryKey: queryKeys.search(currentQuery, searchType),
+    queryFn: async () => {
       const response = await fetch(
-        `/api/search?q=${encodeURIComponent(query)}&type=${searchType}`
+        `/api/search?q=${encodeURIComponent(currentQuery)}&type=${searchType}`,
       );
       if (!response.ok) {
         throw new Error("検索に失敗しました");
       }
-      const data = await response.json();
-
+      const json = await response.json();
       if (searchType === "posts") {
-        setPosts(
-          (data.posts as ApiPostRaw[]).map((post) => formatApiPost(post)),
-        );
-        if (data.posts.length === 0) {
-          toast.info(
-            query.startsWith("#")
-              ? `ハッシュタグ ${query} の投稿は見つかりませんでした`
-              : "投稿が見つかりませんでした"
-          );
-        }
-      } else {
-        setUsers(data.users);
-        if (data.users.length === 0) {
-          toast.info("ユーザーが見つかりませんでした");
-        }
+        return {
+          posts: (json.posts as ApiPostRaw[]).map((post) => formatApiPost(post)),
+          users: [] as User[],
+        };
       }
-    } catch (error) {
-      console.error("Error searching:", error);
-      toast.error("検索中にエラーが発生しました");
-    } finally {
-      setIsLoading(false);
-    }
+      return {
+        posts: [] as Post[],
+        users: json.users as User[],
+      };
+    },
+    enabled: !!currentQuery,
+    placeholderData: (previousData, previousQuery) => {
+      const prevKey = previousQuery?.queryKey;
+      if (prevKey?.[0] === "search" && prevKey?.[1] === searchType) {
+        return previousData;
+      }
+      return undefined;
+    },
+  });
+
+  const posts = data?.posts ?? [];
+  const users = data?.users ?? [];
+  const hasCache = data !== undefined;
+
+  const handleSearch = (query: string) => {
+    setCurrentQuery(query);
   };
 
-  // 検索タイプが変更されたときに再検索
   useEffect(() => {
-    if (currentQuery) {
-      handleSearch(currentQuery);
-    }
-  }, [searchType]);
+    if (!isSuccess || isFetching || !currentQuery || !data) return;
 
-  // URLのクエリパラメータから初期検索
+    const key = `${searchType}:${currentQuery}`;
+    if (notifiedKeyRef.current === key) return;
+    notifiedKeyRef.current = key;
+
+    if (searchType === "posts" && data.posts.length === 0) {
+      toast.info(
+        currentQuery.startsWith("#")
+          ? `ハッシュタグ ${currentQuery} の投稿は見つかりませんでした`
+          : "投稿が見つかりませんでした",
+      );
+    } else if (searchType === "users" && data.users.length === 0) {
+      toast.info("ユーザーが見つかりませんでした");
+    }
+  }, [isSuccess, isFetching, currentQuery, searchType, data]);
+
   useEffect(() => {
     const query = searchParams.get("q");
     if (query) {
-      handleSearch(query);
+      setCurrentQuery(query);
     }
   }, [searchParams]);
 
@@ -295,17 +311,23 @@ function SearchContent() {
         <TabsContent value="posts">
           <PostSearchResults
             posts={posts}
-            isLoading={isLoading}
+            isLoading={isLoading || isFetching}
+            hasCache={hasCache}
             currentQuery={currentQuery}
-            onRepostSuccess={() => handleSearch(currentQuery)}
-            onFavoriteSuccess={() => handleSearch(currentQuery)}
+            onRepostSuccess={async () => {
+              await refetch();
+            }}
+            onFavoriteSuccess={async () => {
+              await refetch();
+            }}
           />
           <SearchOptions />
         </TabsContent>
         <TabsContent value="users">
           <UserSearchResults
             users={users}
-            isLoading={isLoading}
+            isLoading={isLoading || isFetching}
+            hasCache={hasCache}
             currentQuery={currentQuery}
           />
         </TabsContent>

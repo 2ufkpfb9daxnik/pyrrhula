@@ -6,7 +6,6 @@ import { useSession } from "next-auth/react";
 import { useTimelineInfiniteQuery } from "@/app/_hooks/useTimelineInfiniteQuery";
 import { TimelineFeedView } from "@/app/_components/TimelineFeedView";
 import { useRealtimeTimeline } from "@/app/_hooks/useRealtimeTimeline";
-import { useTimelineSettings } from "@/app/_hooks/useTimelineSettings";
 import { queryKeys } from "@/lib/api/query-keys";
 
 export default function HomePage() {
@@ -16,11 +15,7 @@ export default function HomePage() {
     posts,
     hasNextPage,
     isLoading,
-    isFetching,
     isFetchingNextPage,
-    isStale,
-    dataUpdatedAt,
-    showStaleBanner,
     fetchNextPage,
     refresh,
   } = useTimelineInfiniteQuery({
@@ -30,20 +25,12 @@ export default function HomePage() {
     enabled: !!session,
   });
 
-  const { settings } = useTimelineSettings();
-
   const handleAutoUpdate = useCallback(() => refresh(), [refresh]);
 
-  const { hasNewPosts, clearNewPosts } = useRealtimeTimeline({
+  useRealtimeTimeline({
     channelName: "home-timeline",
-    autoUpdate: settings.updateMode === "auto",
     onAutoUpdate: handleAutoUpdate,
   });
-
-  const handleNewPostsClick = useCallback(() => {
-    clearNewPosts();
-    refresh();
-  }, [clearNewPosts, refresh]);
 
   if (!session) {
     return (
@@ -66,16 +53,10 @@ export default function HomePage() {
       posts={posts}
       hasMore={!!hasNextPage}
       isLoading={isLoading}
-      isFetching={isFetching}
       isFetchingNextPage={isFetchingNextPage}
-      isStale={isStale}
-      dataUpdatedAt={dataUpdatedAt}
-      showStaleBanner={showStaleBanner}
-      hasNewPosts={hasNewPosts}
       emptyMessage="まだ投稿がありません。フォローしているユーザーの投稿がここに表示されます。"
       onRefresh={refresh}
       onLoadMore={() => void fetchNextPage()}
-      onNewPostsClick={handleNewPostsClick}
     />
   );
 }

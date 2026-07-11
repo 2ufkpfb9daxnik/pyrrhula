@@ -67,9 +67,11 @@ export function Navigation({ isMobile = false }: NavigationProps) {
     }
   }
 
-  const navClasses = `fixed z-50 bg-background flex items-center justify-around md:flex-col md:items-center md:justify-start md:space-y-4 md:p-4 md:w-16 md:h-screen md:left-0 md:top-0 md:border-r md:border-gray-800 inset-x-0 bottom-0 h-16 border-t border-gray-800 ${
+  const navClasses = `fixed z-50 bg-[var(--app-bg,#000000)] flex items-center justify-around md:flex-col md:items-center md:justify-start md:space-y-4 md:p-4 md:w-16 md:h-screen md:left-0 md:top-0 md:border-r border-[var(--app-post-border,#262626)] inset-x-0 bottom-0 h-16 border-t ${
     isMobile ? "md:hidden" : ""
   }`;
+
+  const navIconClass = "text-[var(--app-nav-icon,#ffffff)]";
 
   return (
     <nav className={navClasses}>
@@ -78,7 +80,7 @@ export function Navigation({ isMobile = false }: NavigationProps) {
         size="icon"
         onClick={handleHomeClick}
         title="タイムライン"
-        className="md:w-full"
+        className={`md:w-full ${navIconClass}`}
       >
         <Home className="size-6" />
       </Button>
@@ -88,7 +90,7 @@ export function Navigation({ isMobile = false }: NavigationProps) {
         size="icon"
         onClick={() => router.push("/search")}
         title="検索"
-        className="md:w-full"
+        className={`md:w-full ${navIconClass}`}
       >
         <Search className="size-6" />
       </Button>
@@ -103,7 +105,7 @@ export function Navigation({ isMobile = false }: NavigationProps) {
               ? `最新の通知: ${getNotificationText(lastNotification)}`
               : "通知"
           }
-          className="md:w-full"
+          className={`md:w-full ${navIconClass}`}
         >
           <Bell className="size-6" />
           {unreadCount > 0 && (
@@ -135,7 +137,7 @@ export function Navigation({ isMobile = false }: NavigationProps) {
         size="icon"
         onClick={handleProfileClick}
         title="プロフィール/ユーザー"
-        className="md:w-full"
+        className={`md:w-full ${navIconClass}`}
       >
         <User className="size-6" />
       </Button>
@@ -146,7 +148,7 @@ export function Navigation({ isMobile = false }: NavigationProps) {
           size="icon"
           onClick={() => router.push("/login")}
           title="ログイン"
-          className="md:w-full"
+          className={`md:w-full ${navIconClass}`}
         >
           <LogIn className="size-6" />
         </Button>
@@ -156,7 +158,7 @@ export function Navigation({ isMobile = false }: NavigationProps) {
           size="icon"
           onClick={() => router.push("/logout")}
           title="ログアウト"
-          className="md:w-full"
+          className={`md:w-full ${navIconClass}`}
         >
           <LogOut className="size-6" />
         </Button>

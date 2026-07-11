@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   isRealtimeAbandoned,
   shouldUseRealtime,
@@ -16,8 +16,6 @@ const DEBOUNCE_MS = 800;
 interface UseRealtimeTimelineOptions {
   channelName: string;
   includeReposts?: boolean;
-  /** true: 新着を自動でタイムラインに反映（推奨・デフォルト） */
-  autoUpdate?: boolean;
   onAutoUpdate?: () => void;
 }
 
@@ -27,20 +25,16 @@ interface UseRealtimeTimelineOptions {
  */
 export function useRealtimeTimeline({
   includeReposts = false,
-  autoUpdate = true,
   onAutoUpdate,
 }: UseRealtimeTimelineOptions) {
-  const [hasNewPosts, setHasNewPosts] = useState(false);
   const [connectionState, setConnectionState] = useState<
     "idle" | "connected" | "error"
   >("idle");
 
-  const autoUpdateRef = useRef(autoUpdate);
   const onAutoUpdateRef = useRef(onAutoUpdate);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    autoUpdateRef.current = autoUpdate;
     onAutoUpdateRef.current = onAutoUpdate;
   });
 
@@ -56,11 +50,7 @@ export function useRealtimeTimeline({
       setConnectionState("connected");
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {
-        if (autoUpdateRef.current && onAutoUpdateRef.current) {
-          onAutoUpdateRef.current();
-        } else {
-          setHasNewPosts(true);
-        }
+        onAutoUpdateRef.current?.();
       }, DEBOUNCE_MS);
     };
 
@@ -76,9 +66,5 @@ export function useRealtimeTimeline({
     };
   }, [includeReposts]);
 
-  const clearNewPosts = useCallback(() => {
-    setHasNewPosts(false);
-  }, []);
-
-  return { hasNewPosts, clearNewPosts, connectionState };
+  return { connectionState };
 }

@@ -80,7 +80,7 @@ export default function LandingPage() {
         "/api/whole?limit=10&includeReposts=true&includeQuestions=true",
         {
           next: { revalidate: 60 },
-        }
+        },
       );
 
       if (!response.ok) {
@@ -96,7 +96,7 @@ export default function LandingPage() {
           createdAt: new Date(post.createdAt),
           repostedAt: post.repostedAt ? new Date(post.repostedAt) : undefined,
           question: post.question || undefined,
-        }))
+        })),
       );
     } catch (error) {
       console.error("Error fetching timeline:", error);
@@ -174,12 +174,6 @@ export default function LandingPage() {
               Wikipedia
             </Link>
             <br />
-            <Link
-              href="https://github.com/2ufkpfb9daxnik/pyrrhula"
-              className="text-sm hover:underline"
-            >
-              GitHubリポジトリ
-            </Link>
           </div>
 
           {/* 機能タブ */}

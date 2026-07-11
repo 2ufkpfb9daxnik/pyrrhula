@@ -15,4 +15,6 @@ export const queryKeys = {
   currentUser: (userId: string) => ["current-user", userId] as const,
   userLists: () => ["lists", "member"] as const,
   followedLists: () => ["lists", "followed"] as const,
+  search: (query: string, type: "posts" | "users") =>
+    ["search", type, query] as const,
 };

@@ -1,11 +1,14 @@
 "use client";
 
 import { useMemo, useEffect, useRef, useCallback } from "react";
-import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useQueryClient,
+  keepPreviousData,
+} from "@tanstack/react-query";
 import { useInView } from "react-intersection-observer";
 import { LoaderCircle } from "lucide-react";
 import { PostList } from "@/app/_components/PostList";
-import { StaleRefreshBanner } from "@/app/_components/StaleRefreshBanner";
 import { useRealtimeTimeline } from "@/app/_hooks/useRealtimeTimeline";
 import { fetchJson } from "@/lib/api/client";
 import { queryKeys } from "@/lib/api/query-keys";
@@ -13,7 +16,6 @@ import type { TimelinePageResponse } from "@/lib/api/timeline";
 import { STALE_TIME_MS, GC_TIME_MS } from "@/lib/query-client";
 import { syncNotificationsInBackground } from "@/lib/sync-notifications";
 import { formatApiPost } from "@/lib/format-post";
-import { useTimelineSettings } from "@/app/_hooks/useTimelineSettings";
 
 interface ListTimelineProps {
   listId: string;
@@ -31,9 +33,6 @@ export function ListTimeline({ listId }: ListTimelineProps) {
     isFetchingNextPage,
     isLoading,
     isError,
-    isStale,
-    isFetching,
-    dataUpdatedAt,
     refetch,
   } = useInfiniteQuery({
     queryKey: queryKeys.listTimeline(listId),
@@ -49,35 +48,19 @@ export function ListTimeline({ listId }: ListTimelineProps) {
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     staleTime: STALE_TIME_MS,
     gcTime: GC_TIME_MS,
-    refetchOnMount: false,
     refetchOnWindowFocus: false,
+    placeholderData: keepPreviousData,
   });
-
-  const { settings } = useTimelineSettings();
 
   const handleAutoUpdate = useCallback(() => {
     syncNotificationsInBackground(queryClient);
     void refetch();
   }, [queryClient, refetch]);
 
-  const { hasNewPosts, clearNewPosts } = useRealtimeTimeline({
+  useRealtimeTimeline({
     channelName: `list-timeline-${listId}`,
-    autoUpdate: settings.updateMode === "auto",
     onAutoUpdate: handleAutoUpdate,
   });
-
-  const handleNewPostsBannerClick = useCallback(async () => {
-    clearNewPosts();
-    syncNotificationsInBackground(queryClient);
-    await queryClient.invalidateQueries({
-      queryKey: queryKeys.listTimeline(listId),
-    });
-  }, [clearNewPosts, queryClient, listId]);
-
-  const handleRefresh = useCallback(() => {
-    syncNotificationsInBackground(queryClient);
-    void refetch();
-  }, [queryClient, refetch]);
 
   const posts = useMemo(() => {
     if (!data) return [];
@@ -119,27 +102,6 @@ export function ListTimeline({ listId }: ListTimelineProps) {
 
   return (
     <div>
-      {hasNewPosts && (
-        <div className="sticky top-0 z-30 flex justify-center px-4 py-2">
-          <button
-            onClick={handleNewPostsBannerClick}
-            className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-lg transition-transform hover:scale-105"
-          >
-            ↑ 新しい投稿があります
-          </button>
-        </div>
-      )}
-
-      {isStale && (
-        <StaleRefreshBanner
-          isStale={isStale}
-          isFetching={isFetching}
-          dataUpdatedAt={dataUpdatedAt}
-          onRefresh={handleRefresh}
-          label="リストタイムラインを更新"
-        />
-      )}
-
       <PostList posts={posts} />
 
       {hasNextPage && (

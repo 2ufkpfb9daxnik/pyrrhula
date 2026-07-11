@@ -4,27 +4,18 @@ import { useState } from "react";
 import { BarChart, ChevronDown, ChevronUp, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RatingChart } from "@/app/_components/RatingChart";
-import { StaleRefreshBanner } from "@/app/_components/StaleRefreshBanner";
 import { cn } from "@/lib/utils";
 import type { RatingHistoryEntry } from "@/app/_hooks/useUserQueries";
 
 interface RatingChartSectionProps {
   history: RatingHistoryEntry[];
   isLoading: boolean;
-  isStale: boolean;
-  isFetching: boolean;
-  dataUpdatedAt: number;
-  onRefresh: () => void;
   className?: string;
 }
 
 export function RatingChartSection({
   history,
   isLoading,
-  isStale,
-  isFetching,
-  dataUpdatedAt,
-  onRefresh,
   className,
 }: RatingChartSectionProps) {
   const [showOnMobile, setShowOnMobile] = useState(false);
@@ -49,22 +40,12 @@ export function RatingChartSection({
   const chartContent = (
     <div className="space-y-2">
       <h3 className="text-sm font-medium text-muted-foreground">レート履歴</h3>
-      {isStale && (
-        <StaleRefreshBanner
-          isStale={isStale}
-          isFetching={isFetching}
-          dataUpdatedAt={dataUpdatedAt}
-          onRefresh={onRefresh}
-          label="レート履歴を更新"
-        />
-      )}
       <RatingChart history={history} compact />
     </div>
   );
 
   return (
     <div className={cn("w-full", className)}>
-      {/* モバイル: ボタンで開閉 */}
       <div className="lg:hidden">
         <Button
           type="button"
@@ -83,7 +64,6 @@ export function RatingChartSection({
         {showOnMobile && <div className="mt-3">{chartContent}</div>}
       </div>
 
-      {/* デスクトップ: 常に表示 */}
       <div className="hidden lg:block">{chartContent}</div>
     </div>
   );

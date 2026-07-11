@@ -1,8 +1,8 @@
 import { QueryClient } from "@tanstack/react-query";
 
-/** キャッシュを即表示し、ユーザー操作で最新化するためのデフォルト設定 */
+/** キャッシュを即表示し、バックグラウンドで最新化する */
 export const STALE_TIME_MS = 5 * 60 * 1000; // 5分
-export const GC_TIME_MS = 30 * 60 * 1000; // 30分
+export const GC_TIME_MS = 24 * 60 * 60 * 1000; // 24時間（localStorage 永続化と併用）
 
 export function createQueryClient(): QueryClient {
   return new QueryClient({
@@ -11,7 +11,7 @@ export function createQueryClient(): QueryClient {
         staleTime: STALE_TIME_MS,
         gcTime: GC_TIME_MS,
         refetchOnWindowFocus: false,
-        refetchOnMount: false,
+        refetchOnMount: true,
         refetchOnReconnect: false,
         retry: 1,
       },
