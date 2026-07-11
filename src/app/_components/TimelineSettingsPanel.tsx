@@ -1,6 +1,6 @@
 "use client";
 
-import { FlaskConical } from "lucide-react";
+import { Info } from "lucide-react";
 import { useTimelineSettings } from "@/app/_hooks/useTimelineSettings";
 
 export function TimelineSettingsPanel() {
@@ -10,10 +10,13 @@ export function TimelineSettingsPanel() {
 
   return (
     <div className="space-y-4 p-4">
-      <div className="flex items-start gap-2 rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3">
-        <FlaskConical className="mt-0.5 size-4 shrink-0 text-yellow-500" />
-        <p className="text-sm text-yellow-500">
-          この機能は実験的であり、実現できるかわかりません。
+      <div className="flex items-start gap-2 rounded-lg border border-blue-500/30 bg-blue-500/10 p-3">
+        <Info className="mt-0.5 size-4 shrink-0 text-blue-400" />
+        <p className="text-sm text-blue-200/90">
+          タイムラインのリアルタイム更新には Supabase Realtime が必要です。
+          初回は SQL Editor で{" "}
+          <code className="text-xs">supabase/migrations/enable_realtime.sql</code>{" "}
+          を実行してください。
         </p>
       </div>
 
@@ -23,42 +26,41 @@ export function TimelineSettingsPanel() {
         </h3>
 
         <label
-          htmlFor="update-mode-banner"
-          className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-800 p-3 transition-colors hover:bg-gray-800/50"
-        >
-          <input
-            id="update-mode-banner"
-            type="checkbox"
-            className="mt-0.5"
-            checked={settings.updateMode === "banner"}
-            onChange={() => updateSettings({ updateMode: "banner" })}
-          />
-          <div>
-            <p className="text-sm font-medium">
-              バナーを表示する（デフォルト）
-            </p>
-            <p className="mt-1 text-xs text-gray-500">
-              新しい投稿があると「↑
-              新しい投稿があります」というバナーが表示されます。バナーをクリックすると更新されます。
-            </p>
-          </div>
-        </label>
-
-        <label
           htmlFor="update-mode-auto"
           className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-800 p-3 transition-colors hover:bg-gray-800/50"
         >
           <input
             id="update-mode-auto"
-            type="checkbox"
+            type="radio"
+            name="update-mode"
             className="mt-0.5"
             checked={settings.updateMode === "auto"}
             onChange={() => updateSettings({ updateMode: "auto" })}
           />
           <div>
-            <p className="text-sm font-medium">自動的に更新する</p>
+            <p className="text-sm font-medium">自動的に更新する（推奨）</p>
             <p className="mt-1 text-xs text-gray-500">
-              新しい投稿が届くと自動的に読み込まれます。スクロール位置は保持されます。
+              他の端末や他ユーザーの投稿が届くと、自動でタイムラインに反映されます。
+            </p>
+          </div>
+        </label>
+
+        <label
+          htmlFor="update-mode-banner"
+          className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-800 p-3 transition-colors hover:bg-gray-800/50"
+        >
+          <input
+            id="update-mode-banner"
+            type="radio"
+            name="update-mode"
+            className="mt-0.5"
+            checked={settings.updateMode === "banner"}
+            onChange={() => updateSettings({ updateMode: "banner" })}
+          />
+          <div>
+            <p className="text-sm font-medium">バナーを表示する</p>
+            <p className="mt-1 text-xs text-gray-500">
+              新着があるときだけ「↑ 新しい投稿があります」を表示し、タップで更新します。
             </p>
           </div>
         </label>

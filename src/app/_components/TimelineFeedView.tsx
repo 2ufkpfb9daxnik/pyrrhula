@@ -18,6 +18,7 @@ import {
 import type { Post as PostType } from "@/app/_types/post";
 import type { FormattedTimelinePost } from "@/lib/api/timeline";
 import { upsertPostInTimelines } from "@/lib/timeline-cache";
+import { syncNotificationsInBackground } from "@/lib/sync-notifications";
 
 interface TimelineFeedViewProps {
   posts: FormattedTimelinePost[];
@@ -72,6 +73,25 @@ export function TimelineFeedView({
   const contentRef = useRef<HTMLDivElement>(null);
   const [isMobile, setIsMobile] = useState(false);
 
+  const handleRefresh = useCallback(() => {
+    syncNotificationsInBackground(queryClient);
+    onRefresh();
+  }, [queryClient, onRefresh]);
+
+  const handleLoadMore = useCallback(() => {
+    syncNotificationsInBackground(queryClient);
+    onLoadMore();
+  }, [queryClient, onLoadMore]);
+
+  const handlePostCreated = useCallback(
+    (newPost: PostType) => {
+      upsertPostInTimelines(queryClient, newPost);
+      syncNotificationsInBackground(queryClient);
+      onPostCreated?.(newPost);
+    },
+    [queryClient, onPostCreated],
+  );
+
   useEffect(() => {
     const checkIfMobile = () => setIsMobile(window.innerWidth < 768);
     checkIfMobile();
@@ -105,7 +125,7 @@ export function TimelineFeedView({
 
     const handleTouchEnd = () => {
       if (!isPullingRef.current) return;
-      if (pullDistanceRef.current > 50) onRefresh();
+      if (pullDistanceRef.current > 50) handleRefresh();
       pullDistanceRef.current = 0;
       isPullingRef.current = false;
       setPullDistance(0);
@@ -120,15 +140,15 @@ export function TimelineFeedView({
       content.removeEventListener("touchmove", handleTouchMove);
       content.removeEventListener("touchend", handleTouchEnd);
     };
-  }, [enablePullRefresh, isMobile, onRefresh]);
+  }, [enablePullRefresh, isMobile, handleRefresh]);
 
   useEffect(() => {
     const entered = isLoadMoreInView && !hasEnteredLoadMoreRef.current;
     if (entered && hasMore && !isFetchingNextPage && !isLoading) {
-      onLoadMore();
+      handleLoadMore();
     }
     hasEnteredLoadMoreRef.current = isLoadMoreInView;
-  }, [isLoadMoreInView, hasMore, isFetchingNextPage, isLoading, onLoadMore]);
+  }, [isLoadMoreInView, hasMore, isFetchingNextPage, isLoading, handleLoadMore]);
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -154,20 +174,12 @@ export function TimelineFeedView({
         document.activeElement?.tagName !== "INPUT"
       ) {
         e.preventDefault();
-        onRefresh();
+        handleRefresh();
       }
     };
     window.addEventListener("keydown", handleKeyPress);
     return () => window.removeEventListener("keydown", handleKeyPress);
-  }, [onRefresh]);
-
-  const handlePostCreated = useCallback(
-    (newPost: PostType) => {
-      upsertPostInTimelines(queryClient, newPost);
-      onPostCreated?.(newPost);
-    },
-    [queryClient, onPostCreated],
-  );
+  }, [handleRefresh]);
 
   const pullRefreshStyle = {
     height: `${pullDistance}px`,
@@ -201,7 +213,7 @@ export function TimelineFeedView({
           isStale={isStale}
           isFetching={isFetching}
           dataUpdatedAt={dataUpdatedAt}
-          onRefresh={onRefresh}
+          onRefresh={handleRefresh}
         />
       )}
 

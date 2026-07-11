@@ -3,19 +3,12 @@
 import { useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchJson } from "@/lib/api/client";
-import { queryKeys } from "@/lib/api/query-keys";
-import type {
-  NotificationsResponse,
-  Notification,
-} from "@/app/_types/notification";
+import type { Notification } from "@/app/_types/notification";
 import { useRealtimeNotifications } from "@/app/_hooks/useRealtimeNotifications";
-
-type NotificationsSummaryResponse = NotificationsResponse & {
-  unreadCount: number;
-};
-
-const NOTIFICATION_POLL_MS = 30_000;
+import {
+  notificationSummaryQueryOptions,
+  type NotificationsSummaryResponse,
+} from "@/lib/sync-notifications";
 
 export function useNotifications() {
   const { data: session } = useSession();
@@ -23,18 +16,19 @@ export function useNotifications() {
   const userId = session?.user?.id;
 
   const { data, refetch, isFetching } = useQuery({
-    queryKey: queryKeys.notifications(),
-    queryFn: () =>
-      fetchJson<NotificationsSummaryResponse>("/api/notifications?limit=5"),
+    ...notificationSummaryQueryOptions,
     enabled: !!userId,
-    refetchInterval: NOTIFICATION_POLL_MS,
-    refetchOnWindowFocus: true,
+    // アイドル時のポーリング・フォーカス時の自動 refetch は行わない
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 
   const handleRealtimeUpdate = useCallback(() => {
     void refetch();
   }, [refetch]);
 
+  // 新着通知は Realtime（WebSocket）で検知。HTTP ポーリングは使わない
   useRealtimeNotifications({
     userId,
     onNewNotification: handleRealtimeUpdate,
@@ -51,7 +45,7 @@ export function useNotifications() {
 
       if (response.ok) {
         queryClient.setQueryData<NotificationsSummaryResponse>(
-          queryKeys.notifications(),
+          notificationSummaryQueryOptions.queryKey,
           (old) =>
             old
               ? {

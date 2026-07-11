@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils";
 import { fetchJson } from "@/lib/api/client";
 import { queryKeys } from "@/lib/api/query-keys";
 import { prefetchTimelineTabs } from "@/lib/prefetch-timelines";
+import { syncNotificationsInBackground } from "@/lib/sync-notifications";
 import type { Post } from "@/app/_types/post";
 
 interface List {
@@ -107,6 +108,7 @@ export default function TimelineLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (sessionUserId) {
       prefetchTimelineTabs(queryClient);
+      syncNotificationsInBackground(queryClient);
     }
   }, [sessionUserId, queryClient]);
 
@@ -116,6 +118,7 @@ export default function TimelineLayout({ children }: { children: ReactNode }) {
       return;
     }
     prefetchTimelineTabs(queryClient);
+    syncNotificationsInBackground(queryClient);
     if (value === "following") {
       router.push("/home");
     } else if (value === "global") {
@@ -147,6 +150,7 @@ export default function TimelineLayout({ children }: { children: ReactNode }) {
 
   const handlePostCreated = (newPost: Post) => {
     upsertPostInTimelines(queryClient, newPost);
+    syncNotificationsInBackground(queryClient);
     toast.success("投稿が作成されました");
   };
 

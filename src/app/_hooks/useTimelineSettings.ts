@@ -11,7 +11,7 @@ interface TimelineSettings {
 const STORAGE_KEY = "pyrrhula-timeline-settings";
 
 const DEFAULT_SETTINGS: TimelineSettings = {
-  updateMode: "banner",
+  updateMode: "auto",
 };
 
 export function useTimelineSettings() {

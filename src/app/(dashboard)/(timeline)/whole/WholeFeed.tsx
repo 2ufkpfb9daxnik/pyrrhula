@@ -32,7 +32,6 @@ export function WholeFeed({ initialData }: WholeFeedProps) {
   });
 
   const { settings } = useTimelineSettings();
-  const isAutoUpdate = settings.updateMode === "auto";
 
   const handleAutoUpdate = useCallback(() => {
     refresh();
@@ -41,7 +40,7 @@ export function WholeFeed({ initialData }: WholeFeedProps) {
   const { hasNewPosts, clearNewPosts } = useRealtimeTimeline({
     channelName: "whole-timeline",
     includeReposts: true,
-    autoUpdate: isAutoUpdate,
+    autoUpdate: settings.updateMode === "auto",
     onAutoUpdate: handleAutoUpdate,
   });
 

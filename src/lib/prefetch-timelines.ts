@@ -2,6 +2,7 @@ import { QueryClient } from "@tanstack/react-query";
 import { fetchJson } from "@/lib/api/client";
 import { queryKeys } from "@/lib/api/query-keys";
 import type { TimelinePageResponse } from "@/lib/api/timeline";
+import { syncNotificationsInBackground } from "@/lib/sync-notifications";
 import { STALE_TIME_MS } from "@/lib/query-client";
 
 async function fetchTimelinePage(
@@ -17,6 +18,8 @@ async function fetchTimelinePage(
 }
 
 export function prefetchTimelineTabs(queryClient: QueryClient) {
+  syncNotificationsInBackground(queryClient);
+
   void queryClient.prefetchInfiniteQuery({
     queryKey: queryKeys.wholeTimeline(),
     queryFn: () => fetchTimelinePage("/api/whole"),

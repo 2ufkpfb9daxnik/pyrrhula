@@ -31,13 +31,12 @@ export default function HomePage() {
   });
 
   const { settings } = useTimelineSettings();
-  const isAutoUpdate = settings.updateMode === "auto";
 
   const handleAutoUpdate = useCallback(() => refresh(), [refresh]);
 
   const { hasNewPosts, clearNewPosts } = useRealtimeTimeline({
     channelName: "home-timeline",
-    autoUpdate: isAutoUpdate,
+    autoUpdate: settings.updateMode === "auto",
     onAutoUpdate: handleAutoUpdate,
   });
 
