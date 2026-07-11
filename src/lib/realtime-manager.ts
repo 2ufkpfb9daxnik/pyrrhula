@@ -1,5 +1,11 @@
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { supabase } from "@/utils/supabase";
+import { supabase, disconnectRealtime } from "@/utils/supabase";
+import {
+  isRealtimeAbandoned,
+  recordRealtimeFailure,
+  resetRealtimeFailures,
+  shouldUseRealtime,
+} from "@/lib/realtime-lifecycle";
 
 type Listener = () => void;
 
@@ -23,19 +29,68 @@ function notifyUser(userId: string): void {
   }
 }
 
-function ensureNotificationChannel(userId: string): void {
-  const channelName = `app-realtime-notifications-${userId}`;
-  let channel = notificationChannelRefs.get(userId);
+function handleChannelError(channelName: string, status: string, err?: Error): void {
+  recordRealtimeFailure(channelName);
+  if (isRealtimeAbandoned()) {
+    disconnectRealtime();
+    return;
+  }
+  console.warn(
+    `Realtime: チャンネル "${channelName}" でエラー (${status})`,
+    err?.message,
+  );
+}
 
-  if (channel && (channel.state === "joined" || channel.state === "joining")) {
+function subscribeChannel(
+  name: string,
+  setup: (channel: RealtimeChannel) => RealtimeChannel,
+): RealtimeChannel | null {
+  if (!shouldUseRealtime()) {
+    return null;
+  }
+
+  const existing = supabase
+    .getChannels()
+    .find((ch) => ch.subTopic === name || ch.topic === `realtime:${name}`);
+
+  if (existing && (existing.state === "joined" || existing.state === "joining")) {
+    return existing;
+  }
+
+  if (existing) {
+    void supabase.removeChannel(existing);
+  }
+
+  const channel = setup(supabase.channel(name));
+  if (channel.state !== "joined" && channel.state !== "joining") {
+    channel.subscribe((status, err) => {
+      if (status === "SUBSCRIBED") {
+        resetRealtimeFailures();
+        return;
+      }
+      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+        handleChannelError(name, status, err);
+      }
+    });
+  }
+  return channel;
+}
+
+function ensureNotificationChannel(userId: string): void {
+  if (!shouldUseRealtime()) return;
+
+  const channelName = `app-realtime-notifications-${userId}`;
+  const existing = notificationChannelRefs.get(userId);
+
+  if (existing && (existing.state === "joined" || existing.state === "joining")) {
     return;
   }
 
-  if (channel) {
-    void supabase.removeChannel(channel);
+  if (existing) {
+    void supabase.removeChannel(existing);
   }
 
-  channel = subscribeChannel(channelName, (ch) =>
+  const channel = subscribeChannel(channelName, (ch) =>
     ch.on(
       "postgres_changes",
       {
@@ -47,13 +102,19 @@ function ensureNotificationChannel(userId: string): void {
       () => notifyUser(userId),
     ),
   );
-  notificationChannelRefs.set(userId, channel);
+  if (channel) {
+    notificationChannelRefs.set(userId, channel);
+  }
 }
 
 export function subscribeToNotifications(
   userId: string,
   listener: Listener,
 ): () => void {
+  if (!shouldUseRealtime()) {
+    return () => {};
+  }
+
   if (!notificationListeners.has(userId)) {
     notificationListeners.set(userId, new Set());
   }
@@ -81,37 +142,8 @@ function notify(listeners: Set<Listener>): void {
   }
 }
 
-function subscribeChannel(
-  name: string,
-  setup: (channel: RealtimeChannel) => RealtimeChannel,
-): RealtimeChannel {
-  const existing = supabase
-    .getChannels()
-    .find((ch) => ch.subTopic === name || ch.topic === `realtime:${name}`);
-
-  if (existing && (existing.state === "joined" || existing.state === "joining")) {
-    return existing;
-  }
-
-  if (existing) {
-    void supabase.removeChannel(existing);
-  }
-
-  const channel = setup(supabase.channel(name));
-  if (channel.state !== "joined" && channel.state !== "joining") {
-    channel.subscribe((status, err) => {
-      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-        console.warn(
-          `Realtime: チャンネル "${name}" でエラー`,
-          err?.message ?? status,
-        );
-      }
-    });
-  }
-  return channel;
-}
-
 function ensurePostChannel(): void {
+  if (!shouldUseRealtime()) return;
   if (postChannel && (postChannel.state === "joined" || postChannel.state === "joining")) {
     return;
   }
@@ -126,6 +158,7 @@ function ensurePostChannel(): void {
 }
 
 function ensureRepostChannel(): void {
+  if (!shouldUseRealtime()) return;
   if (
     repostChannel &&
     (repostChannel.state === "joined" || repostChannel.state === "joining")
@@ -143,6 +176,10 @@ function ensureRepostChannel(): void {
 }
 
 export function subscribeToPostInserts(listener: Listener): () => void {
+  if (!shouldUseRealtime()) {
+    return () => {};
+  }
+
   ensurePostChannel();
   postListeners.add(listener);
   return () => {
@@ -151,6 +188,10 @@ export function subscribeToPostInserts(listener: Listener): () => void {
 }
 
 export function subscribeToRepostInserts(listener: Listener): () => void {
+  if (!shouldUseRealtime()) {
+    return () => {};
+  }
+
   ensureRepostChannel();
   repostListeners.add(listener);
   return () => {

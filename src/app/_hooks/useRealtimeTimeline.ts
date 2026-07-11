@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { isRealtimeConfigured } from "@/lib/realtime-config";
+import {
+  isRealtimeAbandoned,
+  shouldUseRealtime,
+} from "@/lib/realtime-lifecycle";
 import {
   subscribeToPostInserts,
   subscribeToRepostInserts,
@@ -42,13 +45,15 @@ export function useRealtimeTimeline({
   });
 
   useEffect(() => {
-    if (!isRealtimeConfigured()) {
+    if (!shouldUseRealtime()) {
+      setConnectionState(isRealtimeAbandoned() ? "error" : "idle");
       return;
     }
 
-    setConnectionState("connected");
+    setConnectionState("idle");
 
     const scheduleUpdate = () => {
+      setConnectionState("connected");
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {
         if (autoUpdateRef.current && onAutoUpdateRef.current) {

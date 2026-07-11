@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { isRealtimeConfigured } from "@/lib/realtime-config";
+import { shouldUseRealtime } from "@/lib/realtime-lifecycle";
 import { subscribeToNotifications } from "@/lib/realtime-manager";
 
 interface UseRealtimeNotificationsOptions {
@@ -17,7 +17,7 @@ export function useRealtimeNotifications({
   onNewNotification,
 }: UseRealtimeNotificationsOptions) {
   useEffect(() => {
-    if (!userId || !isRealtimeConfigured()) {
+    if (!userId || !shouldUseRealtime()) {
       return;
     }
 
