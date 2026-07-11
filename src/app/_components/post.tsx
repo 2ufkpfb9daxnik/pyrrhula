@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Star, RefreshCw, MessageCircle, HelpCircle, Link2 } from "lucide-react";
+import { Star, RefreshCw, HelpCircle, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { formatDistanceToNow } from "@/lib/formatDistanceToNow";
@@ -155,12 +155,8 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
     );
   };
 
-  const handleReply = (e: React.MouseEvent) => {
+  const handleOpenDetail = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!session) {
-      toast.error("ログインが必要です");
-      return;
-    }
     router.push(`/post/${post.id}`);
   };
 
@@ -172,13 +168,6 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
       toast.success("リンクをコピーしました");
     } catch {
       toast.error("リンクのコピーに失敗しました");
-    }
-  };
-
-  const handlePostClick = (e: React.MouseEvent) => {
-    const target = e.target as HTMLElement;
-    if (!target.closest("button") && !target.closest('[role="button"]')) {
-      router.push(`/post/${post.id}`);
     }
   };
 
@@ -195,21 +184,11 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
   return (
     <div
       data-created-at={new Date(post.createdAt).toISOString()}
-      className="cursor-pointer border-b px-2 py-1.5 transition-colors hover:bg-[var(--app-post-hover,#0a0a0a)]"
+      className="border-b bg-[var(--app-post-bg,#000000)] px-2 py-1.5 transition-colors hover:bg-[var(--app-post-hover,hsl(var(--accent)))]"
       style={{
-        backgroundColor: "var(--app-post-bg, #000000)",
         borderColor: "var(--app-post-border, #262626)",
         color: "var(--app-post-text, #ffffff)",
       }}
-      onClick={handlePostClick}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          handlePostClick(e as unknown as React.MouseEvent);
-        }
-      }}
-      role="button"
-      tabIndex={0}
     >
       {post.parent && post.parent.user && (
         <div className="mb-1 text-xs" style={{ color: "var(--app-muted-text, #737373)" }}>
@@ -293,8 +272,19 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
             )}
           </div>
 
-          <div className="mt-1.5 min-w-0">
-          {/* 投稿本文 - Q:部分を除去して表示 */}
+          <div
+            className="mt-1.5 min-w-0 cursor-pointer"
+            onClick={handleOpenDetail}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                handleOpenDetail(e as unknown as React.MouseEvent);
+              }
+            }}
+            role="link"
+            tabIndex={0}
+            aria-label="投稿の詳細を見る"
+          >
           <div className="whitespace-pre-wrap break-words text-sm leading-snug">
             {renderPostContent(formatPostContent(post.content))}
           </div>
@@ -354,7 +344,10 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
           {post.question && (
             <div
               className="mt-2 cursor-pointer rounded-lg border border-blue-600/30 bg-blue-950/20 p-2.5 transition-colors hover:bg-blue-900/20"
-              onClick={handleQuestionCardClick}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleQuestionCardClick(e);
+              }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
@@ -381,6 +374,8 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
             </div>
           )}
 
+          </div>
+
           <ImageModal
             isOpen={!!selectedImage}
             onClose={() => setSelectedImage(null)}
@@ -389,23 +384,13 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
           />
 
           <div className="mt-1.5 flex items-center gap-3">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleReply}
-                  disabled={!session}
-                  className="h-6 min-h-0 px-2 py-0 text-xs text-[var(--app-action-icon,#a3a3a3)]"
-                >
-                  <MessageCircle className="mr-1 size-3.5" />
-                  <span>{post._count?.replies ?? 0}</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {session ? "返信" : "ログインが必要です"}
-              </TooltipContent>
-            </Tooltip>
+            <span
+              className="inline-flex h-6 min-h-0 shrink-0 items-center px-2 py-0 text-xs invisible pointer-events-none"
+              aria-hidden="true"
+            >
+              <span className="mr-1 inline-block size-3.5 shrink-0" />
+              <span>0</span>
+            </span>
 
             <Tooltip>
               <TooltipTrigger asChild>
@@ -464,7 +449,6 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
               <TooltipContent>リンクをコピー</TooltipContent>
             </Tooltip>
           </div>
-        </div>
         </div>
       </div>
     </div>

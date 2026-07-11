@@ -1,14 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
 import { useParams, useRouter } from "next/navigation";
-import { formatDistanceToNow } from "@/lib/formatDistanceToNow";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Post } from "@/app/_components/post";
-import { MakePost } from "@/app/_components/makepost";
+import { PostDetail } from "@/app/_components/post-detail";
 import { LoaderCircle, ArrowLeft, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import type { PostDetailResponse } from "@/app/_types/post";
@@ -30,7 +27,6 @@ export default function PostDetailPage() {
   const [post, setPost] = useState<PostDetailResponse | null>(null);
   const [siblings, setSiblings] = useState<SiblingPosts | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { data: session } = useSession();
   const params = useParams<{ id: string }>();
   const postId = params?.id ?? "";
   const router = useRouter();
@@ -68,10 +64,6 @@ export default function PostDetailPage() {
     } catch (error) {
       console.error("Error fetching siblings:", error);
     }
-  };
-
-  const handlePostCreated = () => {
-    fetchPost();
   };
 
   const handleSiblingNavigation = (postId: string) => {
@@ -157,7 +149,7 @@ export default function PostDetailPage() {
 
       {/* メイン投稿 */}
       <div className="mb-4">
-        <Post post={convertToPost(post)} />
+        <PostDetail post={convertToPost(post)} />
       </div>
 
       {/* 統計情報とリンク */}
@@ -179,44 +171,6 @@ export default function PostDetailPage() {
           <span className="text-lg font-bold">{post.favorites}</span>
           <span className="text-sm text-gray-500">お気に入りした人</span>
         </Button>
-      </div>
-
-      {/* 返信投稿フォーム */}
-      {session && (
-        <div className="mb-8">
-          <Separator className="mb-4" />
-          <MakePost
-            onPostCreated={handlePostCreated}
-            replyTo={{
-              id: post.id,
-              content: post.content,
-              username: post.user.username,
-            }}
-          />
-        </div>
-      )}
-
-      {/* 返信一覧 */}
-      <div className="space-y-4">
-        <h2 className="text-xl font-bold">返信一覧</h2>
-        {post.replies && post.replies.length > 0 ? (
-          post.replies.map((reply) => (
-            <Post
-              key={reply.id}
-              post={convertToPost({
-                ...reply,
-                parent: null,
-                replies: [],
-                images: reply.images || [],
-                _count: {
-                  replies: 0,
-                },
-              })}
-            />
-          ))
-        ) : (
-          <p className="text-center text-gray-500">返信はありません</p>
-        )}
       </div>
     </div>
   );

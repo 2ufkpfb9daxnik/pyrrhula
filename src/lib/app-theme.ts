@@ -16,7 +16,7 @@ export const DEFAULT_APP_THEME: AppThemeColors = {
   postBorder: "#262626",
   mutedText: "#737373",
   navIcon: "#ffffff",
-  postHover: "#0a0a0a",
+  postHover: "#1f1f1f",
   actionIcon: "#a3a3a3",
 };
 
