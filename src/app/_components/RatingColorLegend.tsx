@@ -1,4 +1,4 @@
-import { RATING_COLOR_TIERS } from "@/lib/rating";
+import { RATING_COLOR_TIERS, formatRatingColorClass } from "@/lib/rating";
 import { cn } from "@/lib/utils";
 
 export function RatingColorLegend() {
@@ -11,13 +11,7 @@ export function RatingColorLegend() {
           key={tier.label}
           className="flex flex-col items-center rounded-md border p-3"
         >
-          <span
-            className={cn(
-              tier.colorClass,
-              tier.colorClass.includes("gradient") &&
-                "bg-clip-text text-transparent",
-            )}
-          >
+          <span className={cn("font-medium", formatRatingColorClass(tier.colorClass))}>
             {tier.label}
           </span>
           <span className="text-xs text-muted-foreground">{tier.rangeLabel}</span>

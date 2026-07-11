@@ -169,23 +169,25 @@ export async function GET(
       accountAgeDays,
     });
 
-    // スコアから色を決定
-    const color = getColorFromScore(score);
-
     // 大幅な変化がある場合のみ、データベースのレート値を更新
+    let displayRate = user.rate ?? score;
     if (user.rate === null || Math.abs(score - (user.rate || 0)) > 50) {
       await prisma.user.update({
         where: { id: userId },
         data: { rate: score },
       });
+      displayRate = score;
     }
+
+    // 紹介ページと同じしきい値で、表示用レートから色を決定
+    const color = getColorFromScore(displayRate);
 
     // 既存の型定義に合わせてレスポンスを作成
     const response: UserRating = {
       color: color,
       recentPostCount: recentPosts,
       totalPostCount: totalPosts,
-      score: score,
+      score: displayRate,
       // 追加の詳細統計情報（拡張）
       stats: {
         posts: {

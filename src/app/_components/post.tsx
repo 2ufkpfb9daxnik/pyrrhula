@@ -15,6 +15,7 @@ import {
 import { toast } from "sonner";
 import { renderPostContent } from "@/lib/renderPostContent";
 import { useRating } from "@/app/_hooks/useRating";
+import { formatRatingColorClass } from "@/lib/rating";
 import { ImageModal } from "@/app/_components/image-modal";
 import { useOptimisticUpdate } from "@/app/_hooks/useOptimisticUpdate";
 import type { Post as PostType } from "@/app/_types/post";
@@ -257,9 +258,9 @@ export function Post({ post, onRepostSuccess, onFavoriteSuccess }: PostProps) {
           >
             <Button
               variant="ghost"
-              className={`h-auto shrink-0 p-0 text-sm font-bold leading-none hover:underline ${
-                rating?.color ?? "text-gray-300"
-              }`}
+              className={`h-auto shrink-0 p-0 text-sm font-bold leading-none hover:underline ${formatRatingColorClass(
+                rating?.color ?? "text-gray-300",
+              )}`}
               onClick={(e) => {
                 e.stopPropagation();
                 handleUserClick();

@@ -63,79 +63,76 @@ export function calculateRating(input: RatingInput): number {
   );
 }
 
-/** レート色のしきい値（高い順）。アプリ全体でこの定義を参照する */
+/** 最下位ティアの上限（この値以下は白） */
+export const RATING_COLOR_BASE = 64;
+
+/** レート色のしきい値（高い順）。64 から 2 倍ずつ上がり、赤は 32769 点以上 */
 export const RATING_COLOR_TIERS = [
   {
-    minScore: 5000,
-    label: "虹",
-    colorClass: "bg-gradient-to-r from-red-500 via-yellow-500 to-blue-500",
-    rangeLabel: "5000点以上",
-  },
-  {
-    minScore: 4000,
+    minScore: 32769,
     label: "赤",
     colorClass: "text-red-500",
-    rangeLabel: "4000〜4999点",
+    rangeLabel: "32769点以上",
   },
   {
-    minScore: 3200,
+    minScore: 16385,
     label: "橙",
     colorClass: "text-orange-500",
-    rangeLabel: "3200〜3999点",
+    rangeLabel: "16385〜32768点",
   },
   {
-    minScore: 2500,
+    minScore: 8193,
     label: "黄",
     colorClass: "text-yellow-500",
-    rangeLabel: "2500〜3199点",
+    rangeLabel: "8193〜16384点",
   },
   {
-    minScore: 1900,
+    minScore: 4097,
     label: "紫",
     colorClass: "text-purple-500",
-    rangeLabel: "1900〜2499点",
+    rangeLabel: "4097〜8192点",
   },
   {
-    minScore: 1400,
+    minScore: 2049,
     label: "青",
     colorClass: "text-blue-500",
-    rangeLabel: "1400〜1899点",
+    rangeLabel: "2049〜4096点",
   },
   {
-    minScore: 1000,
+    minScore: 1025,
     label: "水",
     colorClass: "text-cyan-500",
-    rangeLabel: "1000〜1399点",
+    rangeLabel: "1025〜2048点",
   },
   {
-    minScore: 700,
+    minScore: 513,
     label: "緑",
     colorClass: "text-green-500",
-    rangeLabel: "700〜999点",
+    rangeLabel: "513〜1024点",
   },
   {
-    minScore: 450,
+    minScore: 257,
     label: "黄緑",
     colorClass: "text-lime-500",
-    rangeLabel: "450〜699点",
+    rangeLabel: "257〜512点",
   },
   {
-    minScore: 250,
+    minScore: 129,
     label: "茶",
     colorClass: "text-amber-700",
-    rangeLabel: "250〜449点",
+    rangeLabel: "129〜256点",
   },
   {
-    minScore: 80,
+    minScore: 65,
     label: "灰",
     colorClass: "text-gray-500",
-    rangeLabel: "80〜249点",
+    rangeLabel: "65〜128点",
   },
   {
     minScore: 0,
     label: "白",
     colorClass: "text-gray-300",
-    rangeLabel: "79点以下",
+    rangeLabel: "64点以下",
   },
 ] as const;
 
@@ -153,4 +150,12 @@ export function getColorFromScore(
   }
 
   return "text-gray-300";
+}
+
+/** ユーザー名などに Tailwind の色クラスを適用する（虹色グラデーション対応） */
+export function formatRatingColorClass(colorClass: string): string {
+  if (colorClass.includes("gradient")) {
+    return `${colorClass} bg-clip-text text-transparent`;
+  }
+  return colorClass;
 }

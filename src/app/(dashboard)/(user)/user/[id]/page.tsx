@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { LoaderCircle } from "lucide-react";
 import { linkify } from "@/lib/linkify";
+import { getColorFromScore, formatRatingColorClass } from "@/lib/rating";
 import { useInView } from "react-intersection-observer";
 import {
   useUserProfile,
@@ -215,7 +216,11 @@ export default function UserProfilePage() {
               </Avatar>
 
               <div className="min-w-0 flex-1">
-              <h1 className="text-2xl font-bold">{user.username}</h1>
+              <h1
+                className={`text-2xl font-bold ${formatRatingColorClass(getColorFromScore(user.rate))}`}
+              >
+                {user.username}
+              </h1>
               <p className="text-sm text-gray-500">@{user.id}</p>
 
               <div className="mt-4 flex flex-wrap gap-2">

@@ -11,7 +11,7 @@ import { Calendar, Trophy, UserCircle, Share2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMediaQuery } from "@/app/_hooks/useMediaQuery";
-import { getColorFromScore } from "@/lib/rating";
+import { getColorFromScore, formatRatingColorClass } from "@/lib/rating";
 
 interface UserNode {
   id: string;
@@ -318,7 +318,9 @@ export default function NetworkGraph({
             </Avatar>
             <div>
               <CardTitle className="flex items-center">
-                <span className={`font-bold ${getColorFromScore(user.rate)}`}>
+                <span
+                  className={`font-bold ${formatRatingColorClass(getColorFromScore(user.rate))}`}
+                >
                   {user.username}
                 </span>
                 <Badge variant="outline" className="ml-2 text-xs">

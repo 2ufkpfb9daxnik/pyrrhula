@@ -12,6 +12,7 @@ import { Star, Calendar, Trophy, LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useUsersList } from "@/app/_hooks/useUsersListQuery";
 import { queryKeys } from "@/lib/api/query-keys";
+import { formatRatingColorClass } from "@/lib/rating";
 
 export default function UsersPage() {
   const [sortBy, setSortBy] = useState<"rate" | "createdAt">("rate");
@@ -127,7 +128,9 @@ export default function UsersPage() {
                   </Avatar>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center space-x-2">
-                      <span className={`truncate text-base font-semibold ${user.ratingColor}`}>
+                      <span
+                        className={`truncate text-base font-semibold ${formatRatingColorClass(user.ratingColor)}`}
+                      >
                         {user.username}
                       </span>
                       <span className="truncate text-sm text-gray-500">@{user.id}</span>

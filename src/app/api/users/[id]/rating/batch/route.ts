@@ -41,6 +41,7 @@ export async function POST(req: Request) {
         id: true,
         postCount: true,
         createdAt: true,
+        rate: true,
       },
     });
 
@@ -172,8 +173,7 @@ export async function POST(req: Request) {
           (1000 * 60 * 60 * 24),
       );
 
-      // レーティング計算式に基づいてスコアを計算
-      const score = calculateRating({
+      const calculatedScore = calculateRating({
         recentPosts,
         totalPosts,
         recentReposts,
@@ -184,15 +184,16 @@ export async function POST(req: Request) {
         accountAgeDays,
       });
 
-      // レーティングカラーの計算
-      const color = getColorFromScore(score); // 計算したスコアに基づいて色を取得
+      // 紹介ページと同じしきい値で、DB 上のレート値から色を決定
+      const displayRate = user.rate ?? calculatedScore;
+      const color = getColorFromScore(displayRate);
 
       // レスポンス用のレーティングデータを構築
       result[user.id] = {
         color,
         recentPostCount: recentPosts,
         totalPostCount: totalPosts,
-        score,
+        score: displayRate,
       };
     }
 
