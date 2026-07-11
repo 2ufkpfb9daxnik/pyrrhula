@@ -45,12 +45,12 @@ export async function POST(req: Request) {
     }
 
     // ユニークなIDを生成（衝突時は再試行）
-    let userId: string;
+    let userId = "";
     let attempts = 0;
     const maxAttempts = 10;
 
     while (attempts < maxAttempts) {
-      userId = generateUserId(); // 4-16文字のIDを生成
+      userId = generateUserId();
       const existingId = await prisma.user.findUnique({
         where: { id: userId },
       });
@@ -59,7 +59,7 @@ export async function POST(req: Request) {
       attempts++;
     }
 
-    if (attempts >= maxAttempts) {
+    if (attempts >= maxAttempts || !userId) {
       return NextResponse.json(
         { error: "ユーザーIDの生成に失敗しました" },
         { status: 500 }

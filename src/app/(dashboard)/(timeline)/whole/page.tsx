@@ -2,10 +2,38 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { WholeFeed } from "./WholeFeed";
+import type { ApiPostRaw, TimelinePageResponse } from "@/lib/api/timeline";
+import type { InfiniteData } from "@tanstack/react-query";
 
 const DEFAULT_LIMIT = 10;
 
-async function getInitialPosts(userId?: string) {
+type QuestionRow = {
+  id: string;
+  question: string;
+  answer: string | null;
+  targetUserId: string;
+  User_Question_targetUserIdToUser: {
+    username: string;
+    icon: string | null;
+  };
+};
+
+function toQuestion(q: QuestionRow) {
+  return {
+    id: q.id,
+    question: q.question,
+    answer: q.answer,
+    targetUserId: q.targetUserId,
+    targetUser: {
+      username: q.User_Question_targetUserIdToUser.username,
+      icon: q.User_Question_targetUserIdToUser.icon,
+    },
+  };
+}
+
+async function getInitialTimelineData(
+  userId?: string,
+): Promise<InfiniteData<TimelinePageResponse, string | undefined>> {
   const take = DEFAULT_LIMIT + 1;
 
   const [regularPosts, reposts] = await Promise.all([
@@ -84,7 +112,7 @@ async function getInitialPosts(userId?: string) {
     }),
   ]);
 
-  type FormattedPost = {
+  type Merged = {
     id: string;
     content: string;
     createdAt: Date;
@@ -98,76 +126,43 @@ async function getInitialPosts(userId?: string) {
       user?: { id: string; username: string };
     } | null;
     _count: { replies: number };
-    isReposted: boolean;
-    isFavorited: boolean;
     repostedAt?: Date;
-    repostedByInfo?: { id: string; username: string; icon: string | null };
-    question?: {
-      id: string;
-      question: string;
-      answer: string | null;
-      targetUserId: string;
-      targetUser: { username: string; icon: string | null };
-    };
+    repostedBy?: { id: string; username: string; icon: string | null };
+    question?: ReturnType<typeof toQuestion>;
   };
 
-  const toQuestion = (q: any) =>
-    q
-      ? {
-          id: q.id,
-          question: q.question,
-          answer: q.answer,
-          targetUserId: q.targetUserId,
-          targetUser: {
-            username: q.User_Question_targetUserIdToUser.username,
-            icon: q.User_Question_targetUserIdToUser.icon,
-          },
-        }
-      : undefined;
-
-  let allPosts: FormattedPost[] = regularPosts.map((post) => ({
+  let allPosts: Merged[] = regularPosts.map((post) => ({
     ...post,
-    isReposted: false,
-    isFavorited: false,
-    repostedAt: undefined,
-    parent: post.parent || null,
+    images: post.images ?? [],
+    parent: post.parent ?? null,
     question:
-      post.Question && post.Question.length > 0
-        ? toQuestion(post.Question[0])
-        : undefined,
+      post.Question.length > 0 ? toQuestion(post.Question[0]) : undefined,
   }));
 
-  const repostedPosts: FormattedPost[] = reposts.map((repost) => ({
+  const repostedPosts: Merged[] = reposts.map((repost) => ({
     ...repost.post,
-    images: repost.post.images || [],
-    parent: repost.post.parent || null,
+    images: repost.post.images ?? [],
+    parent: repost.post.parent ?? null,
     repostedAt: repost.createdAt,
-    isReposted: false,
-    isFavorited: false,
-    repostedByInfo: {
-      id: repost.user.id,
-      username: repost.user.username,
-      icon: repost.user.icon,
-    },
+    repostedBy: repost.user,
     question:
-      repost.post.Question && repost.post.Question.length > 0
+      repost.post.Question.length > 0
         ? toQuestion(repost.post.Question[0])
         : undefined,
   }));
 
   allPosts = [...allPosts, ...repostedPosts];
   allPosts.sort((a, b) => {
-    const dateA = a.repostedAt || a.createdAt;
-    const dateB = b.repostedAt || b.createdAt;
-    return new Date(dateB).getTime() - new Date(dateA).getTime();
+    const dateA = a.repostedAt ?? a.createdAt;
+    const dateB = b.repostedAt ?? b.createdAt;
+    return dateB.getTime() - dateA.getTime();
   });
 
   const hasMore = allPosts.length > DEFAULT_LIMIT;
   const postList = hasMore ? allPosts.slice(0, DEFAULT_LIMIT) : allPosts;
   const nextCursor = hasMore
-    ? new Date(
-        postList[DEFAULT_LIMIT - 1].repostedAt ||
-          postList[DEFAULT_LIMIT - 1].createdAt,
+    ? (postList[DEFAULT_LIMIT - 1].repostedAt ??
+        postList[DEFAULT_LIMIT - 1].createdAt
       ).toISOString()
     : undefined;
 
@@ -190,37 +185,32 @@ async function getInitialPosts(userId?: string) {
     repostedPostIds = new Set(userReposts.map((r) => r.postId));
   }
 
-  const formattedPosts = postList.map((post) => ({
+  const posts: ApiPostRaw[] = postList.map((post) => ({
     id: post.id,
     content: post.content,
     createdAt: post.createdAt.toISOString(),
     favorites: post.favorites,
     reposts: post.reposts,
-    images: post.images || [],
+    images: post.images,
     user: post.user,
-    parent: post.parent || null,
+    parent: post.parent,
     _count: { replies: post._count.replies },
     isFavorited: favoritedPostIds.has(post.id),
     isReposted: repostedPostIds.has(post.id),
     repostedAt: post.repostedAt?.toISOString(),
-    repostedBy: post.repostedByInfo,
+    repostedBy: post.repostedBy,
     question: post.question,
   }));
 
-  return { posts: formattedPosts, hasMore, nextCursor };
+  return {
+    pages: [{ posts, hasMore, nextCursor }],
+    pageParams: [undefined],
+  };
 }
 
 export default async function WholePage() {
   const session = await getServerSession(authOptions);
-  const { posts, hasMore, nextCursor } = await getInitialPosts(
-    session?.user?.id,
-  );
+  const initialData = await getInitialTimelineData(session?.user?.id);
 
-  return (
-    <WholeFeed
-      initialPostsRaw={posts}
-      initialHasMore={hasMore}
-      initialNextCursor={nextCursor}
-    />
-  );
+  return <WholeFeed initialData={initialData} />;
 }

@@ -69,57 +69,86 @@ export async function GET(
         followers?: { followerId: string }[];
       };
 
-      type FollowEntry = {
-        follower: FollowUser;
-        followed: FollowUser;
+      const userSelect = {
+        id: true,
+        username: true,
+        icon: true,
+        postCount: true,
+        rate: true,
+        createdAt: true,
+        followersCount: true,
+        followingCount: true,
+        followers: session?.user
+          ? {
+              where: { followerId: session.user.id },
+              select: { followerId: true },
+            }
+          : undefined,
       };
 
-      const users = await prisma.user.findUnique({
+      const pagination = {
+        take: limit + 1,
+        skip: cursor ? 1 : 0,
+        cursor: cursor ? { id: cursor } : undefined,
+      };
+
+      if (type === "followers") {
+        const userRecord = await prisma.user.findUnique({
+          where: { id: targetUserId },
+          select: {
+            followers: {
+              ...pagination,
+              select: { follower: { select: userSelect } },
+            },
+          },
+        });
+
+        if (!userRecord) {
+          return NextResponse.json({ error: "User not found" }, { status: 404 });
+        }
+
+        const userList = userRecord.followers.map(({ follower }) => {
+          const userData = follower as FollowUser;
+          return {
+            id: userData.id,
+            username: userData.username,
+            icon: userData.icon,
+            postCount: userData.postCount,
+            rate: userData.rate,
+            createdAt: userData.createdAt,
+            followersCount: userData.followersCount,
+            followingCount: userData.followingCount,
+            isFollowing: (userData.followers?.length ?? 0) > 0,
+          };
+        });
+
+        const hasMore = userList.length > limit;
+        const nextCursor = hasMore ? userList[limit - 1].id : undefined;
+        const formattedUsers = hasMore ? userList.slice(0, -1) : userList;
+
+        return NextResponse.json({
+          users: formattedUsers,
+          hasMore,
+          ...(nextCursor && { nextCursor }),
+        });
+      }
+
+      const userRecord = await prisma.user.findUnique({
         where: { id: targetUserId },
         select: {
-          [type === "followers" ? "followers" : "follows"]: {
-            take: limit + 1,
-            skip: cursor ? 1 : 0,
-            cursor: cursor ? { id: cursor } : undefined,
-            select: {
-              [type === "followers" ? "follower" : "followed"]: {
-                select: {
-                  id: true,
-                  username: true,
-                  icon: true,
-                  postCount: true,
-                  rate: true,
-                  createdAt: true,
-                  followersCount: true,
-                  followingCount: true,
-                  followers: session?.user
-                    ? {
-                        where: {
-                          followerId: session.user.id,
-                        },
-                        select: {
-                          followerId: true,
-                        },
-                      }
-                    : undefined,
-                },
-              },
-            },
+          follows: {
+            ...pagination,
+            select: { followed: { select: userSelect } },
           },
         },
       });
 
-      if (!users) {
+      if (!userRecord) {
         return NextResponse.json({ error: "User not found" }, { status: 404 });
       }
 
-      const followEntries = users[
-        type === "followers" ? "followers" : "follows"
-      ] as FollowEntry[];
-
-      const userList = followEntries.map((follow) => {
-        const userData =
-          type === "followers" ? follow.follower : follow.followed;
+      const userList = userRecord.follows.map(({ followed }) => {
+        const userData = followed as FollowUser;
         return {
           id: userData.id,
           username: userData.username,
@@ -129,7 +158,7 @@ export async function GET(
           createdAt: userData.createdAt,
           followersCount: userData.followersCount,
           followingCount: userData.followingCount,
-          isFollowing: userData.followers?.length > 0,
+          isFollowing: (userData.followers?.length ?? 0) > 0,
         };
       });
 
@@ -337,7 +366,7 @@ export async function PUT(
     });
 
     return NextResponse.json(updatedUser);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[User Update Error]:", error);
     return NextResponse.json(
       { error: "サーバーエラーが発生しました" },

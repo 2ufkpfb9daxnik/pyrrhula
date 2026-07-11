@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, ReactNode, useRef, useCallback } from "react";
+import { useState, useEffect, ReactNode, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Navigation } from "@/app/_components/navigation";
 import { MakePost } from "@/app/_components/makepost";
 import { Search } from "@/app/_components/search";
@@ -28,12 +29,10 @@ import {
 import { useSwipeable } from "react-swipeable";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-
-interface UserInfo {
-  icon: string | null;
-  username: string;
-  id: string;
-}
+import { fetchJson } from "@/lib/api/client";
+import { queryKeys } from "@/lib/api/query-keys";
+import { prefetchTimelineTabs } from "@/lib/prefetch-timelines";
+import type { Post } from "@/app/_types/post";
 
 interface List {
   id: string;
@@ -55,13 +54,35 @@ export default function TimelineLayout({ children }: { children: ReactNode }) {
   const sessionUserId = session?.user?.id;
   const [activeTab, setActiveTab] = useState<TabType>("global");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
-  const [userLists, setUserLists] = useState<List[]>([]);
-  const [followedLists, setFollowedLists] = useState<List[]>([]);
-  const [isLoadingLists, setIsLoadingLists] = useState(true);
-  const [parentPost, setParentPost] = useState<any | null>(null);
+  const [parentPost, setParentPost] = useState<Post | null>(null);
   const postInputRef = useRef<HTMLTextAreaElement>(null);
   const tabsContainerRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
+
+  const { data: userInfo } = useQuery({
+    queryKey: queryKeys.currentUser(sessionUserId ?? ""),
+    queryFn: () =>
+      fetchJson<{ icon: string | null; username: string; id: string }>(
+        `/api/users/${sessionUserId}`,
+      ),
+    enabled: !!sessionUserId,
+  });
+
+  const { data: userListsData, isLoading: isLoadingLists } = useQuery({
+    queryKey: queryKeys.userLists(),
+    queryFn: () =>
+      fetchJson<{ lists: List[] }>("/api/lists?isMember=true"),
+    enabled: !!sessionUserId,
+  });
+
+  const { data: followedListsData } = useQuery({
+    queryKey: queryKeys.followedLists(),
+    queryFn: () => fetchJson<{ lists: List[] }>("/api/lists/followed"),
+    enabled: !!sessionUserId,
+  });
+
+  const userLists = userListsData?.lists ?? [];
+  const followedLists = followedListsData?.lists ?? [];
 
   useEffect(() => {
     if (pathname === "/" || pathname === "/home") {
@@ -82,60 +103,19 @@ export default function TimelineLayout({ children }: { children: ReactNode }) {
     }
   };
 
-  const fetchUserInfo = useCallback(async () => {
-    if (!sessionUserId) return;
-    try {
-      const response = await fetch(`/api/users/${sessionUserId}`);
-      if (!response.ok) throw new Error("Failed to fetch user info");
-      const data = await response.json();
-      setUserInfo(data);
-    } catch (error) {
-      console.error("Error fetching user info:", error);
-    }
-  }, [sessionUserId]);
-
-  const fetchUserLists = useCallback(async () => {
-    if (!sessionUserId) return;
-    try {
-      setIsLoadingLists(true);
-      const response = await fetch("/api/lists?isMember=true");
-      if (!response.ok) throw new Error("Failed to fetch user lists");
-      const data = await response.json();
-      setUserLists(data.lists || []);
-    } catch (error) {
-      console.error("Error fetching user lists:", error);
-      setUserLists([]);
-    } finally {
-      setIsLoadingLists(false);
-    }
-  }, [sessionUserId]);
-
-  const fetchFollowedLists = useCallback(async () => {
-    if (!sessionUserId) return;
-    try {
-      const response = await fetch("/api/lists/followed");
-      if (!response.ok) throw new Error("Failed to fetch followed lists");
-      const data = await response.json();
-      setFollowedLists(data.lists || []);
-    } catch (error) {
-      console.error("Error fetching followed lists:", error);
-      setFollowedLists([]);
-    }
-  }, [sessionUserId]);
-
   useEffect(() => {
     if (sessionUserId) {
-      fetchUserInfo();
-      fetchUserLists();
-      fetchFollowedLists();
+      prefetchTimelineTabs(queryClient);
     }
-  }, [fetchFollowedLists, fetchUserInfo, fetchUserLists, sessionUserId]);
+  }, [sessionUserId, queryClient]);
 
   const handleTabChange = (value: TabType) => {
     if (value === "settings") {
       setIsSettingsOpen(true);
       return;
-    } else if (value === "following") {
+    }
+    prefetchTimelineTabs(queryClient);
+    if (value === "following") {
       router.push("/home");
     } else if (value === "global") {
       router.push("/whole");
@@ -164,7 +144,7 @@ export default function TimelineLayout({ children }: { children: ReactNode }) {
     }
   };
 
-  const handlePostCreated = (newPost: any) => {
+  const handlePostCreated = (_newPost: Post) => {
     toast.success("投稿が作成されました");
   };
 

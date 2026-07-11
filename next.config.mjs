@@ -1,8 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  typescript: {
-    ignoreBuildErrors: true,
-  },
   poweredByHeader: false,
   reactStrictMode: true,
   output: "standalone",

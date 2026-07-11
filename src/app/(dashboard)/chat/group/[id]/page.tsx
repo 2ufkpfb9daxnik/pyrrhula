@@ -61,15 +61,6 @@ export default function GroupChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  useEffect(() => {
-    if (!session || !routeGroupId) return;
-    fetchGroupChat();
-  }, [session, routeGroupId, fetchGroupChat]);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [groupChat?.messages]);
-
   const fetchGroupChat = useCallback(async () => {
     try {
       const response = await fetch(`/api/chat/group/${routeGroupId}`);
@@ -95,6 +86,15 @@ export default function GroupChatPage() {
       setIsLoading(false);
     }
   }, [routeGroupId]);
+
+  useEffect(() => {
+    if (!session || !routeGroupId) return;
+    void fetchGroupChat();
+  }, [session, routeGroupId, fetchGroupChat]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [groupChat?.messages]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -175,7 +175,6 @@ export default function GroupChatPage() {
       setNewMessage(newMessage); // 入力内容を復元
     } finally {
       setOptimisticMessageId(null);
-      optimisticMessageId.current = null;
     }
   };
 
@@ -285,7 +284,7 @@ export default function GroupChatPage() {
                 <div
                   className={`rounded-lg p-3 ${
                     message.senderId === session?.user?.id
-                      ? message.id === optimisticMessageId.current
+                      ? message.id === optimisticMessageId
                         ? "bg-blue-600/50 text-white" // 送信中のメッセージは半透明
                         : "bg-blue-600 text-white"
                       : "bg-gray-800 text-white"

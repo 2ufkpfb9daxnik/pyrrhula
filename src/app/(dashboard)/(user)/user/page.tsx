@@ -1,189 +1,58 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { PowerPagination } from "@/components/ui/power-pagination";
 import { formatDistanceToNow } from "@/lib/formatDistanceToNow";
 import { Star, Calendar, Trophy, LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
-
-type RatingColor = string;
-
-interface User {
-  id: string;
-  username: string;
-  icon: string | null;
-  rate: number;
-  postCount: number;
-  followersCount: number;
-  followingCount: number;
-  createdAt: string;
-  isFollowing?: boolean;
-  isFollower?: boolean;
-  ratingColor: RatingColor;
-}
-
-interface PaginationInfo {
-  total: number;
-  pages: number;
-  currentPage: number;
-  hasMore: boolean;
-}
-
-interface ApiUser {
-  id: string;
-  username: string;
-  icon: string | null;
-  rate: number;
-  postCount: number;
-  followersCount: number;
-  followingCount: number;
-  createdAt: string;
-  isFollowing?: boolean;
-  isFollower?: boolean;
-  ratingColor?: string;
-}
+import { StaleRefreshBanner } from "@/app/_components/StaleRefreshBanner";
+import { useUsersList } from "@/app/_hooks/useUsersListQuery";
+import { queryKeys } from "@/lib/api/query-keys";
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<User[]>([]);
   const [sortBy, setSortBy] = useState<"rate" | "createdAt">("rate");
-  const [isLoading, setIsLoading] = useState(true);
-  const [pagination, setPagination] = useState<PaginationInfo | null>(null);
-  const [processingUsers, setProcessingUsers] = useState<Set<string>>(
-    new Set(),
-  );
+  const [page, setPage] = useState(1);
+  const [processingUsers, setProcessingUsers] = useState<Set<string>>(new Set());
   const router = useRouter();
   const { data: session } = useSession();
+  const queryClient = useQueryClient();
 
-  // APIルートの最適化
-  const fetchUsers = useCallback(
-    async (page: number) => {
-      try {
-        setIsLoading(true);
+  const {
+    data,
+    isLoading,
+    isStale,
+    isFetching,
+    dataUpdatedAt,
+    refetch,
+  } = useUsersList(sortBy, page, !!session);
 
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-        const params = new URLSearchParams({
-          sort: sortBy,
-          page: page.toString(),
-          limit: "5",
-          includeFollowStatus: session ? "true" : "false",
-        });
-
-        const response = await fetch(`/api/users?${params}`, {
-          signal: controller.signal,
-          next: { revalidate: 60 },
-        });
-
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-          throw new Error(
-            response.status === 504
-              ? "サーバーの応答がタイムアウトしました。後でもう一度お試しください。"
-              : "ユーザー情報の取得に失敗しました",
-          );
-        }
-
-        const data = await response.json();
-
-        // データの整形を確実に行う
-        const formattedUsers = (data.users as ApiUser[]).map((user) => ({
-          id: user.id,
-          username: user.username,
-          icon: user.icon,
-          rate: user.rate,
-          postCount: user.postCount,
-          followersCount: user.followersCount,
-          followingCount: user.followingCount,
-          createdAt: user.createdAt,
-          isFollowing: user.isFollowing || false,
-          isFollower: user.isFollower || false,
-          ratingColor: user.ratingColor || "",
-        }));
-
-        setUsers(formattedUsers);
-
-        setPagination({
-          total: data.pagination?.total || 0,
-          pages:
-            data.pagination?.pages ||
-            Math.ceil((data.pagination?.total || 0) / 5),
-          currentPage: page,
-          hasMore: data.pagination?.hasMore || false,
-        });
-      } catch (error) {
-        console.error("Error fetching users:", error);
-
-        // AbortError の場合は特別なメッセージ
-        if (error instanceof Error) {
-          if (error.name === "AbortError") {
-            toast.error(
-              "リクエストがタイムアウトしました。ネットワーク接続を確認してください。",
-            );
-          } else {
-            toast.error(error.message);
-          }
-        } else {
-          toast.error("一時的なエラーが発生しました");
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [session, sortBy],
-  );
-
-  // セッション状態やソート条件が変化したタイミングで1ページ目を再取得
-  useEffect(() => {
-    fetchUsers(1);
-  }, [fetchUsers]);
+  const users = data?.users ?? [];
+  const pagination = data?.pagination;
 
   const handleFollow = async (userId: string, isFollowing: boolean) => {
     if (!session) {
       router.push("/login");
       return;
     }
-
-    // 既に処理中の場合は何もしない
     if (processingUsers.has(userId)) return;
 
-    // 処理中フラグを設定
     setProcessingUsers((prev) => new Set(prev).add(userId));
 
     try {
-      // APIリクエスト
       const response = await fetch(`/api/follow/${userId}`, {
         method: isFollowing ? "DELETE" : "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
       });
 
-      // HTMLレスポンスが返ってくる場合のエラーハンドリング（404などの場合）
-      const contentType = response.headers.get("content-type");
-      if (contentType && contentType.includes("text/html")) {
-        throw new Error(
-          "APIエンドポイントが見つかりません。URLを確認してください。",
-        );
-      }
-
-      // 409エラー（Conflict）の場合は特別な処理
-      if (response.status === 409) {
-        // すでにフォローしている場合は、UIを更新してエラーを無視
-        if (!isFollowing) {
-          setUsers((prev) =>
-            prev.map((user) =>
-              user.id === userId ? { ...user, isFollowing: true } : user,
-            ),
-          );
-          toast.success("既にフォロー済みです");
-          return;
-        }
+      if (response.status === 409 && !isFollowing) {
+        toast.success("既にフォロー済みです");
+        void refetch();
+        return;
       }
 
       if (!response.ok) {
@@ -191,43 +60,22 @@ export default function UsersPage() {
         throw new Error(errorData.error || "フォロー状態の更新に失敗しました");
       }
 
-      // UIを更新
-      setUsers((prev) =>
-        prev.map((user) =>
-          user.id === userId
-            ? { ...user, isFollowing: !user.isFollowing }
-            : user,
-        ),
-      );
-
+      void queryClient.invalidateQueries({ queryKey: queryKeys.usersList(sortBy, page) });
       toast.success(isFollowing ? "フォロー解除しました" : "フォローしました");
     } catch (error) {
-      console.error("Follow error:", error);
-
-      // より具体的なエラーメッセージを表示
       const errorMessage =
         error instanceof Error ? error.message : "操作に失敗しました";
-
-      // 特定のエラーメッセージをユーザーフレンドリーな表現に変換
-      let displayMessage = errorMessage;
-      if (errorMessage === "Already following this user") {
-        displayMessage = "既にフォロー済みです";
-      } else if (errorMessage === "Not following this user") {
-        displayMessage = "フォローしていません";
-      }
-
-      toast.error(displayMessage);
+      toast.error(errorMessage);
     } finally {
-      // 処理中フラグを解除
       setProcessingUsers((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(userId);
-        return newSet;
+        const next = new Set(prev);
+        next.delete(userId);
+        return next;
       });
     }
   };
 
-  if (isLoading) {
+  if (isLoading && users.length === 0) {
     return (
       <div className="flex items-center justify-center py-12">
         <LoaderCircle className="size-12 animate-spin" />
@@ -237,21 +85,35 @@ export default function UsersPage() {
 
   return (
     <>
+      {isStale && users.length > 0 && (
+        <StaleRefreshBanner
+          isStale={isStale}
+          isFetching={isFetching}
+          dataUpdatedAt={dataUpdatedAt}
+          onRefresh={() => void refetch()}
+          label="ユーザー一覧を更新"
+        />
+      )}
+
       <div className="mb-6 flex items-center justify-between border-b border-gray-800 pb-4">
         <h1 className="text-2xl font-bold">ユーザー一覧</h1>
         <div className="flex space-x-2">
           <Button
             variant={sortBy === "rate" ? "default" : "outline"}
-            onClick={() => setSortBy("rate")}
-            className="flex items-center"
+            onClick={() => {
+              setSortBy("rate");
+              setPage(1);
+            }}
           >
             <Trophy className="mr-2 size-4" />
             レート順
           </Button>
           <Button
             variant={sortBy === "createdAt" ? "default" : "outline"}
-            onClick={() => setSortBy("createdAt")}
-            className="flex items-center"
+            onClick={() => {
+              setSortBy("createdAt");
+              setPage(1);
+            }}
           >
             <Calendar className="mr-2 size-4" />
             登録順
@@ -275,26 +137,18 @@ export default function UsersPage() {
             tabIndex={0}
           >
             <div className="flex items-center justify-between">
-              {/* ユーザー情報部分 */}
               <div className="min-w-0 flex-1">
                 <div className="flex items-center space-x-3">
                   <Avatar className="size-12 shrink-0">
-                    <AvatarImage
-                      src={user.icon ?? undefined}
-                      alt={user.username}
-                    />
+                    <AvatarImage src={user.icon ?? undefined} alt={user.username} />
                     <AvatarFallback>{user.username[0]}</AvatarFallback>
                   </Avatar>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center space-x-2">
-                      <span
-                        className={`text-base font-semibold ${user.ratingColor} truncate`}
-                      >
+                      <span className={`truncate text-base font-semibold ${user.ratingColor}`}>
                         {user.username}
                       </span>
-                      <span className="truncate text-sm text-gray-500">
-                        @{user.id}
-                      </span>
+                      <span className="truncate text-sm text-gray-500">@{user.id}</span>
                     </div>
                     <div className="flex items-center space-x-3 text-sm text-gray-400">
                       <span className="flex items-center">
@@ -305,15 +159,12 @@ export default function UsersPage() {
                         <Calendar className="mr-1 size-4" />
                         {formatDistanceToNow(new Date(user.createdAt))}
                       </span>
-                      {user.isFollower && (
-                        <span className="text-gray-500">フォロワー</span>
-                      )}
+                      {user.isFollower && <span className="text-gray-500">フォロワー</span>}
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* ボタン部分 */}
               <div className="ml-4 flex shrink-0 flex-col items-end space-y-2">
                 {session?.user?.id !== user.id && (
                   <Button
@@ -325,7 +176,7 @@ export default function UsersPage() {
                     }`}
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleFollow(user.id, user.isFollowing || false);
+                      void handleFollow(user.id, user.isFollowing);
                     }}
                     disabled={!session || processingUsers.has(user.id)}
                   >
@@ -355,12 +206,11 @@ export default function UsersPage() {
         ))}
       </div>
 
-      {/* ページネーション */}
       {pagination && pagination.pages > 1 && (
         <PowerPagination
           currentPage={pagination.currentPage}
           totalPages={pagination.pages}
-          onPageChange={fetchUsers}
+          onPageChange={setPage}
         />
       )}
     </>

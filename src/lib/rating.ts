@@ -8,26 +8,15 @@ export async function createRatingHistory(
   reason: string,
 ) {
   try {
-    await prisma.$executeRaw`
-      INSERT INTO rating_history (id, user_id, delta, rating, created_at, reason)
-      VALUES (gen_random_uuid(), ${userId}, ${delta}, ${newRating}, NOW(), ${reason})
-    `;
+    await prisma.rating_history.create({
+      data: {
+        user_id: userId,
+        delta,
+        rating: newRating,
+        reason,
+      },
+    });
   } catch (error) {
-    const prismaError = error as {
-      code?: string;
-      meta?: { code?: string; message?: string };
-    };
-    const dbCode = prismaError.meta?.code;
-
-    // rating_history.user_id が UUID の環境では、現在のユーザーID形式(文字列)だと保存できない。
-    // 投稿処理自体を失敗させないため履歴保存はスキップする。
-    if (prismaError.code === "P2010" && dbCode === "42804") {
-      console.warn(
-        "Skipped rating history insert due to user_id type mismatch (uuid vs text).",
-      );
-      return;
-    }
-
     console.error("Failed to create rating history:", error);
   }
 }

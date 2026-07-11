@@ -81,12 +81,10 @@ export const authOptions: NextAuthOptions = {
       session: NextAuthSession;
       token: JWT;
     }) {
-      if (token) {
-        if (session.user) {
-          session.user.id = token.id ?? token.sub;
-          session.user.username = token.username ?? token.name;
-          session.user.isAdmin = token.isAdmin;
-        }
+      if (token && session.user) {
+        session.user.id = (token.id ?? token.sub) as string;
+        session.user.username = (token.username ?? token.name ?? "") as string;
+        session.user.isAdmin = Boolean(token.isAdmin);
       }
       return session;
     },

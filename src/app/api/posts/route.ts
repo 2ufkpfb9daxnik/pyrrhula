@@ -4,6 +4,10 @@ import { authOptions } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import type { CreatePostRequest } from "@/app/_types/post";
 import { createRatingHistory, RATING_REASONS } from "@/lib/rating";
+import {
+  type RepostWithPost,
+  extractQuestion,
+} from "@/lib/api/repost";
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
@@ -151,7 +155,7 @@ export async function GET(req: Request) {
       };
     };
 
-    type RepostRow = Awaited<ReturnType<typeof prisma.repost.findMany>>[number];
+    type RepostRow = RepostWithPost;
 
     type ApiResponsePost = {
       id: string;
@@ -345,7 +349,7 @@ export async function GET(req: Request) {
             },
           },
         })
-      : Promise.resolve([] as RepostRow[]);
+      : Promise.resolve([] as RepostWithPost[]);
 
     const [regularPosts, reposts] = await timed(timings, "timelineDb", () =>
       Promise.all([regularPostsPromise, repostsPromise]),
@@ -379,23 +383,9 @@ export async function GET(req: Request) {
     });
 
     if (includeReposts) {
-      const repostedPosts: FormattedPost[] = reposts.map((repost) => {
-        const question =
-          repost.post.Question && repost.post.Question.length > 0
-            ? {
-                id: repost.post.Question[0].id,
-                question: repost.post.Question[0].question,
-                answer: repost.post.Question[0].answer,
-                targetUserId: repost.post.Question[0].targetUserId,
-                targetUser: {
-                  username:
-                    repost.post.Question[0].User_Question_targetUserIdToUser
-                      .username,
-                  icon: repost.post.Question[0].User_Question_targetUserIdToUser
-                    .icon,
-                },
-              }
-            : undefined;
+      const repostedPosts: FormattedPost[] = (reposts as RepostWithPost[]).map(
+        (repost) => {
+        const question = extractQuestion(repost.post.Question);
 
         return {
           ...repost.post,

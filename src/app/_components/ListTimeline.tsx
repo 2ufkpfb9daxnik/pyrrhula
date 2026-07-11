@@ -5,7 +5,13 @@ import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useInView } from "react-intersection-observer";
 import { LoaderCircle } from "lucide-react";
 import { PostList } from "@/app/_components/PostList";
+import { StaleRefreshBanner } from "@/app/_components/StaleRefreshBanner";
 import { useRealtimeTimeline } from "@/app/_hooks/useRealtimeTimeline";
+import { fetchJson } from "@/lib/api/client";
+import { queryKeys } from "@/lib/api/query-keys";
+import type { TimelinePageResponse } from "@/lib/api/timeline";
+import { STALE_TIME_MS, GC_TIME_MS } from "@/lib/query-client";
+import { formatApiPost } from "@/lib/format-post";
 
 interface ListTimelineProps {
   listId: string;
@@ -23,25 +29,28 @@ export function ListTimeline({ listId }: ListTimelineProps) {
     isFetchingNextPage,
     isLoading,
     isError,
+    isStale,
+    isFetching,
+    dataUpdatedAt,
     refetch,
   } = useInfiniteQuery({
-    queryKey: ["listTimeline", listId],
+    queryKey: queryKeys.listTimeline(listId),
     queryFn: async ({ pageParam }) => {
       const searchParams = new URLSearchParams();
       if (pageParam) searchParams.set("cursor", pageParam);
       searchParams.set("limit", "10");
-
-      const res = await fetch(
+      return fetchJson<TimelinePageResponse>(
         `/api/lists/${listId}/timeline?${searchParams.toString()}`,
       );
-      if (!res.ok) throw new Error("タイムラインの取得に失敗しました");
-      return res.json();
     },
-    initialPageParam: undefined,
+    initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
+    staleTime: STALE_TIME_MS,
+    gcTime: GC_TIME_MS,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 
-  // Supabase Realtime による新着投稿の検知（リスト固有チャンネル）
   const { hasNewPosts, clearNewPosts } = useRealtimeTimeline({
     channelName: `list-timeline-${listId}`,
   });
@@ -49,25 +58,24 @@ export function ListTimeline({ listId }: ListTimelineProps) {
   const handleNewPostsBannerClick = useCallback(async () => {
     clearNewPosts();
     await queryClient.invalidateQueries({
-      queryKey: ["listTimeline", listId],
+      queryKey: queryKeys.listTimeline(listId),
     });
   }, [clearNewPosts, queryClient, listId]);
 
   const posts = useMemo(() => {
     if (!data) return [];
-    return data.pages.flatMap((page) => page.posts);
+    return data.pages.flatMap((page) => page.posts.map(formatApiPost));
   }, [data]);
 
-  // 無限スクロールの設定
   useEffect(() => {
     const entered = inView && !hasEnteredLoadMoreRef.current;
     if (entered && hasNextPage && !isFetchingNextPage) {
-      fetchNextPage();
+      void fetchNextPage();
     }
     hasEnteredLoadMoreRef.current = inView;
   }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  if (isLoading) {
+  if (isLoading && posts.length === 0) {
     return (
       <div className="flex h-[200px] items-center justify-center">
         <LoaderCircle className="size-6 animate-spin text-primary" />
@@ -93,7 +101,6 @@ export function ListTimeline({ listId }: ListTimelineProps) {
 
   return (
     <div>
-      {/* 新着投稿バナー */}
       {hasNewPosts && (
         <div className="sticky top-0 z-30 flex justify-center px-4 py-2">
           <button
@@ -103,6 +110,16 @@ export function ListTimeline({ listId }: ListTimelineProps) {
             ↑ 新しい投稿があります
           </button>
         </div>
+      )}
+
+      {isStale && (
+        <StaleRefreshBanner
+          isStale={isStale}
+          isFetching={isFetching}
+          dataUpdatedAt={dataUpdatedAt}
+          onRefresh={() => void refetch()}
+          label="リストタイムラインを更新"
+        />
       )}
 
       <PostList posts={posts} />

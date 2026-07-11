@@ -18,6 +18,8 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { formatApiPost } from "@/lib/format-post";
+import type { ApiPostRaw } from "@/lib/api/timeline";
 
 export const dynamic = "force-dynamic";
 
@@ -224,11 +226,7 @@ function SearchContent() {
 
       if (searchType === "posts") {
         setPosts(
-          data.posts.map((post: any) => ({
-            ...post,
-            createdAt: new Date(post.createdAt),
-            images: post.images || [],
-          }))
+          (data.posts as ApiPostRaw[]).map((post) => formatApiPost(post)),
         );
         if (data.posts.length === 0) {
           toast.info(

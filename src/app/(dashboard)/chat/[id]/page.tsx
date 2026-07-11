@@ -30,15 +30,6 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  useEffect(() => {
-    if (!session || !routeUserId) return;
-    fetchMessages();
-  }, [session, routeUserId, fetchMessages]);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
   const fetchMessages = useCallback(async () => {
     try {
       const response = await fetch(`/api/chat/${routeUserId}`);
@@ -64,6 +55,15 @@ export default function ChatPage() {
       setIsLoading(false);
     }
   }, [routeUserId]);
+
+  useEffect(() => {
+    if (!session || !routeUserId) return;
+    void fetchMessages();
+  }, [session, routeUserId, fetchMessages]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

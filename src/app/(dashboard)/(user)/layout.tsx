@@ -1,28 +1,42 @@
 "use client";
 
-import { useState, useEffect, ReactNode } from "react";
+import { useEffect, ReactNode } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Navigation } from "@/app/_components/navigation";
 import { User, Users } from "lucide-react";
 import { useSwipeable } from "react-swipeable";
+import { queryKeys } from "@/lib/api/query-keys";
+import { fetchJson } from "@/lib/api/client";
 
 export default function UserLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { data: session } = useSession();
-  const [activeTab, setActiveTab] = useState<"profile" | "list">("profile");
+  const queryClient = useQueryClient();
+  const activeTab =
+    pathname === "/user"
+      ? "list"
+      : session?.user?.id && pathname === `/user/${session.user.id}`
+        ? "profile"
+        : "profile";
 
-  // パスに基づいてアクティブタブを設定
   useEffect(() => {
-    if (pathname === "/user") {
-      setActiveTab("list");
-    } else if (session?.user?.id && pathname === `/user/${session.user.id}`) {
-      setActiveTab("profile");
-    }
-  }, [pathname, session]);
+    if (!session?.user?.id) return;
+    void queryClient.prefetchQuery({
+      queryKey: queryKeys.user(session.user.id),
+      queryFn: () => fetchJson(`/api/users/${session.user.id}`),
+    });
+    void queryClient.prefetchQuery({
+      queryKey: queryKeys.usersList("rate", 1),
+      queryFn: () =>
+        fetchJson(
+          "/api/users?sort=rate&page=1&limit=5&includeFollowStatus=true",
+        ),
+    });
+  }, [session?.user?.id, queryClient]);
 
-  // タブの変更を処理
   const handleTabChange = (value: "profile" | "list") => {
     if (value === "profile") {
       if (session?.user?.id) {
@@ -34,7 +48,6 @@ export default function UserLayout({ children }: { children: ReactNode }) {
     } else if (value === "list") {
       router.push("/user");
     }
-    setActiveTab(value);
   };
 
   // スワイプハンドラーを設定

@@ -227,52 +227,6 @@ export async function GET(req: Request) {
   }
 }
 
-export async function PUT(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
-    }
-
-    const notificationId = (await params).id;
-
-    const notification = await prisma.notification.findUnique({
-      where: { id: notificationId },
-      select: { receiverId: true },
-    });
-
-    if (!notification) {
-      return NextResponse.json(
-        { error: "通知が見つかりません" },
-        { status: 404 },
-      );
-    }
-
-    if (notification.receiverId !== session.user.id) {
-      return NextResponse.json(
-        { error: "この通知を更新する権限がありません" },
-        { status: 403 },
-      );
-    }
-
-    await prisma.notification.update({
-      where: { id: notificationId },
-      data: { isRead: true },
-    });
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("[通知既読更新エラー]:", error);
-    return NextResponse.json(
-      { error: "サーバーエラーが発生しました" },
-      { status: 500 },
-    );
-  }
-}
-
 export async function PATCH(_req: Request) {
   try {
     const session = await getServerSession(authOptions);
