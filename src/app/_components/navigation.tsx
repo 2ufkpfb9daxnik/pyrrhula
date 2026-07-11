@@ -21,7 +21,7 @@ type NavigationProps = {
 export function Navigation({ isMobile = false }: NavigationProps) {
   const router = useRouter();
   const { data: session } = useSession();
-  const { hasUnread, markAsRead, lastNotification } = useNotifications();
+  const { unreadCount, markAsRead, lastNotification } = useNotifications();
 
   const handleProfileClick = () => {
     if (session?.user?.id) {
@@ -106,8 +106,13 @@ export function Navigation({ isMobile = false }: NavigationProps) {
           className="md:w-full"
         >
           <Bell className="size-6" />
-          {hasUnread && (
-            <span className="absolute -right-1 -top-1 size-3 rounded-full bg-red-500" />
+          {unreadCount > 0 && (
+            <span
+              className="absolute -right-1 -top-1 flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white"
+              aria-label={`未読通知 ${unreadCount}件`}
+            >
+              {unreadCount > 99 ? "99+" : unreadCount}
+            </span>
           )}
         </Button>
       </div>

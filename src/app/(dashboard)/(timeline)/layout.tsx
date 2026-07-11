@@ -4,6 +4,7 @@ import { useState, useEffect, ReactNode, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { upsertPostInTimelines } from "@/lib/timeline-cache";
 import { Navigation } from "@/app/_components/navigation";
 import { MakePost } from "@/app/_components/makepost";
 import { Search } from "@/app/_components/search";
@@ -144,7 +145,8 @@ export default function TimelineLayout({ children }: { children: ReactNode }) {
     }
   };
 
-  const handlePostCreated = (_newPost: Post) => {
+  const handlePostCreated = (newPost: Post) => {
+    upsertPostInTimelines(queryClient, newPost);
     toast.success("投稿が作成されました");
   };
 

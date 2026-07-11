@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useCallback, useState } from "react";
 import { useInView } from "react-intersection-observer";
+import { useQueryClient } from "@tanstack/react-query";
 import { LoaderCircle, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Post } from "@/app/_components/post";
@@ -16,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import type { Post as PostType } from "@/app/_types/post";
 import type { FormattedTimelinePost } from "@/lib/api/timeline";
+import { upsertPostInTimelines } from "@/lib/timeline-cache";
 
 interface TimelineFeedViewProps {
   posts: FormattedTimelinePost[];
@@ -54,6 +56,7 @@ export function TimelineFeedView({
   enablePullRefresh = true,
   showMobilePostButton = true,
 }: TimelineFeedViewProps) {
+  const queryClient = useQueryClient();
   const postInputRef = useRef<HTMLTextAreaElement>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const hasEnteredLoadMoreRef = useRef(false);
@@ -160,10 +163,10 @@ export function TimelineFeedView({
 
   const handlePostCreated = useCallback(
     (newPost: PostType) => {
+      upsertPostInTimelines(queryClient, newPost);
       onPostCreated?.(newPost);
-      if (!newPost.id.startsWith("temp-")) onRefresh();
     },
-    [onPostCreated, onRefresh],
+    [queryClient, onPostCreated],
   );
 
   const pullRefreshStyle = {

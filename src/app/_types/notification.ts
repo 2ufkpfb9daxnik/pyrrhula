@@ -66,4 +66,5 @@ export interface NotificationsResponse {
   notifications: Notification[];
   hasMore: boolean;
   nextCursor?: string;
+  unreadCount?: number;
 }

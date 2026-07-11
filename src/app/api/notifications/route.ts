@@ -38,18 +38,18 @@ export async function GET(req: Request) {
       ? Math.min(50, Math.max(1, requestedLimit))
       : 20;
 
-    // 通知を取得
-    const notifications = await prisma.notification.findMany({
-      where: {
-        receiverId: session.user.id,
-      },
-      take: limit + 1,
-      skip: cursor ? 1 : 0,
-      cursor: cursor ? { id: cursor } : undefined,
-      orderBy: {
-        createdAt: "desc",
-      },
-      include: {
+    const [notifications, unreadCount] = await Promise.all([
+      prisma.notification.findMany({
+        where: {
+          receiverId: session.user.id,
+        },
+        take: limit + 1,
+        skip: cursor ? 1 : 0,
+        cursor: cursor ? { id: cursor } : undefined,
+        orderBy: {
+          createdAt: "desc",
+        },
+        include: {
         sender: {
           select: {
             id: true,
@@ -85,7 +85,14 @@ export async function GET(req: Request) {
         },
         Chat: true,
       },
-    });
+      }),
+      prisma.notification.count({
+        where: {
+          receiverId: session.user.id,
+          isRead: false,
+        },
+      }),
+    ]);
 
     // ページネーション処理
     const hasMore = notifications.length > limit;
@@ -214,6 +221,7 @@ export async function GET(req: Request) {
     const response: NotificationsResponse = {
       notifications: formattedNotifications,
       hasMore,
+      unreadCount,
       ...(nextCursor && { nextCursor }),
     };
 
