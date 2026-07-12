@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useIsRestoring } from "@tanstack/react-query";
 import { formatDistanceToNow } from "@/lib/formatDistanceToNow";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,6 @@ import {
   BarChart,
   UserPlus,
   UserMinus,
-  Send,
 } from "lucide-react";
 import { Post as PostComponent } from "@/app/_components/post";
 import { RatingChartSection } from "@/app/_components/RatingChartSection";
@@ -80,6 +79,7 @@ export default function UserProfilePage() {
   const [isFollowLoading, setIsFollowLoading] = useState(false);
   const { data: session } = useSession();
   const router = useRouter();
+  const isRestoring = useIsRestoring();
   const hasEnteredLoadMoreRef = useRef(false);
   const { ref: loadMoreRef, inView: isLoadMoreInView } = useInView({
     rootMargin: "0px 0px",
@@ -88,6 +88,8 @@ export default function UserProfilePage() {
   const {
     data: user,
     isLoading: isUserLoading,
+    isPending: isUserPending,
+    isFetched: isUserFetched,
     refetch: refetchUser,
   } = useUserProfile(userId);
 
@@ -181,7 +183,8 @@ export default function UserProfilePage() {
     }
   };
 
-  if (isUserLoading && !user) {
+  // IndexedDB 復元前や初回 fetch 完了前は、SSR/CSR で分岐がずれないよう同じローディングを出す
+  if (isRestoring || isUserPending || (isUserLoading && !user)) {
     return (
       <div className="flex items-center justify-center py-12">
         <LoaderCircle className="size-20 animate-spin" />
@@ -189,10 +192,18 @@ export default function UserProfilePage() {
     );
   }
 
-  if (!user) {
+  if (!user && isUserFetched) {
     return (
       <div className="rounded-lg border border-gray-800 p-8 text-center">
         ユーザーが見つかりません
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <LoaderCircle className="size-20 animate-spin" />
       </div>
     );
   }
@@ -258,10 +269,6 @@ export default function UserProfilePage() {
                           フォロー
                         </>
                       )}
-                    </Button>
-                    <Button variant="secondary" onClick={() => router.push(`/chat/${user.id}`)}>
-                      <Send className="mr-2 size-4" />
-                      チャット
                     </Button>
                     <Button variant="secondary" onClick={() => router.push(`/followgraph/${user.id}`)}>
                       <BarChart className="mr-2 size-4" />
@@ -332,7 +339,6 @@ export default function UserProfilePage() {
             ["posts", MessageSquare, "投稿"],
             ["reposts", RefreshCw, "拡散"],
             ["favorites", Star, "お気に入り"],
-            ["replies", MessageSquare, "返信"],
           ] as const
         ).map(([tab, Icon, label]) => (
           <Button

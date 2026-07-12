@@ -1,13 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Post } from "@/app/_components/post";
 import { PostDetail } from "@/app/_components/post-detail";
 import { LoaderCircle, ArrowLeft, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
+import { fetchJson } from "@/lib/api/client";
+import { queryKeys } from "@/lib/api/query-keys";
+import { STALE_TIME_MS } from "@/lib/query-client";
+import { findCachedPostForDetail } from "@/lib/post-detail-cache";
 import type { PostDetailResponse } from "@/app/_types/post";
 
 interface SiblingPosts {
@@ -24,53 +29,45 @@ interface SiblingPosts {
 }
 
 export default function PostDetailPage() {
-  const [post, setPost] = useState<PostDetailResponse | null>(null);
-  const [siblings, setSiblings] = useState<SiblingPosts | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const params = useParams<{ id: string }>();
   const postId = params?.id ?? "";
   const router = useRouter();
+  const queryClient = useQueryClient();
+
+  const cachedSeed =
+    postId.length > 0
+      ? findCachedPostForDetail(queryClient, postId)
+      : undefined;
+
+  const {
+    data: post,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: queryKeys.postDetail(postId),
+    queryFn: () => fetchJson<PostDetailResponse>(`/api/posts/${postId}`),
+    enabled: !!postId,
+    staleTime: STALE_TIME_MS,
+    refetchOnMount: true,
+    initialData: cachedSeed,
+    initialDataUpdatedAt: cachedSeed ? Date.now() - STALE_TIME_MS - 1 : undefined,
+  });
+
+  const { data: siblings } = useQuery({
+    queryKey: queryKeys.postSiblings(postId),
+    queryFn: () => fetchJson<SiblingPosts>(`/api/posts/${postId}/siblings`),
+    enabled: !!postId,
+    staleTime: STALE_TIME_MS,
+    refetchOnMount: true,
+  });
 
   useEffect(() => {
-    if (!postId) return;
-    fetchPost();
-    fetchSiblings();
-  }, [postId]);
-
-  const fetchPost = async () => {
-    try {
-      const response = await fetch(`/api/posts/${postId}`);
-      if (!response.ok) {
-        throw new Error("投稿の取得に失敗しました");
-      }
-      const data = await response.json();
-      setPost(data);
-    } catch (error) {
-      console.error("Error fetching post:", error);
+    if (isError && !post) {
       toast.error("投稿の取得に失敗しました");
-    } finally {
-      setIsLoading(false);
     }
-  };
+  }, [isError, post]);
 
-  const fetchSiblings = async () => {
-    try {
-      const response = await fetch(`/api/posts/${postId}/siblings`);
-      if (!response.ok) {
-        throw new Error("前後の投稿の取得に失敗しました");
-      }
-      const data = await response.json();
-      setSiblings(data);
-    } catch (error) {
-      console.error("Error fetching siblings:", error);
-    }
-  };
-
-  const handleSiblingNavigation = (postId: string) => {
-    router.push(`/post/${postId}`);
-  };
-
-  if (isLoading) {
+  if (isLoading && !post) {
     return (
       <div className="flex h-screen items-center justify-center">
         <LoaderCircle className="size-12 animate-spin" />
@@ -95,9 +92,12 @@ export default function PostDetailPage() {
     },
   });
 
+  const handleSiblingNavigation = (id: string) => {
+    router.push(`/post/${id}`);
+  };
+
   return (
     <div className="mx-auto max-w-2xl p-4">
-      {/* ナビゲーションボタン */}
       <div className="mb-4 flex items-center justify-between">
         <Button
           variant="ghost"
@@ -126,7 +126,6 @@ export default function PostDetailPage() {
         </Button>
       </div>
 
-      {/* 親投稿 */}
       {post.parent && (
         <div className="mb-4">
           <Post
@@ -147,12 +146,10 @@ export default function PostDetailPage() {
         </div>
       )}
 
-      {/* メイン投稿 */}
       <div className="mb-4">
         <PostDetail post={convertToPost(post)} />
       </div>
 
-      {/* 統計情報とリンク */}
       <div className="mb-8 flex items-center justify-around rounded-lg border border-gray-800 p-4">
         <Button
           variant="ghost"

@@ -17,4 +17,14 @@ export const queryKeys = {
   followedLists: () => ["lists", "followed"] as const,
   search: (query: string, type: "posts" | "users") =>
     ["search", type, query] as const,
+  postDetail: (postId: string) => ["post", postId, "detail"] as const,
+  postSiblings: (postId: string) => ["post", postId, "siblings"] as const,
+  notificationsList: () => ["notifications", "list"] as const,
+  userFollowers: (userId: string, page: number) =>
+    ["user", userId, "followers", page] as const,
+  userFollowing: (userId: string, page: number) =>
+    ["user", userId, "following", page] as const,
+  followGraph: (userId: string) => ["user", userId, "followgraph"] as const,
+  postFavorites: (postId: string) => ["post", postId, "favorites"] as const,
+  postReposts: (postId: string) => ["post", postId, "reposts"] as const,
 };

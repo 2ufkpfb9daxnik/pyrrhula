@@ -170,22 +170,24 @@ export async function POST(
       });
 
       // 匿名トークンを作成（回答通知を送るため）
-      await prisma.anonymousQuestionToken.create({
+      // relatedPostId は Post への FK なので質問IDは入れず、トークン経由で紐付ける
+      const anonymousToken = await prisma.anonymousQuestionToken.create({
         data: {
           questionId: createdQuestion.id,
           userId: senderId,
         },
       });
 
-      // 質問通知を作成（10文字以内の型名を使用）
+      // 質問通知を作成（送信者は匿名のため senderId を設定しない）
       await prisma.notification.create({
         data: {
           receiverId: targetUserId,
-          senderId: null, // 匿名質問の場合は送信者IDを設定しない
-          type: "anon_q", // 10文字以内に短縮
+          senderId: null,
+          type: "anon_q",
           createdAt: new Date(),
           isRead: false,
-          relatedPostId: createdQuestion.id,
+          relatedPostId: null,
+          anonymousTokenId: anonymousToken.id,
         },
       });
 

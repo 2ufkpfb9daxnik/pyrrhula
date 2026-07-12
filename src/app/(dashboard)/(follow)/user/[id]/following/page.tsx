@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { PowerPagination } from "@/components/ui/power-pagination";
@@ -10,70 +11,49 @@ import { formatDistanceToNow } from "@/lib/formatDistanceToNow";
 import { toast } from "sonner";
 import type { UserFollowersResponse } from "@/app/_types/follow";
 import { LoaderCircle, UserPlus, UserMinus } from "lucide-react";
+import { fetchJson } from "@/lib/api/client";
+import { queryKeys } from "@/lib/api/query-keys";
+import { STALE_TIME_MS } from "@/lib/query-client";
 
 type Following = UserFollowersResponse["followers"][0];
 
+const PAGE_SIZE = 5;
+
 export default function FollowingPage() {
-  const [following, setFollowing] = useState<Following[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [totalFollowing, setTotalFollowing] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [processingFollowIds, setProcessingFollowIds] = useState<Set<string>>(
     new Set(),
   );
 
-  // 1ページあたりのフォロー中ユーザー数
-  const PAGE_SIZE = 5;
-
   const params = useParams<{ id: string }>();
   const routeUserId = params?.id ?? "";
   const router = useRouter();
   const { data: session } = useSession();
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    if (!routeUserId) return;
-    fetchFollowing(currentPage);
-  }, [routeUserId, currentPage]);
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: queryKeys.userFollowing(routeUserId, currentPage),
+    queryFn: () =>
+      fetchJson<UserFollowersResponse & { totalCount?: number }>(
+        `/api/users/${routeUserId}/following?page=${currentPage}&limit=${PAGE_SIZE}`,
+      ),
+    enabled: !!routeUserId,
+    staleTime: STALE_TIME_MS,
+    refetchOnMount: true,
+    placeholderData: keepPreviousData,
+  });
 
-  const fetchFollowing = async (page: number) => {
-    setIsLoading(true);
-    try {
-      const url = `/api/users/${routeUserId}/following?page=${page}&limit=${PAGE_SIZE}`;
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        throw new Error("フォロー中のユーザーの取得に失敗しました");
-      }
-
-      const data = await response.json();
-      setFollowing(data.followers);
-
-      // totalCountを設定
-      if (typeof data.totalCount === "number") {
-        setTotalFollowing(data.totalCount);
-      } else {
-        // APIがtotalCountを返さない場合の推定値
-        const estimatedTotal = Math.max(
-          data.followers.length + (page - 1) * PAGE_SIZE,
-          totalFollowing,
-        );
-        setTotalFollowing(estimatedTotal);
-      }
-    } catch (error) {
-      console.error("Error fetching following:", error);
-      toast.error("フォロー中のユーザーの取得に失敗しました");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const following = data?.followers ?? [];
+  const totalFollowing =
+    typeof data?.totalCount === "number"
+      ? data.totalCount
+      : Math.max(following.length + (currentPage - 1) * PAGE_SIZE, 0);
+  const totalPages = Math.max(1, Math.ceil(totalFollowing / PAGE_SIZE));
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    // ページトップにスクロール
     window.scrollTo(0, 0);
   };
-
-  const totalPages = Math.max(1, Math.ceil(totalFollowing / PAGE_SIZE));
 
   const handleUserClick = (userId: string) => {
     router.push(`/user/${userId}`);
@@ -87,60 +67,59 @@ export default function FollowingPage() {
       toast.error("ログインが必要です");
       return;
     }
-
-    // 既に処理中の場合は何もしない
     if (processingFollowIds.has(userId)) return;
 
-    // 処理中フラグを設定
     setProcessingFollowIds((prev) => new Set(prev).add(userId));
 
     try {
       const method = isCurrentlyFollowing ? "DELETE" : "POST";
       const actionText = isCurrentlyFollowing ? "フォロー解除" : "フォロー";
-
       const response = await fetch(`/api/follow/${userId}/`, {
-        method: method,
+        method,
+        headers: { "Content-Type": "application/json" },
       });
 
       if (!response.ok) {
-        throw new Error(`${actionText}操作に失敗しました`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || `${actionText}に失敗しました`);
       }
 
-      // UI を直接更新してレスポンスを早く見せる
-      setFollowing((prev) =>
-        prev.map((user) =>
-          user.id === userId
-            ? { ...user, isFollowing: !isCurrentlyFollowing }
-            : user,
-        ),
-      );
-
-      // 自分のプロフィールページを見ている場合でフォロー解除したら、
-      // 現在のページを再読み込みして最新情報を取得
-      if (routeUserId === session.user.id && isCurrentlyFollowing) {
-        fetchFollowing(currentPage);
+      if (isCurrentlyFollowing && session.user?.id === routeUserId) {
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.userFollowing(routeUserId, currentPage),
+        });
+      } else {
+        queryClient.setQueryData(
+          queryKeys.userFollowing(routeUserId, currentPage),
+          (
+            old: (UserFollowersResponse & { totalCount?: number }) | undefined,
+          ) => {
+            if (!old) return old;
+            return {
+              ...old,
+              followers: old.followers.map((user) =>
+                user.id === userId
+                  ? { ...user, isFollowing: !isCurrentlyFollowing }
+                  : user,
+              ),
+            };
+          },
+        );
       }
 
       toast.success(`${actionText}しました`);
-    } catch (error) {
-      console.error(
-        `Error ${isCurrentlyFollowing ? "unfollowing" : "following"} user:`,
-        error,
-      );
-      toast.error(
-        `${isCurrentlyFollowing ? "フォロー解除" : "フォロー"}操作に失敗しました`,
-      );
+    } catch {
+      toast.error("操作に失敗しました");
     } finally {
-      // 処理中フラグを解除
       setProcessingFollowIds((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(userId);
-        return newSet;
+        const next = new Set(prev);
+        next.delete(userId);
+        return next;
       });
     }
   };
 
-  if (isLoading && currentPage === 1) {
+  if (isLoading && following.length === 0) {
     return (
       <div className="flex h-64 items-center justify-center">
         <LoaderCircle className="size-12 animate-spin" />
@@ -149,13 +128,9 @@ export default function FollowingPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="mb-6 text-xl font-bold">フォロー中</h1>
-
+    <div className={`space-y-6 ${isFetching ? "opacity-90" : ""}`}>
       {following.length === 0 ? (
-        <p className="text-center text-gray-500">
-          まだ誰もフォローしていません
-        </p>
+        <p className="text-center text-gray-500">まだ誰もフォローしていません</p>
       ) : (
         <>
           <div className="space-y-4">
@@ -233,27 +208,17 @@ export default function FollowingPage() {
             ))}
           </div>
 
-          {/* ページネーション */}
-          {totalPages > 1 && (
-            <div className={isLoading ? "pointer-events-none opacity-50" : ""}>
-              <div className="mb-2 text-center text-sm text-gray-500">
-                {totalFollowing}人中 {(currentPage - 1) * PAGE_SIZE + 1} -{" "}
-                {Math.min(currentPage * PAGE_SIZE, totalFollowing)}人表示
-              </div>
-              <PowerPagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={handlePageChange}
-              />
+          <div>
+            <div className="mb-2 text-center text-sm text-gray-500">
+              {totalFollowing}人中 {(currentPage - 1) * PAGE_SIZE + 1} -{" "}
+              {Math.min(currentPage * PAGE_SIZE, totalFollowing)}人表示
             </div>
-          )}
-
-          {/* ローディング表示 - 最初のページ以外の場合 */}
-          {isLoading && currentPage > 1 && (
-            <div className="flex justify-center py-4">
-              <LoaderCircle className="size-6 animate-spin" />
-            </div>
-          )}
+            <PowerPagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+            />
+          </div>
         </>
       )}
     </div>

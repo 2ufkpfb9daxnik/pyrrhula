@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { LoaderCircle } from "lucide-react";
 import dynamic from "next/dynamic";
+import { fetchJson } from "@/lib/api/client";
+import { queryKeys } from "@/lib/api/query-keys";
+import { STALE_TIME_MS } from "@/lib/query-client";
 
-// コンポーネントのタイプ定義
 interface UserNode {
   id: string;
   username: string;
@@ -16,7 +18,6 @@ interface UserNode {
   children: UserNode[];
 }
 
-// グラフコンポーネントを別ファイルに分離
 const NetworkGraph = dynamic(() => import("@/app/_components/NetworkGraph"), {
   ssr: false,
   loading: () => (
@@ -27,49 +28,27 @@ const NetworkGraph = dynamic(() => import("@/app/_components/NetworkGraph"), {
 });
 
 export default function FollowGraphPage() {
-  const [isLoading, setIsLoading] = useState(true);
-  const [graphData, setGraphData] = useState<UserNode | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const userId = Array.isArray(params?.id) ? params?.id[0] : params?.id;
 
-  useEffect(() => {
-    const fetchGraphData = async () => {
-      if (!userId) {
-        setError("ユーザーIDが見つかりません");
-        setIsLoading(false);
-        return;
-      }
-      try {
-        setIsLoading(true);
-        const response = await fetch(`/api/users/${userId}/followgraph`);
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: queryKeys.followGraph(userId ?? ""),
+    queryFn: async () => {
+      const json = await fetchJson<{ user: UserNode }>(
+        `/api/users/${userId}/followgraph`,
+      );
+      return json.user;
+    },
+    enabled: !!userId,
+    staleTime: STALE_TIME_MS,
+    refetchOnMount: true,
+  });
 
-        if (!response.ok) {
-          throw new Error("フォローグラフの取得に失敗しました");
-        }
-
-        const data = await response.json();
-        setGraphData(data.user);
-      } catch (error) {
-        console.error("Error fetching graph:", error);
-        setError(
-          error instanceof Error
-            ? error.message
-            : "フォローグラフの取得に失敗しました",
-        );
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchGraphData();
-  }, [userId]);
-
-  if (error) {
+  if (!userId) {
     return (
       <div className="flex h-screen flex-col items-center justify-center">
-        <p className="mb-4 text-red-500">エラーが発生しました: {error}</p>
+        <p className="mb-4 text-red-500">エラーが発生しました: ユーザーIDが見つかりません</p>
         <button
           onClick={() => router.back()}
           className="rounded-md bg-blue-600 px-4 py-2 text-white"
@@ -80,7 +59,26 @@ export default function FollowGraphPage() {
     );
   }
 
-  if (isLoading) {
+  if (isError && !data) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center">
+        <p className="mb-4 text-red-500">
+          エラーが発生しました:{" "}
+          {error instanceof Error
+            ? error.message
+            : "フォローグラフの取得に失敗しました"}
+        </p>
+        <button
+          onClick={() => router.back()}
+          className="rounded-md bg-blue-600 px-4 py-2 text-white"
+        >
+          戻る
+        </button>
+      </div>
+    );
+  }
+
+  if (isLoading && !data) {
     return (
       <div className="flex h-screen items-center justify-center">
         <LoaderCircle size={48} className="animate-spin text-gray-500" />
@@ -90,9 +88,9 @@ export default function FollowGraphPage() {
 
   return (
     <div className="h-screen w-full bg-gray-950">
-      {graphData && (
+      {data && (
         <NetworkGraph
-          graphData={graphData}
+          graphData={data}
           onNodeClick={(nodeId) => router.push(`/user/${nodeId}`)}
         />
       )}

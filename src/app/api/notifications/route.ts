@@ -101,14 +101,21 @@ export async function GET(req: Request) {
       ? notifications.slice(0, -1)
       : notifications;
 
-    // 質問通知の処理
-    const questionNotifications = notificationList.filter(
-      (n) => n.type === "anon_q" && n.relatedPostId,
+    // 匿名質問・回答通知: トークン経由（または旧データの relatedPostId）で質問IDを解決
+    const questionLinkedNotifications = notificationList.filter(
+      (n) =>
+        (n.type === "anon_q" || n.type === "answer") &&
+        (n.AnonymousQuestionToken?.questionId ||
+          (n.type === "anon_q" && n.relatedPostId)),
     );
 
-    const questionIds = questionNotifications
-      .map((n) => n.relatedPostId)
-      .filter((id): id is string => id !== null);
+    const questionIds = [
+      ...new Set(
+        questionLinkedNotifications
+          .map((n) => n.AnonymousQuestionToken?.questionId ?? n.relatedPostId)
+          .filter((id): id is string => !!id),
+      ),
+    ];
 
     // 質問データの取得
     let questions: Record<string, QuestionData> = {};
@@ -161,8 +168,11 @@ export async function GET(req: Request) {
         };
 
         // 通知タイプに応じた処理
-        if (notification.type === "anon_q" && notification.relatedPostId) {
-          const questionData = questions[notification.relatedPostId];
+        if (notification.type === "anon_q") {
+          const questionId =
+            notification.AnonymousQuestionToken?.questionId ??
+            notification.relatedPostId;
+          const questionData = questionId ? questions[questionId] : undefined;
           if (questionData) {
             return {
               ...baseNotification,
@@ -170,32 +180,54 @@ export async function GET(req: Request) {
                 id: questionData.id,
                 question: questionData.question,
                 answer: questionData.answer,
-                targetUserId: questionData.targetUserId, // targetUserIdを追加
+                targetUserId: questionData.targetUserId,
               },
             };
           }
-        } else if (
-          notification.type === "answer" &&
-          notification.relatedPostId &&
-          notification.post?.Question?.[0]
-        ) {
-          const questionData = notification.post.Question[0];
-          return {
-            ...baseNotification,
-            question: {
-              id: questionData.id,
-              question: questionData.question,
-              answer: questionData.answer,
-              targetUserId: questionData.targetUserId, // targetUserIdを追加
-              answerer: notification.sender
-                ? {
-                    id: notification.sender.id,
-                    username: notification.sender.username,
-                    icon: notification.sender.icon,
-                  }
-                : undefined,
-            },
-          };
+        } else if (notification.type === "answer") {
+          const questionData = notification.post?.Question?.[0];
+          if (questionData) {
+            return {
+              ...baseNotification,
+              question: {
+                id: questionData.id,
+                question: questionData.question,
+                answer: questionData.answer,
+                targetUserId: questionData.targetUserId,
+                answerer: notification.sender
+                  ? {
+                      id: notification.sender.id,
+                      username: notification.sender.username,
+                      icon: notification.sender.icon,
+                    }
+                  : undefined,
+              },
+            };
+          }
+          // 投稿なし回答でもトークン経由で質問を解決
+          const tokenQuestionId =
+            notification.AnonymousQuestionToken?.questionId;
+          const fromToken = tokenQuestionId
+            ? questions[tokenQuestionId]
+            : undefined;
+          if (fromToken) {
+            return {
+              ...baseNotification,
+              question: {
+                id: fromToken.id,
+                question: fromToken.question,
+                answer: fromToken.answer,
+                targetUserId: fromToken.targetUserId,
+                answerer: notification.sender
+                  ? {
+                      id: notification.sender.id,
+                      username: notification.sender.username,
+                      icon: notification.sender.icon,
+                    }
+                  : undefined,
+              },
+            };
+          }
         } else if (notification.relatedPostId && notification.post) {
           return {
             ...baseNotification,

@@ -99,7 +99,7 @@
 | 区分           | 技術                                                      |
 | -------------- | --------------------------------------------------------- |
 | フロントエンド | Next.js 16, React 18, TypeScript, Tailwind CSS, shadcn/ui |
-| データ取得     | TanStack React Query（localStorage 永続化）               |
+| データ取得     | TanStack React Query（IndexedDB 永続化）                  |
 | 認証           | NextAuth.js（Credentials / JWT）                          |
 | バックエンド   | Next.js API Routes, Prisma                                |
 | データベース   | PostgreSQL（Supabase）                                    |
@@ -174,7 +174,7 @@ graph TB
 
 - **TanStack React Query v5**: メインのデータ取得レイヤー
   - タイムライン（無限スクロール）、ユーザー情報、検索、リスト、通知など
-  - `@tanstack/react-query-persist-client` により **localStorage へキャッシュ永続化**（再訪問時に即時表示）
+  - `@tanstack/react-query-persist-client` + `idb-keyval` により **IndexedDB へキャッシュ永続化**（再訪問時に即時表示。localStorage より容量に余裕あり）
 - **Zustand**: レーティング表示用の軽量ストア（`ratingStore`）
 - **SWR**: グループチャット周りなど、一部レガシー用途で併用
 
@@ -214,6 +214,7 @@ graph TB
 - **Prettier**: コードフォーマット
 - **Vitest**: ユニットテスト（例: `src/lib/rating.test.ts`）
 - **Prisma Migrate / `prisma generate`**: DB スキーマ同期とクライアント生成
+- 初期はclaude sonnet 3.6など、後半はcodex5.3やcomposer2.5などを使用しています。
 
 ## 工夫した点
 

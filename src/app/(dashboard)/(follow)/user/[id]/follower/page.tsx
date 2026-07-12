@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { PowerPagination } from "@/components/ui/power-pagination";
@@ -10,95 +11,49 @@ import { formatDistanceToNow } from "@/lib/formatDistanceToNow";
 import { toast } from "sonner";
 import type { UserFollowersResponse } from "@/app/_types/follow";
 import { LoaderCircle, UserPlus, UserMinus } from "lucide-react";
+import { fetchJson } from "@/lib/api/client";
+import { queryKeys } from "@/lib/api/query-keys";
+import { STALE_TIME_MS } from "@/lib/query-client";
 
 type Follower = UserFollowersResponse["followers"][0];
 
+const PAGE_SIZE = 5;
+
 export default function FollowersPage() {
-  const [followers, setFollowers] = useState<Follower[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [totalFollowers, setTotalFollowers] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [processingFollowIds, setProcessingFollowIds] = useState<Set<string>>(
     new Set(),
   );
 
-  // 1ページあたりのフォロワー数
-  const PAGE_SIZE = 5;
-
   const params = useParams<{ id: string }>();
   const routeUserId = params?.id ?? "";
   const router = useRouter();
   const { data: session } = useSession();
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    if (!routeUserId) return;
-    fetchFollowers(currentPage);
-  }, [routeUserId, currentPage]);
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: queryKeys.userFollowers(routeUserId, currentPage),
+    queryFn: () =>
+      fetchJson<UserFollowersResponse & { totalCount?: number }>(
+        `/api/users/${routeUserId}/followers?page=${currentPage}&limit=${PAGE_SIZE}`,
+      ),
+    enabled: !!routeUserId,
+    staleTime: STALE_TIME_MS,
+    refetchOnMount: true,
+    placeholderData: keepPreviousData,
+  });
 
-  const fetchFollowers = async (page: number) => {
-    setIsLoading(true);
-    try {
-      const response = await fetch(
-        `/api/users/${routeUserId}/followers?page=${page}&limit=${PAGE_SIZE}`,
-      );
-
-      if (!response.ok) {
-        throw new Error("フォロワーの取得に失敗しました");
-      }
-
-      const data = await response.json();
-      setFollowers(data.followers);
-
-      // totalCount が存在すればそれを使用、存在しなければ配列の長さや他の方法で計算
-      if (typeof data.totalCount === "number") {
-        setTotalFollowers(data.totalCount);
-      } else {
-        // API が totalCount を返さない場合、最低でも現在のページ * ページサイズを使用
-        // 最後のページの場合は正確にならないが、少なくとも最低限のページネーションは表示される
-        const estimatedTotal = Math.max(
-          data.followers.length + (page - 1) * PAGE_SIZE,
-          totalFollowers,
-        );
-        setTotalFollowers(estimatedTotal);
-        console.warn(
-          "API did not return totalCount, using estimated value:",
-          estimatedTotal,
-        );
-      }
-
-      // デバッグ情報
-      console.log("API Response:", {
-        followers: data.followers.length,
-        totalCount: data.totalCount,
-        calculatedTotal: totalFollowers,
-        willShowPagination: Math.ceil(data.totalCount / PAGE_SIZE) > 1,
-      });
-    } catch (error) {
-      console.error("Error fetching followers:", error);
-      toast.error("フォロワーの取得に失敗しました");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const followers = data?.followers ?? [];
+  const totalFollowers =
+    typeof data?.totalCount === "number"
+      ? data.totalCount
+      : Math.max(followers.length + (currentPage - 1) * PAGE_SIZE, 0);
+  const totalPages = Math.max(1, Math.ceil(totalFollowers / PAGE_SIZE));
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    // ページトップにスクロール
     window.scrollTo(0, 0);
   };
-
-  // totalPages の計算は useEffect の外で行う
-  const totalPages = Math.max(1, Math.ceil(totalFollowers / PAGE_SIZE));
-
-  // デバッグ用
-  useEffect(() => {
-    console.log("Pagination state:", {
-      totalFollowers,
-      PAGE_SIZE,
-      totalPages,
-      shouldShowPagination: totalPages > 1,
-    });
-  }, [totalFollowers, totalPages]);
 
   const handleUserClick = (userId: string) => {
     router.push(`/user/${userId}`);
@@ -112,62 +67,55 @@ export default function FollowersPage() {
       toast.error("ログインが必要です");
       return;
     }
-
-    // 既に処理中の場合は何もしない
     if (processingFollowIds.has(userId)) return;
 
-    // 処理中フラグを設定
     setProcessingFollowIds((prev) => new Set(prev).add(userId));
 
     try {
-      // フォロー状態に応じてメソッドを選択
       const method = isCurrentlyFollowing ? "DELETE" : "POST";
       const actionText = isCurrentlyFollowing ? "フォロー解除" : "フォロー";
-
       const response = await fetch(`/api/follow/${userId}`, {
-        method: method,
-        headers: {
-          "Content-Type": "application/json",
-        },
+        method,
+        headers: { "Content-Type": "application/json" },
       });
 
-      // HTMLレスポンスが返ってくる場合のエラーハンドリング
       const contentType = response.headers.get("content-type");
-      if (contentType && contentType.includes("text/html")) {
-        throw new Error(
-          "APIエンドポイントが見つかりません。URLを確認してください。",
-        );
+      if (contentType?.includes("text/html")) {
+        throw new Error("APIエンドポイントが見つかりません。");
       }
-
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || `${actionText}に失敗しました`);
       }
 
-      // UIを直接更新
-      setFollowers((prev) =>
-        prev.map((follower) =>
-          follower.id === userId
-            ? { ...follower, isFollowing: !isCurrentlyFollowing }
-            : follower,
-        ),
+      queryClient.setQueryData(
+        queryKeys.userFollowers(routeUserId, currentPage),
+        (old: (UserFollowersResponse & { totalCount?: number }) | undefined) => {
+          if (!old) return old;
+          return {
+            ...old,
+            followers: old.followers.map((follower) =>
+              follower.id === userId
+                ? { ...follower, isFollowing: !isCurrentlyFollowing }
+                : follower,
+            ),
+          };
+        },
       );
 
       toast.success(`${actionText}しました`);
-    } catch (error) {
-      console.error("Error toggling follow:", error);
+    } catch {
       toast.error("操作に失敗しました");
     } finally {
-      // 処理中フラグを解除
       setProcessingFollowIds((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(userId);
-        return newSet;
+        const next = new Set(prev);
+        next.delete(userId);
+        return next;
       });
     }
   };
 
-  if (isLoading && currentPage === 1) {
+  if (isLoading && followers.length === 0) {
     return (
       <div className="flex h-64 items-center justify-center">
         <LoaderCircle className="size-12 animate-spin" />
@@ -176,7 +124,7 @@ export default function FollowersPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 ${isFetching ? "opacity-90" : ""}`}>
       {followers.length === 0 ? (
         <p className="text-center text-gray-500">まだフォロワーがいません</p>
       ) : (
@@ -259,8 +207,7 @@ export default function FollowersPage() {
             ))}
           </div>
 
-          {/* ページネーションを条件に関わらず常に表示（デバッグ用） */}
-          <div className={isLoading ? "pointer-events-none opacity-50" : ""}>
+          <div>
             <div className="mb-2 text-center text-sm text-gray-500">
               {totalFollowers}人中 {(currentPage - 1) * PAGE_SIZE + 1} -{" "}
               {Math.min(currentPage * PAGE_SIZE, totalFollowers)}人表示
@@ -271,13 +218,6 @@ export default function FollowersPage() {
               onPageChange={handlePageChange}
             />
           </div>
-
-          {/* ローディング表示 - 最初のページ以外の場合 */}
-          {isLoading && currentPage > 1 && (
-            <div className="flex justify-center py-4">
-              <LoaderCircle className="size-6 animate-spin" />
-            </div>
-          )}
         </>
       )}
     </div>

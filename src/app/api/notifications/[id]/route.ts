@@ -88,52 +88,83 @@ export async function GET(
     };
 
     // 通知タイプに応じてデータを追加
-    if (notification.type === "anon_q" && notification.relatedPostId) {
-      // 匿名質問の通知
-      const question = await prisma.question.findUnique({
-        where: { id: notification.relatedPostId },
-        select: {
-          id: true,
-          question: true,
-          answer: true,
-        },
-      });
-
-      if (question) {
-        Object.assign(formattedNotification, {
-          question: {
-            id: question.id,
-            question: question.question,
-            answer: question.answer,
-            sender: {
-              id: "anonymous",
-              username: "匿名質問者",
-              icon: null,
-            },
+    if (notification.type === "anon_q") {
+      const questionId =
+        notification.AnonymousQuestionToken?.questionId ??
+        notification.relatedPostId;
+      if (questionId) {
+        const question = await prisma.question.findUnique({
+          where: { id: questionId },
+          select: {
+            id: true,
+            question: true,
+            answer: true,
+            targetUserId: true,
           },
         });
+
+        if (question) {
+          Object.assign(formattedNotification, {
+            question: {
+              id: question.id,
+              question: question.question,
+              answer: question.answer,
+              targetUserId: question.targetUserId,
+              sender: {
+                id: "anonymous",
+                username: "匿名質問者",
+                icon: null,
+              },
+            },
+          });
+        }
       }
-    } else if (
-      notification.type === "answer" &&
-      notification.post?.Question?.[0]
-    ) {
-      // 回答通知の場合
-      const questionData = notification.post.Question[0];
-      Object.assign(formattedNotification, {
-        question: {
-          id: questionData.id,
-          question: questionData.question,
-          answer: questionData.answer,
-          // 回答者の情報は表示
-          answerer: notification.sender
-            ? {
-                id: notification.sender.id,
-                username: notification.sender.username,
-                icon: notification.sender.icon,
-              }
-            : null,
-        },
-      });
+    } else if (notification.type === "answer") {
+      const questionData = notification.post?.Question?.[0];
+      if (questionData) {
+        Object.assign(formattedNotification, {
+          question: {
+            id: questionData.id,
+            question: questionData.question,
+            answer: questionData.answer,
+            targetUserId: questionData.targetUserId,
+            answerer: notification.sender
+              ? {
+                  id: notification.sender.id,
+                  username: notification.sender.username,
+                  icon: notification.sender.icon,
+                }
+              : null,
+          },
+        });
+      } else if (notification.AnonymousQuestionToken?.questionId) {
+        const question = await prisma.question.findUnique({
+          where: { id: notification.AnonymousQuestionToken.questionId },
+          select: {
+            id: true,
+            question: true,
+            answer: true,
+            targetUserId: true,
+          },
+        });
+        if (question) {
+          Object.assign(formattedNotification, {
+            question: {
+              id: question.id,
+              question: question.question,
+              answer: question.answer,
+              targetUserId: question.targetUserId,
+              answerer: notification.sender
+                ? {
+                    id: notification.sender.id,
+                    username: notification.sender.username,
+                    icon: notification.sender.icon,
+                  }
+                : null,
+            },
+          });
+        }
+      }
     } else if (notification.relatedPostId && notification.post) {
       // その他の投稿関連通知
       Object.assign(formattedNotification, {
