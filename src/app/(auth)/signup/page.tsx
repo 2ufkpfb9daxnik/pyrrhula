@@ -5,8 +5,10 @@ import type React from "react";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -18,10 +20,10 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import toast from "react-hot-toast";
-import { Copy } from "lucide-react"; // アイコンを追加
+import { Copy } from "lucide-react";
+import { storeLoginPassword } from "@/lib/password-credentials";
 
-// タイムアウトの時間をトースト表示時間より少し長めに設定
-const REDIRECT_DELAY = 11000; // 11秒
+const ID_TOAST_MS = 8000;
 
 export default function SignupPage() {
   const [username, setUsername] = useState("");
@@ -39,7 +41,6 @@ export default function SignupPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-
     setIsLoading(true);
 
     try {
@@ -53,6 +54,17 @@ export default function SignupPage() {
       if (!response.ok) {
         throw new Error(data.error || "エラーが発生しました");
       }
+
+      const userId = data.id as string;
+
+      // 表示名ではなくログイン用ユーザーIDをブラウザに覚えさせる
+      await storeLoginPassword(userId, password, username);
+
+      const loginResult = await signIn("credentials", {
+        id: userId,
+        password,
+        redirect: false,
+      });
 
       toast.custom(
         (t) => (
@@ -70,35 +82,34 @@ export default function SignupPage() {
                     重要: あなたのユーザーID
                   </p>
                   <button
-                    onClick={() => handleCopyId(data.id)}
+                    type="button"
+                    onClick={() => handleCopyId(userId)}
                     className="mt-1 flex items-center gap-2 rounded-md bg-gray-700 p-2 transition-colors hover:bg-gray-600"
                   >
-                    <p className="font-mono text-lg text-yellow-300">
-                      {data.id}
-                    </p>
+                    <p className="font-mono text-lg text-yellow-300">{userId}</p>
                     <Copy className="size-4 text-gray-400" />
                   </button>
                   <p className="mt-2 text-sm text-gray-300">
-                    このIDはログインに必要です。必ず保存してください。
-                  </p>
-                  <p className="mt-2 text-sm text-gray-400">
-                    {Math.ceil(REDIRECT_DELAY / 1000)}
-                    秒後にログインページに移動します...
+                    ログインにはこのIDが必要です。保存ダイアログが出たら保存してください。
                   </p>
                 </div>
               </div>
             </div>
           </div>
         ),
-        {
-          duration: REDIRECT_DELAY - 1000,
-        },
+        { duration: ID_TOAST_MS },
       );
 
-      // 遅延してからリダイレクト
-      setTimeout(() => {
-        router.push("/login");
-      }, REDIRECT_DELAY);
+      if (loginResult?.ok) {
+        setTimeout(() => {
+          router.push("/whole");
+          router.refresh();
+        }, 1200);
+      } else {
+        setTimeout(() => {
+          router.push("/login");
+        }, ID_TOAST_MS);
+      }
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -114,7 +125,7 @@ export default function SignupPage() {
             新規登録
           </CardTitle>
           <CardDescription className="text-center">
-            パスワードに漢字やひらがなを使うときは一旦パスワードを表示させるようにしてください
+            パスワードは漢字・ひらがななども含められます（8文字以上）。非表示のままでも全角入力できます。
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -123,42 +134,35 @@ export default function SignupPage() {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" autoComplete="on">
             <div className="space-y-2">
-              <Label htmlFor="username">ユーザー名(可変)</Label>
+              <Label htmlFor="username">ユーザー名（表示名・32文字以内）</Label>
               <Input
                 id="username"
+                name="username"
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="鷽"
                 required
-                pattern="^[a-zA-Z0-9_-]{1,32}$"
-                title="Use 1-32 alphanumeric characters, underscore, or hyphen"
+                maxLength={32}
+                autoComplete="nickname"
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">パスワード</Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="8字以上"
-                  required
-                  minLength={8}
-                  inputMode="text"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="absolute right-2 top-1/2 -translate-y-1/2"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? "非表示" : "表示"}
-                </Button>
-              </div>
+              <PasswordInput
+                id="password"
+                name="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="8字以上"
+                required
+                minLength={8}
+                autoComplete="new-password"
+                visible={showPassword}
+                onVisibleChange={setShowPassword}
+              />
             </div>
 
             <div className="rounded-md border border-border p-3 text-sm text-muted-foreground">

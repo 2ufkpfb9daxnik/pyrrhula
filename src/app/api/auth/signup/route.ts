@@ -3,6 +3,10 @@ import prisma from "@/lib/prisma";
 import { hash } from "bcrypt";
 import { NextResponse } from "next/server";
 import { SignupRequest } from "@/app/_types/next-auth";
+import { Prisma } from "@prisma/client";
+
+const USERNAME_MAX = 32;
+const PASSWORD_MIN = 8;
 
 export async function POST(req: Request) {
   /**
@@ -27,20 +31,28 @@ export async function POST(req: Request) {
 
   try {
     const body: Omit<SignupRequest, "id"> = await req.json();
+    const username =
+      typeof body.username === "string" ? body.username.trim() : "";
+    const password = typeof body.password === "string" ? body.password : "";
 
-    // バリデーション
-    if (!body.username || !body.password) {
+    if (!username || !password) {
       return NextResponse.json(
         { error: "全ての項目を入力してください" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    // パスワードの長さチェック
-    if (body.password.length < 8) {
+    if (username.length > USERNAME_MAX) {
       return NextResponse.json(
-        { error: "パスワードは8文字以上にしてください" },
-        { status: 400 }
+        { error: `ユーザー名は${USERNAME_MAX}文字以内にしてください` },
+        { status: 400 },
+      );
+    }
+
+    if (password.length < PASSWORD_MIN) {
+      return NextResponse.json(
+        { error: `パスワードは${PASSWORD_MIN}文字以上にしてください` },
+        { status: 400 },
       );
     }
 
@@ -62,21 +74,17 @@ export async function POST(req: Request) {
     if (attempts >= maxAttempts || !userId) {
       return NextResponse.json(
         { error: "ユーザーIDの生成に失敗しました" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
-    // パスワードのハッシュ化
-    const hashedPassword = await hash(body.password, 10);
-
-    // アイコンの生成（DiceBear Bottts）
+    const hashedPassword = await hash(password, 10);
     const icon = `https://api.dicebear.com/7.x/bottts/svg?seed=${userId}`;
 
-    // ユーザーの作成
     const user = await prisma.user.create({
       data: {
         id: userId,
-        username: body.username,
+        username,
         password: hashedPassword,
         icon,
         isAdmin: false,
@@ -85,13 +93,32 @@ export async function POST(req: Request) {
       },
     });
 
-    // IDのみを返す
     return NextResponse.json({ id: user.id }, { status: 201 });
   } catch (error) {
     console.error("[Signup Error]:", error);
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return NextResponse.json(
+        { error: "そのユーザー名は既に使われています" },
+        { status: 409 },
+      );
+    }
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2000"
+    ) {
+      return NextResponse.json(
+        {
+          error: `入力が長すぎます。ユーザー名は${USERNAME_MAX}文字以内にしてください`,
+        },
+        { status: 400 },
+      );
+    }
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

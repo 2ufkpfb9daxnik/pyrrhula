@@ -25,7 +25,6 @@ export default function ProfileEditPage() {
     icon: "",
   });
 
-  // 現在のプロフィール情報を取得する
   useEffect(() => {
     if (session?.user?.id) {
       fetchUserProfile();
@@ -36,7 +35,7 @@ export default function ProfileEditPage() {
     try {
       setIsDataFetching(true);
       const response = await fetch(
-        `/api/users/${session?.user?.id}?type=profile`
+        `/api/users/${session?.user?.id}?type=profile`,
       );
 
       if (!response.ok) {
@@ -45,7 +44,6 @@ export default function ProfileEditPage() {
 
       const userData = await response.json();
 
-      // 取得したデータで初期化
       const profileData = {
         username: userData.username || "",
         profile: userData.profile || "",
@@ -65,7 +63,6 @@ export default function ProfileEditPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // データに変更がなければ処理をスキップ
     if (JSON.stringify(formData) === JSON.stringify(initialData)) {
       router.push(`/user/${session?.user?.id}`);
       return;
@@ -89,14 +86,13 @@ export default function ProfileEditPage() {
       toast.success("プロフィールを更新しました");
       router.push(`/user/${session?.user?.id}`);
       router.refresh();
-    } catch (error) {
+    } catch {
       toast.error("エラーが発生しました");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // ユーザーデータをロード中の表示
   if (isDataFetching) {
     return (
       <div className="container mx-auto max-w-2xl p-4">
