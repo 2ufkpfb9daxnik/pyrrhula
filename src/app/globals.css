@@ -77,3 +77,19 @@ body {
     background-color: var(--app-bg, #000000);
   }
 }
+
+/* フォローグラフ: vis-network 操作ボタンを下ナビ (h-16) の上へ */
+@media (max-width: 768px) {
+  div.vis-network div.vis-navigation div.vis-button.vis-up,
+  div.vis-network div.vis-navigation div.vis-button.vis-zoomExtends {
+    bottom: calc(50px + 4.5rem) !important;
+  }
+
+  div.vis-network div.vis-navigation div.vis-button.vis-down,
+  div.vis-network div.vis-navigation div.vis-button.vis-left,
+  div.vis-network div.vis-navigation div.vis-button.vis-right,
+  div.vis-network div.vis-navigation div.vis-button.vis-zoomIn,
+  div.vis-network div.vis-navigation div.vis-button.vis-zoomOut {
+    bottom: calc(10px + 4.5rem) !important;
+  }
+}
