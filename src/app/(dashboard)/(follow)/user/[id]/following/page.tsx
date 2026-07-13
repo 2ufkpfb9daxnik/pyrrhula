@@ -176,7 +176,7 @@ export default function FollowingPage() {
                   </div>
                 </div>
                 <div className="mt-2 flex items-center space-x-4 sm:mt-0">
-                  {session?.user?.id !== user.id && (
+                  {session && (
                     <Button
                       variant={user.isFollowing ? "secondary" : "default"}
                       onClick={() =>

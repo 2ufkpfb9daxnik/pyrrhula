@@ -235,51 +235,40 @@ export default function UserProfilePage() {
               <p className="text-sm text-gray-500">@{user.id}</p>
 
               <div className="mt-4 flex flex-wrap gap-2">
-                {session?.user?.id === userId ? (
-                  <>
-                    <Button onClick={() => router.push("/editprofile")} variant="outline">
-                      プロフィールを編集
-                    </Button>
-                    <Button variant="secondary" onClick={() => router.push(`/followgraph/${user.id}`)}>
-                      <BarChart className="mr-2 size-4" />
-                      フォローグラフ
-                    </Button>
-                    <Button variant="secondary" onClick={() => router.push(`/question/${user.id}`)}>
-                      <MessageCircle className="mr-2 size-4" />
-                      質問
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Button
-                      onClick={handleFollow}
-                      disabled={isFollowLoading}
-                      variant={isFollowing ? "outline" : "default"}
-                    >
-                      {isFollowLoading ? (
-                        <LoaderCircle className="mr-2 size-4 animate-spin" />
-                      ) : isFollowing ? (
-                        <>
-                          <UserMinus className="mr-2 size-4" />
-                          フォロー解除
-                        </>
-                      ) : (
-                        <>
-                          <UserPlus className="mr-2 size-4" />
-                          フォロー
-                        </>
-                      )}
-                    </Button>
-                    <Button variant="secondary" onClick={() => router.push(`/followgraph/${user.id}`)}>
-                      <BarChart className="mr-2 size-4" />
-                      フォローグラフ
-                    </Button>
-                    <Button variant="secondary" onClick={() => router.push(`/question/${user.id}`)}>
-                      <MessageCircle className="mr-2 size-4" />
-                      質問
-                    </Button>
-                  </>
+                {session && (
+                  <Button
+                    onClick={handleFollow}
+                    disabled={isFollowLoading}
+                    variant={isFollowing ? "outline" : "default"}
+                  >
+                    {isFollowLoading ? (
+                      <LoaderCircle className="mr-2 size-4 animate-spin" />
+                    ) : isFollowing ? (
+                      <>
+                        <UserMinus className="mr-2 size-4" />
+                        フォロー解除
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus className="mr-2 size-4" />
+                        フォロー
+                      </>
+                    )}
+                  </Button>
                 )}
+                {session?.user?.id === userId && (
+                  <Button onClick={() => router.push("/editprofile")} variant="outline">
+                    プロフィールを編集
+                  </Button>
+                )}
+                <Button variant="secondary" onClick={() => router.push(`/followgraph/${user.id}`)}>
+                  <BarChart className="mr-2 size-4" />
+                  フォローグラフ
+                </Button>
+                <Button variant="secondary" onClick={() => router.push(`/question/${user.id}`)}>
+                  <MessageCircle className="mr-2 size-4" />
+                  質問
+                </Button>
               </div>
 
               {user.profile && (

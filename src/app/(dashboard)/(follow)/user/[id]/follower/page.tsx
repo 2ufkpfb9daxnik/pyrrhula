@@ -172,7 +172,7 @@ export default function FollowersPage() {
                   </div>
                 </div>
                 <div className="mt-2 flex items-center space-x-4 sm:mt-0">
-                  {session?.user?.id !== follower.id && (
+                  {session && (
                     <Button
                       variant={follower.isFollowing ? "secondary" : "default"}
                       onClick={() =>

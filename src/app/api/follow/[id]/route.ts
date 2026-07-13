@@ -16,12 +16,7 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (session.user.id === targetUserId) {
-      return NextResponse.json(
-        { error: "Cannot follow yourself" },
-        { status: 400 },
-      );
-    }
+    const isSelfFollow = session.user.id === targetUserId;
 
     // トランザクションで全ての操作を実行
     const result = await prisma.$transaction(async (prisma) => {
@@ -39,7 +34,7 @@ export async function POST(
         throw new Error("User not found");
       }
 
-      // フォロー作成
+      // フォロー作成（自分自身のフォローも許可）
       const follow = await prisma.follow.create({
         data: {
           followerId: session.user.id,
@@ -47,44 +42,51 @@ export async function POST(
         },
       });
 
-      // 通知作成
-      await prisma.notification.create({
-        data: {
-          type: "fol",
-          senderId: session.user.id,
-          receiverId: targetUserId,
-        },
-      });
-
-      // フォロワー数に基づくレートボーナスを計算
-      const newFollowersCount = targetUser.followersCount + 1;
-      const rateBonus = Math.floor(Math.sqrt(newFollowersCount) * 10);
-      const newRate = targetUser.rate + rateBonus;
-
-      // レート履歴を記録
-      await createRatingHistory(
-        targetUserId,
-        rateBonus,
-        newRate,
-        RATING_REASONS.NEW_FOLLOWER,
-      );
-
-      // フォロワー数、フォロー数、レートを更新
-      await Promise.all([
-        prisma.user.update({
-          where: { id: targetUserId },
+      // 自己フォロー時は通知・レートボーナスなし（カウントのみ +1）
+      if (!isSelfFollow) {
+        await prisma.notification.create({
           data: {
-            followersCount: { increment: 1 },
-            rate: newRate,
+            type: "fol",
+            senderId: session.user.id,
+            receiverId: targetUserId,
           },
-        }),
-        prisma.user.update({
+        });
+
+        const newFollowersCount = targetUser.followersCount + 1;
+        const rateBonus = Math.floor(Math.sqrt(newFollowersCount) * 10);
+        const newRate = targetUser.rate + rateBonus;
+
+        await createRatingHistory(
+          targetUserId,
+          rateBonus,
+          newRate,
+          RATING_REASONS.NEW_FOLLOWER,
+        );
+
+        await Promise.all([
+          prisma.user.update({
+            where: { id: targetUserId },
+            data: {
+              followersCount: { increment: 1 },
+              rate: newRate,
+            },
+          }),
+          prisma.user.update({
+            where: { id: session.user.id },
+            data: {
+              followingCount: { increment: 1 },
+            },
+          }),
+        ]);
+      } else {
+        await prisma.user.update({
           where: { id: session.user.id },
           data: {
+            followersCount: { increment: 1 },
             followingCount: { increment: 1 },
           },
-        }),
-      ]);
+        });
+      }
 
       return follow;
     });
@@ -135,21 +137,31 @@ export async function DELETE(
         },
       });
 
-      // フォロワー数とフォロー数を更新
-      await Promise.all([
-        prisma.user.update({
-          where: { id: targetUserId },
-          data: {
-            followersCount: { decrement: 1 },
-          },
-        }),
-        prisma.user.update({
+      // フォロワー数とフォロー数を更新（自己フォロー解除も両カウント -1）
+      if (session.user.id === targetUserId) {
+        await prisma.user.update({
           where: { id: session.user.id },
           data: {
+            followersCount: { decrement: 1 },
             followingCount: { decrement: 1 },
           },
-        }),
-      ]);
+        });
+      } else {
+        await Promise.all([
+          prisma.user.update({
+            where: { id: targetUserId },
+            data: {
+              followersCount: { decrement: 1 },
+            },
+          }),
+          prisma.user.update({
+            where: { id: session.user.id },
+            data: {
+              followingCount: { decrement: 1 },
+            },
+          }),
+        ]);
+      }
 
       return follow;
     });

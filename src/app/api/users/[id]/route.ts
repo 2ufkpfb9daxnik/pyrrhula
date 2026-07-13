@@ -35,9 +35,9 @@ export async function GET(
         },
       });
 
-      // フォロー状態の確認
+      // フォロー状態の確認（自分自身のフォローも含む）
       let isFollowing = false;
-      if (session?.user && session.user.id !== targetUserId) {
+      if (session?.user) {
         const follow = await prisma.follow.findUnique({
           where: {
             followerId_followedId: {

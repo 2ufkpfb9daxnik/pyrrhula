@@ -72,8 +72,25 @@ export async function GET(req: Request) {
       }),
     );
 
+    // 自分の投稿は「自分をフォローしている場合」のみ含まれる（デフォルトは非フォロー）
     const followingIds = followings.map((f) => f.followedId);
-    followingIds.push(session.user.id);
+
+    if (followingIds.length === 0) {
+      const emptyResponse = NextResponse.json(
+        countOnly && since
+          ? { count: 0, timestamp: new Date() }
+          : {
+              posts: [],
+              hasMore: false,
+            },
+      );
+      timings.push({ name: "total", dur: performance.now() - totalStart });
+      emptyResponse.headers.set(
+        "Server-Timing",
+        buildServerTimingHeader(timings),
+      );
+      return emptyResponse;
+    }
 
     if (countOnly && since) {
       const sinceDate = new Date(since);
