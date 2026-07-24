@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { X } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { Post, ReplyToPost } from "@/app/_types/post";
+import { useComposeHeight } from "@/app/_hooks/useComposeHeight";
 
 const MENTION_PATTERN = /@[\w]+/g;
 const MAX_POST_LENGTH = 500;
@@ -32,6 +33,10 @@ export function MakePost({
   inputRef,
   noBorder = false,
 }: MakePostProps) {
+  const { height: composeHeight } = useComposeHeight();
+  const textareaMinHeight = noBorder
+    ? composeHeight.mobilePx
+    : composeHeight.desktopPx;
   const [content, setContent] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
@@ -201,10 +206,11 @@ export function MakePost({
         onChange={(e) => setContent(e.target.value)}
         onKeyDown={handleKeyDown}
         maxLength={MAX_POST_LENGTH}
+        style={{ minHeight: textareaMinHeight }}
         className={
           noBorder
-            ? "min-h-72 resize-none rounded-none border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
-            : "min-h-24 resize-none border-gray-800 bg-transparent"
+            ? "resize-none rounded-none border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+            : "resize-none border-gray-800 bg-transparent"
         }
       />
       <div className="flex items-center justify-between">
